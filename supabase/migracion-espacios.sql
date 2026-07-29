@@ -49,3 +49,10 @@ alter table lista_actual add column if not exists space text not null default 'm
 alter table lista_actual drop constraint if exists lista_actual_fecha_key;
 alter table lista_actual drop constraint if exists lista_actual_space_fecha_key;
 alter table lista_actual add constraint lista_actual_space_fecha_key unique (space, fecha);
+
+-- 3. Nombre completo de la parroquia ("Nombre — Localidad, Provincia") tal
+-- cual se ve en la app al momento de publicar. Se guarda ya armado en cada
+-- fila (en vez de que la página pública tenga que saber los nombres de
+-- todas las parroquias que existen) — así, si agregás una parroquia nueva
+-- desde la app, la página pública ya la muestra bien sin tocarle el código.
+alter table lista_actual add column if not exists space_name text;

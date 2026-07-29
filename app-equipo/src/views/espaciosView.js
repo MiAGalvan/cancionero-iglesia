@@ -1,0 +1,100 @@
+// Pantalla para agregar, editar o borrar parroquias/capillas (espacios). A
+// diferencia de las carpetas litúrgicas (12 fijas + agregadas), acá no hay
+// ninguna lista fija: todo se puede reorganizar, porque a medida que esto
+// se usa en más lugares (otras ciudades, otras provincias) hace falta poder
+// diferenciarlas claramente por localidad y provincia.
+import { getSpaces, addSpace, updateSpace, deleteSpace, getCurrentSpaceKey } from '../storage/settings.js';
+
+export function renderEspaciosView(container) {
+  container.innerHTML = `
+    <div class="topbar">
+      <a class="btn" href="#/library">← Cancionero</a>
+      <h2>Parroquias y capillas</h2>
+      <span></span>
+    </div>
+    <div class="form-view">
+      <p class="chord-editor-hint">
+        Cada una tiene su propio cancionero, lista de misa, QR y pantalla de
+        proyección, separados del resto — aunque todas comparten esta misma
+        app y el mismo login del equipo.
+      </p>
+      <div class="form-actions">
+        <button type="button" class="btn btn-accent" id="add-space-btn">+ Agregar parroquia o capilla</button>
+      </div>
+      <ul class="song-list" id="spaces-list"></ul>
+    </div>
+  `;
+
+  const listEl = container.querySelector('#spaces-list');
+
+  function render() {
+    const spaces = [...getSpaces()].sort((a, b) => {
+      const byProvince = (a.province || '').localeCompare(b.province || '', 'es');
+      return byProvince !== 0 ? byProvince : a.label.localeCompare(b.label, 'es');
+    });
+    listEl.innerHTML = spaces.map(spaceItemHtml).join('');
+  }
+
+  function spaceItemHtml(space) {
+    const place = [space.locality, space.province].filter(Boolean).join(', ');
+    return `
+      <li class="song-item" data-key="${escapeAttr(space.key)}">
+        <span>
+          ${escapeHtml(space.label)}${space.key === getCurrentSpaceKey() ? ' <span class="category-tag">actual</span>' : ''}
+          <span class="song-artist">${escapeHtml(place || 'Sin localidad/provincia todavía')}</span>
+        </span>
+        <button type="button" class="btn btn-icon" data-edit="${escapeAttr(space.key)}" title="Editar">✏️</button>
+        <button type="button" class="btn btn-danger btn-icon" data-delete="${escapeAttr(space.key)}" title="Eliminar">✕</button>
+      </li>`;
+  }
+
+  container.querySelector('#add-space-btn').addEventListener('click', () => {
+    const label = prompt('Nombre de la parroquia o capilla');
+    if (label === null || !label.trim()) return;
+    const locality = prompt('Localidad (ciudad/pueblo)', '') || '';
+    const province = prompt('Provincia', '') || '';
+    if (addSpace({ label, locality, province })) render();
+  });
+
+  listEl.addEventListener('click', (event) => {
+    const editKey = event.target.dataset.edit;
+    const deleteKey = event.target.dataset.delete;
+
+    if (editKey) {
+      const space = getSpaces().find((s) => s.key === editKey);
+      if (!space) return;
+      const label = prompt('Nombre', space.label);
+      if (label === null || !label.trim()) return;
+      const locality = prompt('Localidad (ciudad/pueblo)', space.locality || '');
+      if (locality === null) return;
+      const province = prompt('Provincia', space.province || '');
+      if (province === null) return;
+      updateSpace(editKey, { label, locality, province });
+      render();
+    } else if (deleteKey) {
+      const space = getSpaces().find((s) => s.key === deleteKey);
+      if (!space) return;
+      const confirmado = confirm(
+        `¿Eliminar "${space.label}"? El cancionero y las listas que ya tenía no se borran, pero dejan de ser accesibles desde acá.`
+      );
+      if (!confirmado) return;
+      if (!deleteSpace(deleteKey)) {
+        alert('No se puede eliminar: tiene que quedar al menos una parroquia o capilla.');
+        return;
+      }
+      render();
+    }
+  });
+
+  render();
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function escapeAttr(text) {
+  return escapeHtml(text).replace(/"/g, '&quot;');
+}

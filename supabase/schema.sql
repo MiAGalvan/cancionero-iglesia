@@ -15,6 +15,7 @@
 create table if not exists lista_actual (
   id bigint generated always as identity primary key,
   space text not null default 'merced',
+  space_name text, -- "Nombre — Localidad, Provincia" tal cual se ve en la app al publicar
   fecha date not null,
   items jsonb not null,
   updated_at timestamptz not null default now(),

@@ -3,7 +3,7 @@
 // dispositivo: acá solo se manda título + letra en texto plano.
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSong } from '../storage/db.js';
-import { getAllCategories } from '../storage/settings.js';
+import { getAllCategories, getSpaceFullLabel } from '../storage/settings.js';
 import { chordProToPlainLyrics } from './textoPlano.js';
 
 // `misa.items` es { [categoria]: songId | null }. Devuelve solo las
@@ -33,7 +33,13 @@ export async function publishMisa(misa) {
   }
   const items = await buildPublishPayload(misa);
   const { error } = await supabase.from('lista_actual').upsert(
-    { space: misa.space, fecha: misa.fecha, items, updated_at: new Date().toISOString() },
+    {
+      space: misa.space,
+      space_name: getSpaceFullLabel(misa.space),
+      fecha: misa.fecha,
+      items,
+      updated_at: new Date().toISOString(),
+    },
     { onConflict: 'space,fecha' }
   );
   if (error) throw error;

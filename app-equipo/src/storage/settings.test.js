@@ -29,10 +29,14 @@ const {
   getHeaderTitle,
   setHeaderTitle,
   DEFAULT_HEADER_TITLE,
-  SPACES,
+  getSpaces,
+  addSpace,
+  updateSpace,
+  deleteSpace,
   getCurrentSpaceKey,
   setCurrentSpaceKey,
   getSpaceLabel,
+  getSpaceFullLabel,
   getStoredTheme,
   setStoredTheme,
   getEffectiveTheme,
@@ -84,14 +88,54 @@ assertEqual(getHeaderTitle(), 'Parroquia San José', 'setHeaderTitle guarda el n
 setHeaderTitle('   ');
 assertEqual(getHeaderTitle(), DEFAULT_HEADER_TITLE, 'un título vacío vuelve al valor por defecto, no lo deja en blanco');
 
-// --- espacios (parroquias) ---
-assertEqual(getCurrentSpaceKey(), SPACES[0].key, 'sin elegir ninguno, el espacio actual es el primero de la lista');
+// --- espacios (parroquias/capillas) ---
+const espaciosDePartida = getSpaces();
+assertEqual(getCurrentSpaceKey(), espaciosDePartida[0].key, 'sin elegir ninguno, el espacio actual es el primero de la lista');
 setCurrentSpaceKey('maria-auxiliadora');
 assertEqual(getCurrentSpaceKey(), 'maria-auxiliadora', 'setCurrentSpaceKey cambia el espacio actual');
 setCurrentSpaceKey('un-espacio-que-no-existe');
 assertEqual(getCurrentSpaceKey(), 'maria-auxiliadora', 'un espacio inválido se ignora, se mantiene el anterior');
 assertEqual(getSpaceLabel('merced'), 'Nuestra Señora de la Merced', 'getSpaceLabel devuelve el nombre para mostrar');
 assertEqual(getSpaceLabel('no-existe'), 'no-existe', 'getSpaceLabel devuelve la key tal cual si no la encuentra');
+assertEqual(
+  getSpaceFullLabel('merced'),
+  'Nuestra Señora de la Merced — Ushuaia, Tierra del Fuego',
+  'getSpaceFullLabel agrega localidad y provincia'
+);
+
+// --- agregar una parroquia/capilla nueva ---
+const nuevaCapilla = addSpace({ label: 'Nuestra Señora del Carmen', locality: 'Tucumán', province: 'Tucumán' });
+assertEqual(nuevaCapilla.key, 'nuestra-senora-del-carmen-tucuman', 'addSpace genera una key sin tildes ni espacios');
+assertEqual(getSpaces().length, espaciosDePartida.length + 1, 'addSpace suma una parroquia a la lista');
+
+// --- no deja agregar con nombre vacío ---
+assertEqual(addSpace({ label: '   ' }), null, 'addSpace con nombre vacío no agrega nada, devuelve null');
+
+// --- dos parroquias con el mismo nombre y localidad no chocan de key ---
+const otraDelCarmen = addSpace({ label: 'Nuestra Señora del Carmen', locality: 'Tucumán', province: 'Tucumán' });
+assertEqual(otraDelCarmen.key, 'nuestra-senora-del-carmen-tucuman-2', 'una key repetida se resuelve agregando un sufijo');
+
+// --- editar no cambia la key ---
+updateSpace(nuevaCapilla.key, { label: 'Nuestra Señora del Carmen (cambiado)', locality: 'San Miguel de Tucumán', province: 'Tucumán' });
+assertEqual(
+  getSpaces().find((s) => s.key === nuevaCapilla.key)?.label,
+  'Nuestra Señora del Carmen (cambiado)',
+  'updateSpace cambia el nombre sin tocar la key'
+);
+
+// --- borrar ---
+deleteSpace(otraDelCarmen.key);
+assertEqual(
+  getSpaces().some((s) => s.key === otraDelCarmen.key),
+  false,
+  'deleteSpace saca la parroquia de la lista'
+);
+
+// --- no deja borrar la última que queda ---
+for (const space of getSpaces().slice(1)) deleteSpace(space.key);
+assertEqual(getSpaces().length, 1, 'se puede borrar hasta dejar una sola');
+assertEqual(deleteSpace(getSpaces()[0].key), false, 'no deja borrar la única parroquia que queda');
+assertEqual(getSpaces().length, 1, 'sigue habiendo una parroquia después de intentar borrar la última');
 
 // --- tema (claro/oscuro) ---
 assertEqual(getStoredTheme(), null, 'sin elegir nada a mano, no hay tema guardado');

@@ -4,7 +4,7 @@
 // esa URL (ver publicarView.js / pagina-publica). Cada espacio (parroquia)
 // tiene su propio QR, porque cada uno tiene su propia lista publicada.
 import QRCode from 'qrcode';
-import { SPACES, getCurrentSpaceKey } from '../storage/settings.js';
+import { getSpaces, getCurrentSpaceKey } from '../storage/settings.js';
 
 // ⚠️ COMPLETAR: la URL fija de la página pública, una vez que esté
 // desplegada (ej. "https://tu-usuario.github.io/cancionero-iglesia/" o la
@@ -38,9 +38,9 @@ export function renderQrView(container) {
         el contenido que el equipo publica, no el QR.
       </p>
       <div class="mode-tabs" id="space-tabs">
-        ${SPACES.map(
+        ${getSpaces().map(
           (space) => `<button type="button" class="mode-tab" data-space-tab="${space.key}">${escapeHtml(
-            space.label
+            space.locality ? `${space.label} (${space.locality})` : space.label
           )}</button>`
         ).join('')}
       </div>

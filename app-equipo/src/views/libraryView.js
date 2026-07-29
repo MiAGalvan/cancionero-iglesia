@@ -17,10 +17,39 @@ import {
   setHeaderTitle,
   getCurrentSpaceKey,
   setCurrentSpaceKey,
-  SPACES,
+  getSpaces,
   getEffectiveTheme,
   setStoredTheme,
 } from '../storage/settings.js';
+
+// Agrupa las opciones del selector por provincia (con <optgroup>), así con
+// varias parroquias en distintos lugares queda claro cuál es cuál de un
+// vistazo, sin tener que abrir "Parroquias y capillas" para acordarse.
+function renderSpaceOptions() {
+  const currentKey = getCurrentSpaceKey();
+  const byProvince = new Map();
+  for (const space of getSpaces()) {
+    const province = space.province || 'Sin provincia';
+    if (!byProvince.has(province)) byProvince.set(province, []);
+    byProvince.get(province).push(space);
+  }
+
+  return Array.from(byProvince.entries())
+    .map(
+      ([province, spaces]) => `
+      <optgroup label="${escapeAttr(province)}">
+        ${spaces
+          .map(
+            (space) => `
+          <option value="${escapeAttr(space.key)}" ${space.key === currentKey ? 'selected' : ''}>
+            ${escapeHtml(space.locality ? `${space.label} (${space.locality})` : space.label)}
+          </option>`
+          )
+          .join('')}
+      </optgroup>`
+    )
+    .join('');
+}
 
 export async function renderLibraryView(container, { category } = {}) {
   if (category) {
@@ -41,13 +70,10 @@ async function renderFoldersView(container) {
         }</button>
       </div>
       <div class="form-actions">
-        <select id="space-switcher" title="Parroquia con la que estás trabajando ahora">
-          ${SPACES.map(
-            (space) => `<option value="${escapeAttr(space.key)}" ${
-              space.key === getCurrentSpaceKey() ? 'selected' : ''
-            }>${escapeHtml(space.label)}</option>`
-          ).join('')}
+        <select id="space-switcher" title="Parroquia o capilla con la que estás trabajando ahora">
+          ${renderSpaceOptions()}
         </select>
+        <a class="btn btn-icon" href="#/espacios" title="Agregar o editar parroquias y capillas">⚙️</a>
         <span id="auth-status"></span>
         <button class="btn btn-icon" id="sync-btn" title="Sincronizar cancionero con el resto del equipo">🔄</button>
         <a class="btn" href="#/lista-publicada" title="Ver la lista publicada, sin login">👀 Ver publicada</a>

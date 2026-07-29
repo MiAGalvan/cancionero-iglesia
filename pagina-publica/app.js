@@ -14,9 +14,13 @@ const SUPABASE_ANON_KEY =
 const REFRESH_MS = 45000; // cada cuánto se refresca sola, por si publican un cambio de último momento
 
 // Cada parroquia tiene su propio QR, que apunta a esta misma página con
-// ?space=algo en la URL (ver app-equipo/src/views/qrView.js). Sin ese
-// parámetro, mostramos la primera de la lista como valor por defecto.
-const SPACE_LABELS = {
+// ?space=algo en la URL (ver app-equipo/src/views/qrView.js). El nombre
+// para mostrar ("Nombre — Localidad, Provincia") viaja ya armado en cada
+// fila publicada (columna space_name) — así, si se agrega una parroquia
+// nueva desde la app, esta página la muestra bien sin que haga falta
+// tocarle el código. Este mapa es solo para el caso de "todavía no se
+// publicó nada" (no hay ninguna fila de la que sacar el nombre).
+const SPACE_LABELS_DE_ARRANQUE = {
   merced: 'Nuestra Señora de la Merced',
   'maria-auxiliadora': 'María Auxiliadora',
   general: 'General (misas conjuntas)',
@@ -36,7 +40,7 @@ async function cargarYMostrar() {
 
   const { data, error } = await supabase
     .from('lista_actual')
-    .select('fecha, items')
+    .select('fecha, items, space_name')
     .eq('space', space)
     .order('fecha', { ascending: false })
     .limit(1);
@@ -49,7 +53,7 @@ async function cargarYMostrar() {
 
   if (!data || data.length === 0) {
     app.innerHTML = `<p class="empty">Todavía no se publicó ninguna lista para ${escapeHtml(
-      SPACE_LABELS[space] || space
+      SPACE_LABELS_DE_ARRANQUE[space] || space
     )}.</p>`;
     return;
   }
@@ -57,10 +61,10 @@ async function cargarYMostrar() {
   render(data[0]);
 }
 
-function render({ fecha, items }) {
+function render({ fecha, items, space_name }) {
   app.innerHTML = `
     <h1>Cantos de la misa</h1>
-    <p class="parroquia">${escapeHtml(SPACE_LABELS[space] || space)}</p>
+    <p class="parroquia">${escapeHtml(space_name || SPACE_LABELS_DE_ARRANQUE[space] || space)}</p>
     <p class="fecha">${formatFecha(fecha)}</p>
     ${items
       .map(

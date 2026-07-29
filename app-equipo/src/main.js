@@ -3,7 +3,7 @@
 // #/song/new, #/song/new/:categoria, #/song/:id, #/song/:id/edit,
 // #/login (opcional ?returnTo=/ruta/de/vuelta),
 // #/misa/nueva, #/misa/:fecha, #/publicar/:fecha, #/qr,
-// #/lista-publicada, #/proyeccion
+// #/lista-publicada, #/proyeccion, #/espacios
 import './styles.css';
 import { renderLibraryView } from './views/libraryView.js';
 import { renderNewSongView } from './views/newSongView.js';
@@ -14,6 +14,7 @@ import { renderPublicarView } from './views/publicarView.js';
 import { renderQrView } from './views/qrView.js';
 import { renderListaPublicadaView } from './views/listaPublicadaView.js';
 import { renderProyeccionView } from './views/proyeccionView.js';
+import { renderEspaciosView } from './views/espaciosView.js';
 
 const app = document.getElementById('app');
 
@@ -44,6 +45,8 @@ function router() {
     renderListaPublicadaView(app);
   } else if (parts[0] === 'proyeccion') {
     renderProyeccionView(app);
+  } else if (parts[0] === 'espacios') {
+    renderEspaciosView(app);
   } else if (parts[0] === 'library' && parts[1]) {
     renderLibraryView(app, { category: parts[1] });
   } else {

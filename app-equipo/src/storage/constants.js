@@ -23,15 +23,9 @@ export const CATEGORIES = [
   'SALIDA',
 ];
 
-// Cada parroquia (y las misas conjuntas) tiene su propio cancionero, su
-// propia lista interna, su propio QR y su propia pantalla de proyección —
-// todo separado, aunque conviven en la misma app y el mismo login del
-// equipo. `key` es el identificador técnico (se usa en la base de datos y
-// en la URL de la página pública); `label` es lo que se ve en pantalla.
-export const SPACES = [
-  { key: 'merced', label: 'Nuestra Señora de la Merced' },
-  { key: 'maria-auxiliadora', label: 'María Auxiliadora' },
-  { key: 'general', label: 'General (misas conjuntas)' },
-];
-
-export const DEFAULT_SPACE_KEY = SPACES[0].key;
+// La lista de parroquias/capillas (espacios) es editable desde la app — ver
+// storage/settings.js, que es donde vive de verdad (con nombre, localidad y
+// provincia de cada una). Acá solo queda la key de la que se usa como
+// espacio por defecto en migraciones de datos viejos, un simple string sin
+// necesidad de la lista completa.
+export const DEFAULT_SPACE_KEY = 'merced';
