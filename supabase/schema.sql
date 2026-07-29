@@ -1,12 +1,39 @@
--- Cancionero Iglesia: tabla pública "lista_actual".
+-- Cancionero Iglesia: esquema completo (instalación nueva desde cero).
 -- Correr esto una sola vez en el SQL Editor de tu proyecto Supabase
 -- (Dashboard → SQL Editor → New query → pegar todo → Run).
 --
--- ⚠️ Si ya habías corrido una versión anterior de este archivo (antes de
--- que existiera el concepto de "espacio"/parroquia), NO vuelvas a pegar
--- este archivo entero — corré en cambio migracion-espacios.sql, pensado
--- para actualizar sin romper nada de lo que ya corriste.
---
+-- ⚠️ Si ya tenías el proyecto armado de antes (con lista_actual y/o songs
+-- ya creadas), NO vuelvas a pegar este archivo entero — corré en cambio,
+-- en este orden, migracion-espacios.sql y después migracion-permisos.sql,
+-- pensados para actualizar sin romper nada de lo que ya corriste.
+
+-- --- team_members: quién puede tocar qué parroquia -------------------
+-- Cada persona del equipo (una vez que ya tiene su usuario en
+-- Authentication → Users) necesita además una fila acá para poder leer o
+-- escribir el cancionero/lista de cualquier parroquia — sin esta fila, no
+-- puede tocar nada (ver supabase/SETUP.md). `is_admin = true` da acceso a
+-- TODAS las parroquias (para vos, como responsable de todo el sistema);
+-- si no es admin, solo puede tocar las que estén en `spaces`.
+create table if not exists team_members (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  is_admin boolean not null default false,
+  spaces text[] not null default '{}'
+);
+
+alter table team_members enable row level security;
+
+create policy "cada uno ve su propia fila"
+  on team_members
+  for select
+  to authenticated
+  using (user_id = auth.uid());
+
+-- No hay política de insert/update/delete para "authenticated" a
+-- propósito: esta tabla solo se administra vos, desde el Table Editor o el
+-- SQL Editor del dashboard (que usan tu acceso de dueño del proyecto, no
+-- pasan por estas políticas).
+
+-- --- lista_actual: tabla pública, sin acordes -------------------------
 -- Guarda una fila por parroquia (espacio) + fecha de misa. La página
 -- pública siempre pide la más reciente de esa parroquia (order by fecha
 -- desc limit 1), así que no hace falta borrar nada: las fechas viejas
@@ -29,39 +56,57 @@ create table if not exists lista_actual (
 alter table lista_actual enable row level security;
 
 -- Lectura: cualquiera puede leer, con o sin login (así funciona la página
--- del QR, que nunca inicia sesión).
+-- del QR, que nunca inicia sesión). Esta política no cambia con los
+-- permisos por parroquia — la lista publicada siempre es pública para
+-- cualquiera que la mire, lo que se restringe es quién puede ESCRIBIRLA.
 create policy "lectura publica"
   on lista_actual
   for select
   to anon, authenticated
   using (true);
 
--- Escritura: SOLO con sesión de Supabase Auth iniciada (rol "authenticated").
--- Esto es lo que de verdad protege la tabla: no importa qué intente hacer
--- alguien desde las herramientas del navegador en la página pública, el
--- rechazo pasa en el servidor de Supabase, no en el frontend.
-create policy "escritura solo equipo"
+-- Escritura: solo alguien logueado que en team_members sea admin, o que
+-- tenga esta parroquia en su lista de `spaces`. El rechazo pasa siempre en
+-- el servidor de Supabase, no importa qué se intente desde el navegador.
+create policy "escritura solo equipo autorizado"
   on lista_actual
   for insert
   to authenticated
-  with check (true);
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or lista_actual.space = any(tm.spaces))
+    )
+  );
 
-create policy "actualizacion solo equipo"
+create policy "actualizacion solo equipo autorizado"
   on lista_actual
   for update
   to authenticated
-  using (true)
-  with check (true);
+  using (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or lista_actual.space = any(tm.spaces))
+    )
+  )
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or lista_actual.space = any(tm.spaces))
+    )
+  );
 
--- Cancionero Iglesia: tabla privada "songs".
+-- --- songs: tabla privada, cancionero completo con acordes ------------
 -- A diferencia de `lista_actual` (pública, sin acordes), esta tabla guarda
 -- el cancionero COMPLETO con acordes incluidos, para que se pueda
--- sincronizar entre las tablets/celulares del equipo (ej. alguien agrega
--- una canción desde su celu en el ensayo, y aparece en la tablet la
--- próxima vez que sincronice). Por eso acá NO hay ninguna política para el
--- rol "anon": sin una política que lo autorice explícitamente, RLS le
--- niega todo por default — ni lectura ni escritura. Solo el equipo
--- logueado puede ver y tocar esta tabla.
+-- sincronizar entre las tablets/celulares del equipo. No hay ninguna
+-- política para el rol "anon": sin una política que lo autorice
+-- explícitamente, RLS le niega todo por default — ni lectura ni escritura.
+-- Solo alguien logueado Y autorizado en team_members para esa parroquia
+-- puede ver o tocar sus canciones.
 
 create table if not exists songs (
   uuid text primary key,
@@ -76,21 +121,45 @@ create table if not exists songs (
 
 alter table songs enable row level security;
 
-create policy "equipo lee el cancionero"
+create policy "equipo autorizado lee el cancionero"
   on songs
   for select
   to authenticated
-  using (true);
+  using (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or songs.space = any(tm.spaces))
+    )
+  );
 
-create policy "equipo agrega canciones"
+create policy "equipo autorizado agrega canciones"
   on songs
   for insert
   to authenticated
-  with check (true);
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or songs.space = any(tm.spaces))
+    )
+  );
 
-create policy "equipo actualiza canciones"
+create policy "equipo autorizado actualiza canciones"
   on songs
   for update
   to authenticated
-  using (true)
-  with check (true);
+  using (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or songs.space = any(tm.spaces))
+    )
+  )
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or songs.space = any(tm.spaces))
+    )
+  );

@@ -12,25 +12,33 @@ Tres partes conectadas por Supabase:
 - **`supabase/`** — el SQL y las instrucciones para configurar la base de
   datos compartida entre las dos partes (ver [`supabase/SETUP.md`](./supabase/SETUP.md)).
 
-## Espacios (parroquias)
+## Espacios (parroquias y capillas)
 
 Todo — cancionero, listas de misa, lista publicada, QR y pantalla de
-proyección — está separado por "espacio": cada parroquia tiene el suyo
-propio, independiente de las demás, aunque comparten la misma app y el
-mismo login del equipo. Hoy son tres (ver `app-equipo/src/storage/constants.js`):
+proyección — está separado por "espacio": cada parroquia o capilla tiene el
+suyo propio, independiente de las demás. Se agregan, editan (nombre,
+localidad, provincia) o borran desde **⚙️** en la biblioteca — pensado para
+usarse en varias ciudades/provincias a la vez, no solo en una. Se cambia de
+espacio con el selector de la barra superior, agrupado por provincia.
 
-- Nuestra Señora de la Merced
-- María Auxiliadora
-- General (para misas conjuntas)
+## Permisos por parroquia (team_members)
 
-Se cambia de espacio con el selector de la barra superior de la biblioteca.
+Por defecto cualquier usuario logueado puede publicar/sincronizar
+cualquier parroquia. Si vas a tener equipos de lugares distintos que no se
+conocen entre sí, seguí el paso 8 de `SETUP.md` para restringir esto: una
+tabla `team_members` en Supabase dice qué parroquia(s) puede tocar cada
+usuario (`is_admin: true` = todas, para el responsable general del
+sistema). Es una restricción real del lado del servidor (RLS), no solo un
+botón oculto en la app.
 
 ## Orden para poner todo en marcha
 
 1. **Supabase**: seguir [`supabase/SETUP.md`](./supabase/SETUP.md) — crear las
-   tablas, las políticas de seguridad, y un usuario para el equipo. Si el
-   proyecto de Supabase ya estaba armado antes de que existieran los
-   "espacios", correr además `supabase/migracion-espacios.sql` (paso 7 de `SETUP.md`).
+   tablas, las políticas de seguridad, un usuario por persona del equipo, y
+   quién puede tocar qué parroquia (`team_members`, paso 8). Si el proyecto
+   de Supabase ya estaba armado de antes, correr además
+   `supabase/migracion-espacios.sql` y `supabase/migracion-permisos.sql`
+   (pasos 7 y 8 de `SETUP.md`).
 2. **App del equipo** (`app-equipo/`):
    ```bash
    cd app-equipo

@@ -170,6 +170,8 @@ async function renderFoldersView(container) {
           ? 'Iniciá sesión para sincronizar el cancionero con el resto del equipo.'
           : result.reason === 'not-configured'
           ? 'Falta configurar Supabase.'
+          : result.reason === 'not-authorized'
+          ? 'Tu usuario no tiene permiso para sincronizar esta parroquia.'
           : 'No se pudo sincronizar (revisá la conexión).';
     }
   }

@@ -25,15 +25,27 @@ Esto crea dos tablas:
     leerla alguien sin loguearse — a propósito, porque acá sí viajan los
     acordes, que no son para que los vea cualquiera que escanee el QR.
 
-## 2. Crear un usuario para el equipo
+## 2. Crear un usuario para el equipo, y decir qué parroquia puede tocar
+
+Cada persona necesita DOS cosas: una cuenta de login (acá abajo), y una fila
+en `team_members` que diga qué parroquia(s) puede tocar (paso 8). Sin la
+segunda parte, puede iniciar sesión pero no va a poder publicar ni
+sincronizar nada — es la protección real, no solo un botón oculto.
 
 1. Menú lateral → **Authentication** → **Users** → **Add user** → **Create new user**.
-2. Cargá un email y una contraseña (puede ser una cuenta compartida del
-   equipo, o una por integrante — a gusto).
+2. Cargá un email y una contraseña. Si varias parroquias van a usar el mismo
+   proyecto de Supabase (ver más abajo, "varias parroquias"), cada persona
+   necesita un email distinto — si todas usan tu mismo email, podés armar
+   variantes con "+" que igual te llegan a tu bandeja: `tuemail+merced@gmail.com`,
+   `tuemail+tucuman@gmail.com`, etc. (esto funciona en Gmail; en otros
+   proveedores de email puede que no).
 3. Marcá **Auto Confirm User** para que quede activo al toque, sin tener que
    confirmar por email.
+4. Copiá el **User UID** que le quedó asignado (se ve en la lista de Users,
+   es un código largo tipo `a1b2c3d4-...`) — lo vas a necesitar en el paso 8.
 
-Repetí este paso por cada persona del equipo que quieras que pueda publicar.
+Repetí esto por cada persona del equipo que quieras que pueda publicar o
+sincronizar, en cualquier parroquia.
 
 ## 3. Copiar la URL y la clave pública (anon key)
 
@@ -109,3 +121,44 @@ puede cortar la ejecución antes de llegar a lo nuevo. En su lugar:
 Esto agrega la columna `space` a las dos tablas (todo lo que ya tenías
 cargado queda asignado a `merced` por defecto) y ajusta la lista publicada
 para que sea única por parroquia + fecha, no solo por fecha.
+
+## 8. Restringir quién puede tocar cada parroquia (team_members)
+
+Por defecto, cualquier usuario logueado puede publicar/sincronizar
+CUALQUIER parroquia. Si vas a tener equipos de distintos lugares que no se
+conocen entre sí (ej. Ushuaia y Tucumán), conviene restringir esto: cada
+uno solo toca lo suyo, y vos (como responsable de todo) tenés acceso a
+todas.
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-permisos.sql`](./migracion-permisos.sql) y tocá **Run**.
+
+Esto crea la tabla `team_members` y cambia las políticas de `songs` y
+`lista_actual` para que chequeen esa tabla en vez de dejar pasar a
+cualquier usuario logueado. **Importante:** apenas corras esto, NADIE va a
+poder publicar ni sincronizar (ni siquiera vos) hasta que sigas el paso
+siguiente.
+
+**Cargar el equipo en `team_members`** (esto se hace siempre, tanto si
+instalaste todo de cero con `schema.sql` como si acabás de correr la
+migración):
+
+1. Menú lateral → **Table Editor** → elegí la tabla **team_members**.
+2. Botón **Insert** → **Insert row**.
+3. `user_id`: pegá el User UID que copiaste en el paso 2 para esa persona.
+4. Para vos (acceso a todo): marcá `is_admin` en `true`, dejá `spaces` vacío.
+5. Para alguien de una sola parroquia: dejá `is_admin` en `false`, y en
+   `spaces` cargá un array con la key de esa parroquia, ej. `{merced}` o
+   `{merced,maria-auxiliadora}` si puede tocar más de una. La key es el
+   identificador técnico que se ve en la app: **Parroquias y capillas** →
+   tocá ✏️ en la que te interesa, o mirá la URL del QR de esa parroquia
+   (`?space=...`).
+6. Guardá. Repetí una fila por persona.
+
+**Probar que la restricción es real:** logueate en la app con un usuario
+que solo tenga, por ejemplo, `{tucuman}` en `spaces`, cambiá el selector de
+parroquia a una de Ushuaia, y confirmá que "Sincronizar" o "Publicar" fallan
+(mensaje de "no se pudo..."). Esa es la prueba de que el rechazo pasa en el
+servidor, no en la pantalla.

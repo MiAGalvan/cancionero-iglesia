@@ -138,6 +138,10 @@ export async function syncNow() {
 
     return { synced: true, pulled, pushed };
   } catch (error) {
-    return { synced: false, reason: 'error', error };
+    // Código 42501 = "violates row-level security policy": no es un
+    // problema de conexión, es que este usuario no tiene permiso para
+    // tocar esta parroquia en particular (ver supabase/SETUP.md, paso 8).
+    const reason = error?.code === '42501' ? 'not-authorized' : 'error';
+    return { synced: false, reason, error };
   }
 }

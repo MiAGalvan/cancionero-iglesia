@@ -89,6 +89,8 @@ export async function renderPublicarView(container, { fecha }) {
       statusEl.textContent =
         err.message === 'Failed to fetch'
           ? 'No hay conexión ahora. La lista queda guardada en el dispositivo — podés reintentar publicar más tarde.'
+          : err.code === '42501'
+          ? 'Tu usuario no tiene permiso para publicar en esta parroquia.'
           : `No se pudo publicar: ${err.message}`;
       statusEl.hidden = false;
     } finally {
