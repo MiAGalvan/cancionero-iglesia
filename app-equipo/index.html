@@ -6,8 +6,25 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#1c1712" />
+    <meta name="theme-color" content="#0f2220" />
     <title>Cancionero Iglesia</title>
+    <!-- Elegimos el tema (claro/oscuro) ANTES de cargar el CSS, para que la
+         página no "parpadee" mostrando un tema y cambiando al otro medio
+         segundo después. Va en HTML a propósito (no en main.js): un script
+         module tarda más en arrancar que uno normal, y para entonces ya se
+         pintó el primer cuadro con el tema equivocado. -->
+    <script>
+      (function () {
+        var saved = localStorage.getItem('cancionero-iglesia:theme');
+        var theme =
+          saved === 'light' || saved === 'dark'
+            ? saved
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>

@@ -14,6 +14,13 @@ globalThis.localStorage = (() => {
   };
 })();
 
+// Tampoco hay `window.matchMedia` en Node: lo simulamos con un valor que
+// podemos cambiar a mano en el test de "seguir el tema del sistema".
+let prefiereOscuroDelSistema = false;
+globalThis.window = {
+  matchMedia: () => ({ matches: prefiereOscuroDelSistema }),
+};
+
 const {
   getAllCategories,
   isCustomCategory,
@@ -26,6 +33,9 @@ const {
   getCurrentSpaceKey,
   setCurrentSpaceKey,
   getSpaceLabel,
+  getStoredTheme,
+  setStoredTheme,
+  getEffectiveTheme,
 } = await import('./settings.js');
 const { CATEGORIES } = await import('./constants.js');
 
@@ -82,6 +92,18 @@ setCurrentSpaceKey('un-espacio-que-no-existe');
 assertEqual(getCurrentSpaceKey(), 'maria-auxiliadora', 'un espacio inválido se ignora, se mantiene el anterior');
 assertEqual(getSpaceLabel('merced'), 'Nuestra Señora de la Merced', 'getSpaceLabel devuelve el nombre para mostrar');
 assertEqual(getSpaceLabel('no-existe'), 'no-existe', 'getSpaceLabel devuelve la key tal cual si no la encuentra');
+
+// --- tema (claro/oscuro) ---
+assertEqual(getStoredTheme(), null, 'sin elegir nada a mano, no hay tema guardado');
+assertEqual(getEffectiveTheme(), 'light', 'sin elección y sin preferencia del sistema, el efectivo es claro');
+prefiereOscuroDelSistema = true;
+assertEqual(getEffectiveTheme(), 'dark', 'sin elección pero con el sistema en oscuro, el efectivo sigue al sistema');
+setStoredTheme('light');
+assertEqual(getEffectiveTheme(), 'light', 'una elección a mano gana por encima de la preferencia del sistema');
+assertEqual(getStoredTheme(), 'light', 'getStoredTheme refleja la elección explícita');
+setStoredTheme(null);
+assertEqual(getStoredTheme(), null, 'volver a "seguir el sistema" borra la elección guardada');
+prefiereOscuroDelSistema = false;
 
 if (failures === 0) {
   console.log('\nTodos los tests pasaron');

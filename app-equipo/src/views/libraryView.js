@@ -18,6 +18,8 @@ import {
   getCurrentSpaceKey,
   setCurrentSpaceKey,
   SPACES,
+  getEffectiveTheme,
+  setStoredTheme,
 } from '../storage/settings.js';
 
 export async function renderLibraryView(container, { category } = {}) {
@@ -34,6 +36,9 @@ async function renderFoldersView(container) {
       <div class="header-title-row">
         <h1 id="header-title">${escapeHtml(getHeaderTitle())}</h1>
         <button class="btn btn-icon" id="edit-title-btn" title="Cambiar título">✏️</button>
+        <button class="btn btn-icon" id="theme-toggle-btn" title="Cambiar entre pantalla clara y oscura">${
+          getEffectiveTheme() === 'dark' ? '☀️' : '🌙'
+        }</button>
       </div>
       <div class="form-actions">
         <select id="space-switcher" title="Parroquia con la que estás trabajando ahora">
@@ -62,6 +67,13 @@ async function renderFoldersView(container) {
   container.querySelector('#space-switcher').addEventListener('change', (event) => {
     setCurrentSpaceKey(event.target.value);
     renderFoldersView(container);
+  });
+
+  container.querySelector('#theme-toggle-btn').addEventListener('click', () => {
+    const nuevoTema = getEffectiveTheme() === 'dark' ? 'light' : 'dark';
+    setStoredTheme(nuevoTema);
+    document.documentElement.dataset.theme = nuevoTema;
+    container.querySelector('#theme-toggle-btn').textContent = nuevoTema === 'dark' ? '☀️' : '🌙';
   });
 
   container.querySelector('#edit-title-btn').addEventListener('click', () => {

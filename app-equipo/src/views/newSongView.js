@@ -14,6 +14,7 @@
 // no un <select> de una sola opción.
 import { pastedTextToChordPro } from '../parser/chordProParser.js';
 import { renderChordEditor } from '../editor/chordEditorWidget.js';
+import { recognizeTextFromImage } from '../ocr/ocrText.js';
 import { saveSong, updateSong, getSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
 import { getAllCategories, getCurrentSpaceKey } from '../storage/settings.js';
@@ -57,7 +58,7 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
       </div>
 
       <div class="mode-tabs">
-        <button type="button" class="mode-tab" data-mode-tab="paste">Pegar de la web</button>
+        <button type="button" class="mode-tab" data-mode-tab="paste">Pegar o foto</button>
         <button type="button" class="mode-tab" data-mode-tab="write">Escribir y poner acordes</button>
       </div>
       <div id="mode-content"></div>
@@ -86,8 +87,18 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
   function renderModeContent() {
     if (mode === 'paste') {
       modeContentEl.innerHTML = `
+        <div class="ocr-field">
+          <label>
+            📷 O convertí una foto de un papel (necesita internet la primera vez que se usa)
+            <input type="file" accept="image/*" capture="environment" id="photo-input" />
+          </label>
+          <div class="form-actions">
+            <button type="button" class="btn" id="ocr-btn" disabled>Reconocer texto de la foto</button>
+          </div>
+          <div id="ocr-status" class="warning-box" hidden></div>
+        </div>
         <label>
-          Pegá acá la letra con acordes (tal cual la copiaste de la web)
+          Pegá acá la letra con acordes (tal cual la copiaste de la web, o el texto de una foto)
           <textarea id="paste-input" rows="10" placeholder="Am          E7&#10;Perdón, oh Dios, perdón e indulgencia..."></textarea>
         </label>
         <div class="form-actions">
@@ -98,6 +109,39 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
         const pasteInput = modeContentEl.querySelector('#paste-input');
         if (!pasteInput.value.trim()) return;
         chordproInput.value = pastedTextToChordPro(pasteInput.value);
+      });
+
+      const photoInput = modeContentEl.querySelector('#photo-input');
+      const ocrBtn = modeContentEl.querySelector('#ocr-btn');
+      const ocrStatus = modeContentEl.querySelector('#ocr-status');
+
+      photoInput.addEventListener('change', () => {
+        ocrBtn.disabled = !photoInput.files.length;
+      });
+
+      ocrBtn.addEventListener('click', async () => {
+        const file = photoInput.files[0];
+        if (!file) return;
+        ocrBtn.disabled = true;
+        ocrStatus.hidden = false;
+        ocrStatus.textContent = 'Leyendo la imagen... puede tardar un rato, sobre todo la primera vez.';
+        try {
+          const text = await recognizeTextFromImage(file, {
+            onProgress: (m) => {
+              if (m.status === 'recognizing text') {
+                ocrStatus.textContent = `Leyendo la imagen... ${Math.round((m.progress || 0) * 100)}%`;
+              }
+            },
+          });
+          modeContentEl.querySelector('#paste-input').value = text;
+          ocrStatus.textContent =
+            '✓ Listo. El reconocimiento no es perfecto — revisá el texto de abajo y corregilo antes de convertir a ChordPro.';
+        } catch (err) {
+          console.error(err);
+          ocrStatus.textContent = 'No se pudo leer la imagen. Probá con otra foto, con más luz o más nítida.';
+        } finally {
+          ocrBtn.disabled = false;
+        }
       });
     } else {
       renderChordEditor(modeContentEl, {

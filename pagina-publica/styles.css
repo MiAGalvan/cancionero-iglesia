@@ -1,11 +1,27 @@
 /* Pensado para leerse rápido desde el banco de la iglesia, en el celular:
-   tipografía grande, alto contraste, sin nada para tocar ni configurar. */
+   tipografía grande, alto contraste, sin nada para tocar ni configurar.
+   Paleta verde azulado pastel, igual que la app del equipo. Acá no hay
+   botón para elegir tema (es una página de un solo vistazo, no vale la
+   pena la complicación): sigue el tema del celular directo con
+   prefers-color-scheme. */
 :root {
-  --bg: #fdfaf4;
-  --text: #2a2118;
-  --text-dim: #6b5c47;
-  --accent: #8a5a2b;
-  --border: #e4d9c4;
+  --bg: #f2faf8;
+  --text: #163330;
+  --text-dim: #5c7d78;
+  --accent: #2f8a7a;
+  --border: #d3e8e3;
+  --error: #b6473c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f2220;
+    --text: #eaf6f2;
+    --text-dim: #9fbdb6;
+    --accent: #7fd8c4;
+    --border: #274944;
+    --error: #e2897f;
+  }
 }
 
 * {
@@ -88,5 +104,5 @@ h1 {
 }
 
 .error {
-  color: #a33;
+  color: var(--error);
 }

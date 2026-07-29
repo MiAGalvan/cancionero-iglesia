@@ -9,10 +9,33 @@ import { CATEGORIES, SPACES } from './constants.js';
 const CUSTOM_CATEGORIES_KEY = 'cancionero-iglesia:custom-categories';
 const HEADER_TITLE_KEY = 'cancionero-iglesia:header-title';
 const CURRENT_SPACE_KEY = 'cancionero-iglesia:current-space';
+// Ojo: esta misma clave está repetida "a mano" en index.html, en un script
+// que corre antes de que este archivo exista (para elegir el tema sin que
+// se vea un parpadeo al cargar la página) — si la cambiás acá, cambiala ahí también.
+const THEME_KEY = 'cancionero-iglesia:theme';
 
 export const DEFAULT_HEADER_TITLE = 'Cancionero';
 
 export { SPACES };
+
+// null = "seguir el tema del sistema operativo/navegador", no una elección
+// explícita. Solo 'light' o 'dark' cuenta como elegido a mano.
+export function getStoredTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  return saved === 'light' || saved === 'dark' ? saved : null;
+}
+
+export function setStoredTheme(theme) {
+  if (theme === 'light' || theme === 'dark') {
+    localStorage.setItem(THEME_KEY, theme);
+  } else {
+    localStorage.removeItem(THEME_KEY);
+  }
+}
+
+export function getEffectiveTheme() {
+  return getStoredTheme() || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+}
 
 export function getCurrentSpaceKey() {
   const saved = localStorage.getItem(CURRENT_SPACE_KEY);
