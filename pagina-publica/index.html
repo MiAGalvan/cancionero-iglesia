@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cantos de hoy</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Página de solo lectura: no hay ningún formulario ni botón de edición.
+         No inicia sesión en ningún momento, así que aunque alguien intentara
+         forzar una escritura desde la consola del navegador, Supabase la
+         rechaza del lado del servidor (ver /supabase/schema.sql). -->
+    <main id="app">
+      <p class="loading">Cargando...</p>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
