@@ -32,8 +32,9 @@ export async function publishMisa(misa) {
     throw new Error('Falta configurar Supabase en src/storage/supabaseClient.js');
   }
   const items = await buildPublishPayload(misa);
-  const { error } = await supabase
-    .from('lista_actual')
-    .upsert({ fecha: misa.fecha, items, updated_at: new Date().toISOString() }, { onConflict: 'fecha' });
+  const { error } = await supabase.from('lista_actual').upsert(
+    { space: misa.space, fecha: misa.fecha, items, updated_at: new Date().toISOString() },
+    { onConflict: 'space,fecha' }
+  );
   if (error) throw error;
 }

@@ -15,6 +15,9 @@ import {
   deleteCustomCategory,
   getHeaderTitle,
   setHeaderTitle,
+  getCurrentSpaceKey,
+  setCurrentSpaceKey,
+  SPACES,
 } from '../storage/settings.js';
 
 export async function renderLibraryView(container, { category } = {}) {
@@ -33,8 +36,17 @@ async function renderFoldersView(container) {
         <button class="btn btn-icon" id="edit-title-btn" title="Cambiar título">✏️</button>
       </div>
       <div class="form-actions">
+        <select id="space-switcher" title="Parroquia con la que estás trabajando ahora">
+          ${SPACES.map(
+            (space) => `<option value="${escapeAttr(space.key)}" ${
+              space.key === getCurrentSpaceKey() ? 'selected' : ''
+            }>${escapeHtml(space.label)}</option>`
+          ).join('')}
+        </select>
         <span id="auth-status"></span>
         <button class="btn btn-icon" id="sync-btn" title="Sincronizar cancionero con el resto del equipo">🔄</button>
+        <a class="btn" href="#/lista-publicada" title="Ver la lista publicada, sin login">👀 Ver publicada</a>
+        <a class="btn" href="#/proyeccion" title="Pantalla grande para HDMI/proyector">🖥 Proyección</a>
         <a class="btn" href="#/misa/nueva" title="Armar lista de misa">📋 Lista de misa</a>
         <button class="btn" id="new-folder-btn">+ Nueva carpeta</button>
         <a class="btn btn-accent" href="#/song/new">+ Nueva canción</a>
@@ -46,6 +58,11 @@ async function renderFoldersView(container) {
     </div>
     <div id="library-content"></div>
   `;
+
+  container.querySelector('#space-switcher').addEventListener('change', (event) => {
+    setCurrentSpaceKey(event.target.value);
+    renderFoldersView(container);
+  });
 
   container.querySelector('#edit-title-btn').addEventListener('click', () => {
     const nuevoTitulo = prompt('Título de la biblioteca', getHeaderTitle());
@@ -149,7 +166,7 @@ async function renderFoldersView(container) {
     const query = searchInput.value.trim();
     try {
       if (!query) {
-        const songs = await getAllSongs();
+        const songs = await getAllSongs(getCurrentSpaceKey());
         const counts = {};
         for (const song of songs) {
           for (const cat of song.categories) counts[cat] = (counts[cat] || 0) + 1;
@@ -178,7 +195,7 @@ async function renderFoldersView(container) {
         return;
       }
 
-      const songs = await searchSongs(query);
+      const songs = await searchSongs(query, getCurrentSpaceKey());
       contentEl.innerHTML = songSearchResultsHtml(songs);
     } catch (err) {
       console.error('No se pudo cargar el cancionero:', err);
@@ -219,7 +236,7 @@ async function renderCategoryView(container, category) {
   });
 
   async function refresh(query = '') {
-    const songs = await getSongsByCategory(category);
+    const songs = await getSongsByCategory(category, getCurrentSpaceKey());
     const needle = query.trim().toLowerCase();
     const filtered = needle
       ? songs.filter(

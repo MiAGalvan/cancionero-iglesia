@@ -7,9 +7,10 @@ import { getMisa } from '../storage/db.js';
 import { buildPublishPayload, publishMisa } from '../liturgia/publicar.js';
 import { getSession } from '../storage/auth.js';
 import { isSupabaseConfigured } from '../storage/supabaseClient.js';
+import { getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
 
 export async function renderPublicarView(container, { fecha }) {
-  const misa = await getMisa(fecha);
+  const misa = await getMisa(getCurrentSpaceKey(), fecha);
 
   if (!misa) {
     container.innerHTML = `
@@ -29,7 +30,7 @@ export async function renderPublicarView(container, { fecha }) {
   container.innerHTML = `
     <div class="topbar">
       <a class="btn" href="#/misa/${fecha}">← Lista de misa</a>
-      <h2>Publicar — ${formatFecha(fecha)}</h2>
+      <h2>Publicar — ${formatFecha(fecha)} — ${escapeHtml(getSpaceLabel(getCurrentSpaceKey()))}</h2>
       <span></span>
     </div>
     <div class="form-view publicar-view">

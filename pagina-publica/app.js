@@ -13,6 +13,16 @@ const SUPABASE_ANON_KEY =
 
 const REFRESH_MS = 45000; // cada cuánto se refresca sola, por si publican un cambio de último momento
 
+// Cada parroquia tiene su propio QR, que apunta a esta misma página con
+// ?space=algo en la URL (ver app-equipo/src/views/qrView.js). Sin ese
+// parámetro, mostramos la primera de la lista como valor por defecto.
+const SPACE_LABELS = {
+  merced: 'Nuestra Señora de la Merced',
+  'maria-auxiliadora': 'María Auxiliadora',
+  general: 'General (misas conjuntas)',
+};
+const space = new URLSearchParams(window.location.search).get('space') || 'merced';
+
 const app = document.getElementById('app');
 
 const isConfigured = !SUPABASE_URL.includes('TU-PROYECTO') && !SUPABASE_ANON_KEY.includes('TU-ANON-KEY');
@@ -27,6 +37,7 @@ async function cargarYMostrar() {
   const { data, error } = await supabase
     .from('lista_actual')
     .select('fecha, items')
+    .eq('space', space)
     .order('fecha', { ascending: false })
     .limit(1);
 
@@ -37,7 +48,9 @@ async function cargarYMostrar() {
   }
 
   if (!data || data.length === 0) {
-    app.innerHTML = `<p class="empty">Todavía no se publicó ninguna lista.</p>`;
+    app.innerHTML = `<p class="empty">Todavía no se publicó ninguna lista para ${escapeHtml(
+      SPACE_LABELS[space] || space
+    )}.</p>`;
     return;
   }
 
@@ -47,6 +60,7 @@ async function cargarYMostrar() {
 function render({ fecha, items }) {
   app.innerHTML = `
     <h1>Cantos de la misa</h1>
+    <p class="parroquia">${escapeHtml(SPACE_LABELS[space] || space)}</p>
     <p class="fecha">${formatFecha(fecha)}</p>
     ${items
       .map(

@@ -1,14 +1,32 @@
 // Configuración simple que el equipo puede cambiar desde la app: carpetas
-// (categorías) extra además de las 12 litúrgicas fijas, y el título que se
-// muestra arriba del todo en la biblioteca. Se guarda en localStorage (no
-// hace falta IndexedDB para esto: son un par de valores chiquitos, no el
-// cancionero entero), así que también funciona 100% sin conexión.
-import { CATEGORIES } from './db.js';
+// (categorías) extra además de las 12 litúrgicas fijas, el título que se
+// muestra arriba del todo en la biblioteca, y en qué "espacio" (parroquia)
+// se está trabajando ahora mismo. Se guarda en localStorage (no hace falta
+// IndexedDB para esto: son valores chiquitos, no el cancionero entero), así
+// que también funciona 100% sin conexión.
+import { CATEGORIES, SPACES } from './constants.js';
 
 const CUSTOM_CATEGORIES_KEY = 'cancionero-iglesia:custom-categories';
 const HEADER_TITLE_KEY = 'cancionero-iglesia:header-title';
+const CURRENT_SPACE_KEY = 'cancionero-iglesia:current-space';
 
 export const DEFAULT_HEADER_TITLE = 'Cancionero';
+
+export { SPACES };
+
+export function getCurrentSpaceKey() {
+  const saved = localStorage.getItem(CURRENT_SPACE_KEY);
+  return SPACES.some((space) => space.key === saved) ? saved : SPACES[0].key;
+}
+
+export function setCurrentSpaceKey(key) {
+  if (!SPACES.some((space) => space.key === key)) return;
+  localStorage.setItem(CURRENT_SPACE_KEY, key);
+}
+
+export function getSpaceLabel(key) {
+  return SPACES.find((space) => space.key === key)?.label || key;
+}
 
 export function getCustomCategories() {
   try {

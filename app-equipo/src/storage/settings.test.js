@@ -22,8 +22,12 @@ const {
   getHeaderTitle,
   setHeaderTitle,
   DEFAULT_HEADER_TITLE,
+  SPACES,
+  getCurrentSpaceKey,
+  setCurrentSpaceKey,
+  getSpaceLabel,
 } = await import('./settings.js');
-const { CATEGORIES } = await import('./db.js');
+const { CATEGORIES } = await import('./constants.js');
 
 let failures = 0;
 
@@ -69,6 +73,15 @@ setHeaderTitle('Parroquia San José');
 assertEqual(getHeaderTitle(), 'Parroquia San José', 'setHeaderTitle guarda el nuevo título');
 setHeaderTitle('   ');
 assertEqual(getHeaderTitle(), DEFAULT_HEADER_TITLE, 'un título vacío vuelve al valor por defecto, no lo deja en blanco');
+
+// --- espacios (parroquias) ---
+assertEqual(getCurrentSpaceKey(), SPACES[0].key, 'sin elegir ninguno, el espacio actual es el primero de la lista');
+setCurrentSpaceKey('maria-auxiliadora');
+assertEqual(getCurrentSpaceKey(), 'maria-auxiliadora', 'setCurrentSpaceKey cambia el espacio actual');
+setCurrentSpaceKey('un-espacio-que-no-existe');
+assertEqual(getCurrentSpaceKey(), 'maria-auxiliadora', 'un espacio inválido se ignora, se mantiene el anterior');
+assertEqual(getSpaceLabel('merced'), 'Nuestra Señora de la Merced', 'getSpaceLabel devuelve el nombre para mostrar');
+assertEqual(getSpaceLabel('no-existe'), 'no-existe', 'getSpaceLabel devuelve la key tal cual si no la encuentra');
 
 if (failures === 0) {
   console.log('\nTodos los tests pasaron');

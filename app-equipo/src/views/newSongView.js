@@ -16,7 +16,7 @@ import { pastedTextToChordPro } from '../parser/chordProParser.js';
 import { renderChordEditor } from '../editor/chordEditorWidget.js';
 import { saveSong, updateSong, getSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
-import { getAllCategories } from '../storage/settings.js';
+import { getAllCategories, getCurrentSpaceKey } from '../storage/settings.js';
 
 export async function renderNewSongView(container, { editId, presetCategory } = {}) {
   const existing = editId ? await getSong(Number(editId)) : null;
@@ -139,7 +139,7 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
 
     const saved = existing
       ? await updateSong(existing.id, { title, artist, categories, chordpro })
-      : await saveSong({ title, artist, categories, chordpro });
+      : await saveSong({ title, artist, categories, chordpro, space: getCurrentSpaceKey() });
 
     window.location.hash = `#/song/${saved.id}`;
     // En segundo plano, sin bloquear la navegación: si hay sesión y

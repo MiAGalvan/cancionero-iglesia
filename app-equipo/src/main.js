@@ -2,7 +2,8 @@
 // Rutas: #/library (default), #/library/:categoria,
 // #/song/new, #/song/new/:categoria, #/song/:id, #/song/:id/edit,
 // #/login (opcional ?returnTo=/ruta/de/vuelta),
-// #/misa/nueva, #/misa/:fecha, #/publicar/:fecha, #/qr
+// #/misa/nueva, #/misa/:fecha, #/publicar/:fecha, #/qr,
+// #/lista-publicada, #/proyeccion
 import './styles.css';
 import { renderLibraryView } from './views/libraryView.js';
 import { renderNewSongView } from './views/newSongView.js';
@@ -11,6 +12,8 @@ import { renderLoginView } from './views/loginView.js';
 import { renderMisaListView } from './views/misaListView.js';
 import { renderPublicarView } from './views/publicarView.js';
 import { renderQrView } from './views/qrView.js';
+import { renderListaPublicadaView } from './views/listaPublicadaView.js';
+import { renderProyeccionView } from './views/proyeccionView.js';
 
 const app = document.getElementById('app');
 
@@ -37,6 +40,10 @@ function router() {
     renderPublicarView(app, { fecha: parts[1] });
   } else if (parts[0] === 'qr') {
     renderQrView(app);
+  } else if (parts[0] === 'lista-publicada') {
+    renderListaPublicadaView(app);
+  } else if (parts[0] === 'proyeccion') {
+    renderProyeccionView(app);
   } else if (parts[0] === 'library' && parts[1]) {
     renderLibraryView(app, { category: parts[1] });
   } else {

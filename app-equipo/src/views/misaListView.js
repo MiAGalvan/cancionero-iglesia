@@ -4,7 +4,7 @@
 // "Entrada de la Palabra". Se guarda en IndexedDB, 100% offline; publicarla
 // a la nube es un paso aparte (ver publicarView.js).
 import { getSongsByCategory, getMisa, saveMisa, getAllMisas } from '../storage/db.js';
-import { getAllCategories } from '../storage/settings.js';
+import { getAllCategories, getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -13,18 +13,19 @@ function todayIso() {
 export async function renderMisaListView(container, { fecha } = {}) {
   const selectedFecha = fecha || todayIso();
   const categories = getAllCategories();
+  const space = getCurrentSpaceKey();
 
   const [existing, songsByCategory, allMisas] = await Promise.all([
-    getMisa(selectedFecha),
-    Promise.all(categories.map((cat) => getSongsByCategory(cat))),
-    getAllMisas(),
+    getMisa(space, selectedFecha),
+    Promise.all(categories.map((cat) => getSongsByCategory(cat, space))),
+    getAllMisas(space),
   ]);
   const items = existing ? existing.items : {};
 
   container.innerHTML = `
     <div class="topbar">
       <a class="btn" href="#/library">← Cancionero</a>
-      <h2>Lista de misa</h2>
+      <h2>Lista de misa — ${escapeHtml(getSpaceLabel(space))}</h2>
       <a class="btn" href="#/qr">Ver QR</a>
     </div>
     <div class="form-view misa-view">
@@ -57,7 +58,7 @@ export async function renderMisaListView(container, { fecha } = {}) {
       const select = container.querySelector(`select[data-category="${cssEscape(cat)}"]`);
       newItems[cat] = select.value ? Number(select.value) : null;
     }
-    await saveMisa(fechaInput.value, newItems);
+    await saveMisa(space, fechaInput.value, newItems);
     // Re-renderizamos la misma pantalla en vez de solo cambiar el hash, para
     // que "Misas guardadas" se actualice ya mismo aunque la fecha no haya
     // cambiado (un cambio de hash a la misma ruta no dispara el router).

@@ -16,6 +16,7 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 import { getAllSongs, getSongByUuid, applyRemoteSong, deleteSongByUuid } from './db.js';
 import { getSession } from './auth.js';
+import { getCurrentSpaceKey } from './settings.js';
 
 const PENDING_DELETES_KEY = 'cancionero-iglesia:pending-deletes';
 
@@ -70,6 +71,8 @@ export async function syncNow() {
   const session = await getSession();
   if (!session) return { synced: false, reason: 'not-logged-in' };
 
+  const space = getCurrentSpaceKey();
+
   try {
     // 1. Primero, los borrados pendientes de este dispositivo (por si se
     // borró algo estando sin conexión): así no "resucitan" por accidente
@@ -80,9 +83,14 @@ export async function syncNow() {
     }
     if (pending.length) setPendingDeletes([]);
 
-    // 2. Bajar todo lo que hay en la nube y aplicar lo que sea más nuevo
-    // que la copia local (o que todavía no existe localmente).
-    const { data: remoteSongs, error: fetchError } = await supabase.from('songs').select('*');
+    // 2. Bajar todo lo que hay en la nube PARA ESTE ESPACIO (parroquia) y
+    // aplicar lo que sea más nuevo que la copia local (o que todavía no
+    // existe localmente). El cancionero de cada parroquia es independiente
+    // del de las demás, así que nunca se mezclan acá.
+    const { data: remoteSongs, error: fetchError } = await supabase
+      .from('songs')
+      .select('*')
+      .eq('space', space);
     if (fetchError) throw fetchError;
 
     let pulled = 0;
@@ -99,11 +107,11 @@ export async function syncNow() {
       pulled += 1;
     }
 
-    // 3. Subir lo local que sea más nuevo que lo que hay en la nube (o que
-    // todavía no existe en la nube) — típicamente, lo que se acaba de crear
-    // o editar en este dispositivo.
+    // 3. Subir lo local de este espacio que sea más nuevo que lo que hay en
+    // la nube (o que todavía no existe en la nube) — típicamente, lo que
+    // se acaba de crear o editar en este dispositivo.
     const remoteByUuid = new Map(remoteSongs.map((song) => [song.uuid, song]));
-    const localSongs = await getAllSongs();
+    const localSongs = await getAllSongs(space);
 
     let pushed = 0;
     for (const song of localSongs) {
@@ -114,6 +122,7 @@ export async function syncNow() {
       const { error } = await supabase.from('songs').upsert(
         {
           uuid: song.uuid,
+          space: song.space,
           title: song.title,
           artist: song.artist,
           categories: song.categories,

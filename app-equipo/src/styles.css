@@ -807,3 +807,145 @@ a {
 .login-back:hover {
   color: var(--accent);
 }
+
+/* --- Selector de parroquia (espacio), en la barra superior --- */
+#space-switcher {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 11px 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* --- Ver lista publicada --- */
+.lista-publicada {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.publicada-cancion {
+  border-top: 1px solid var(--border);
+  padding: 18px 0;
+}
+
+.publicada-cancion:first-child {
+  border-top: none;
+}
+
+.publicada-categoria {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.publicada-titulo {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+}
+
+.publicada-letra {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+/* --- Modo proyección: pantalla para HDMI/proyector --- */
+.proyeccion-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #000;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 6vh 6vw;
+  gap: 2vh;
+}
+
+.proyeccion-categoria {
+  font-size: 1.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.proyeccion-titulo {
+  font-size: 2.6rem;
+  font-weight: 700;
+}
+
+.proyeccion-letra {
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1.5;
+  white-space: pre-line;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.proyeccion-nav {
+  position: fixed;
+  bottom: 3vh;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  opacity: 0.55;
+}
+
+.proyeccion-nav:hover {
+  opacity: 1;
+}
+
+.proyeccion-nav-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  font-size: 1.8rem;
+  padding: 8px 24px;
+  cursor: pointer;
+}
+
+.proyeccion-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.proyeccion-contador {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+
+.proyeccion-exit {
+  position: fixed;
+  top: 3vh;
+  right: 3vw;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  font-size: 1.2rem;
+  padding: 8px 14px;
+  cursor: pointer;
+  opacity: 0.4;
+}
+
+.proyeccion-exit:hover {
+  opacity: 1;
+}
+
+.proyeccion-start-btn {
+  font-size: 1.1rem;
+  padding: 14px 24px;
+}

@@ -1,15 +1,19 @@
-// Pantalla para generar el QR de la página pública, UNA sola vez: se imprime
-// o se muestra pegado en algún lugar de la iglesia y no vuelve a cambiar —
-// lo que cambia es el contenido publicado detrás de esa URL (ver
-// publicarView.js / pagina-publica).
+// Pantalla para generar el QR de la página pública, UNA sola vez por
+// parroquia: se imprime o se muestra pegado en algún lugar de la iglesia y
+// no vuelve a cambiar — lo que cambia es el contenido publicado detrás de
+// esa URL (ver publicarView.js / pagina-publica). Cada espacio (parroquia)
+// tiene su propio QR, porque cada uno tiene su propia lista publicada.
 import QRCode from 'qrcode';
+import { SPACES, getCurrentSpaceKey } from '../storage/settings.js';
 
 // ⚠️ COMPLETAR: la URL fija de la página pública, una vez que esté
-// desplegada en GitHub Pages (ej. "https://tu-usuario.github.io/cancionero-iglesia/").
+// desplegada (ej. "https://tu-usuario.github.io/cancionero-iglesia/" o la
+// URL de Netlify que le hayas puesto a pagina-publica).
 const PUBLIC_URL = 'https://TU-USUARIO.github.io/cancionero-iglesia/';
 
 export function renderQrView(container) {
   const isConfigured = !PUBLIC_URL.includes('TU-USUARIO');
+  let selectedSpace = getCurrentSpaceKey();
 
   container.innerHTML = `
     <div class="topbar">
@@ -24,25 +28,52 @@ export function renderQrView(container) {
           : `<div class="warning-box">
               Falta poner la URL definitiva de la página pública en
               <code>src/views/qrView.js</code> (constante <code>PUBLIC_URL</code>),
-              una vez que esté publicada en GitHub Pages.
+              una vez que esté publicada.
             </div>`
       }
       <p>
-        Este QR se imprime o se pega en algún lugar visible <strong>una sola vez</strong>.
-        Siempre apunta a la misma dirección — lo que cambia con cada misa es el
-        contenido que el equipo publica, no el QR.
+        Cada parroquia tiene su propio QR — elegí para cuál generarlo. Se
+        imprime o se pega en algún lugar visible <strong>una sola vez</strong>:
+        siempre apunta a la misma dirección, lo que cambia con cada misa es
+        el contenido que el equipo publica, no el QR.
       </p>
+      <div class="mode-tabs" id="space-tabs">
+        ${SPACES.map(
+          (space) => `<button type="button" class="mode-tab" data-space-tab="${space.key}">${escapeHtml(
+            space.label
+          )}</button>`
+        ).join('')}
+      </div>
       <div class="qr-canvas-wrap">
         <canvas id="qr-canvas"></canvas>
       </div>
-      <p class="qr-url">${escapeHtml(PUBLIC_URL)}</p>
+      <p class="qr-url" id="qr-url"></p>
     </div>
   `;
 
   const canvas = container.querySelector('#qr-canvas');
-  QRCode.toCanvas(canvas, PUBLIC_URL, { width: 320, margin: 2 }, (err) => {
-    if (err) console.error('No se pudo generar el QR:', err);
+  const urlEl = container.querySelector('#qr-url');
+  const tabButtons = container.querySelectorAll('[data-space-tab]');
+
+  function render() {
+    tabButtons.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.spaceTab === selectedSpace);
+    });
+    const url = `${PUBLIC_URL}?space=${encodeURIComponent(selectedSpace)}`;
+    urlEl.textContent = url;
+    QRCode.toCanvas(canvas, url, { width: 320, margin: 2 }, (err) => {
+      if (err) console.error('No se pudo generar el QR:', err);
+    });
+  }
+
+  tabButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selectedSpace = btn.dataset.spaceTab;
+      render();
+    });
   });
+
+  render();
 }
 
 function escapeHtml(text) {

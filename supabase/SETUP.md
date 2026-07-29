@@ -95,3 +95,17 @@ que le dé acceso a `anon` por error.
 Si alguna vez rotás la anon key o cambiás de proyecto de Supabase, solo hay
 que actualizar esos mismos dos archivos del paso 3 — no hace falta tocar
 nada más.
+
+## 7. Ya corriste esto antes y ahora hay varias parroquias (espacios)
+
+Si ya habías hecho el paso 1 antes de que existiera el concepto de
+"espacio" (una parroquia por lista/cancionero), no vuelvas a pegar
+`schema.sql` entero — correr de nuevo las políticas ya creadas tira error y
+puede cortar la ejecución antes de llegar a lo nuevo. En su lugar:
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-espacios.sql`](./migracion-espacios.sql) y tocá **Run**.
+
+Esto agrega la columna `space` a las dos tablas (todo lo que ya tenías
+cargado queda asignado a `merced` por defecto) y ajusta la lista publicada
+para que sea única por parroquia + fecha, no solo por fecha.

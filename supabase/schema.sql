@@ -2,15 +2,23 @@
 -- Correr esto una sola vez en el SQL Editor de tu proyecto Supabase
 -- (Dashboard → SQL Editor → New query → pegar todo → Run).
 --
--- Guarda una fila por fecha de misa. La página pública siempre pide la más
--- reciente (order by fecha desc limit 1), así que no hace falta borrar nada:
--- las fechas viejas quedan como historial.
+-- ⚠️ Si ya habías corrido una versión anterior de este archivo (antes de
+-- que existiera el concepto de "espacio"/parroquia), NO vuelvas a pegar
+-- este archivo entero — corré en cambio migracion-espacios.sql, pensado
+-- para actualizar sin romper nada de lo que ya corriste.
+--
+-- Guarda una fila por parroquia (espacio) + fecha de misa. La página
+-- pública siempre pide la más reciente de esa parroquia (order by fecha
+-- desc limit 1), así que no hace falta borrar nada: las fechas viejas
+-- quedan como historial.
 
 create table if not exists lista_actual (
   id bigint generated always as identity primary key,
-  fecha date not null unique,
+  space text not null default 'merced',
+  fecha date not null,
   items jsonb not null,
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  unique (space, fecha)
 );
 
 -- Row Level Security: sin esto, cualquiera con la anon key (que queda
@@ -56,6 +64,7 @@ create policy "actualizacion solo equipo"
 
 create table if not exists songs (
   uuid text primary key,
+  space text not null default 'merced',
   title text not null,
   artist text not null default '',
   categories jsonb not null default '[]',

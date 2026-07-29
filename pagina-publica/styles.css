@@ -35,6 +35,14 @@ h1 {
   text-align: center;
 }
 
+.parroquia {
+  text-align: center;
+  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 2px;
+}
+
 .fecha {
   text-align: center;
   color: var(--text-dim);
