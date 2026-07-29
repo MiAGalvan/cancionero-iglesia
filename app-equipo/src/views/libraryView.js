@@ -7,6 +7,7 @@
 // biblioteca, sin importar la categoría.
 import { searchSongs, deleteSong, getAllSongs, getSongsByCategory } from '../storage/db.js';
 import { propagateDelete, syncNow } from '../storage/sync.js';
+import { getSession, signOut } from '../storage/auth.js';
 import {
   getAllCategories,
   isCustomCategory,
@@ -32,6 +33,7 @@ async function renderFoldersView(container) {
         <button class="btn btn-icon" id="edit-title-btn" title="Cambiar título">✏️</button>
       </div>
       <div class="form-actions">
+        <span id="auth-status"></span>
         <button class="btn btn-icon" id="sync-btn" title="Sincronizar cancionero con el resto del equipo">🔄</button>
         <a class="btn" href="#/misa/nueva" title="Armar lista de misa">📋 Lista de misa</a>
         <button class="btn" id="new-folder-btn">+ Nueva carpeta</button>
@@ -58,6 +60,30 @@ async function renderFoldersView(container) {
     addCustomCategory(nombre);
     renderResultsOrFolders();
   });
+
+  const authStatusEl = container.querySelector('#auth-status');
+
+  // Antes no había ninguna forma visible de llegar a la pantalla de login
+  // salvo entrando a "Publicar" — ahora que también hace falta para
+  // sincronizar el cancionero, dejamos siempre a la vista si hay sesión
+  // iniciada (y con quién) o un acceso directo para entrar.
+  async function renderAuthStatus() {
+    const session = await getSession();
+    if (session) {
+      authStatusEl.innerHTML = `<button class="btn" id="logout-btn" title="${escapeAttr(
+        session.user.email
+      )}">👤 Salir</button>`;
+      authStatusEl.querySelector('#logout-btn').addEventListener('click', async () => {
+        if (confirm(`¿Cerrar sesión de ${session.user.email}?`)) {
+          await signOut();
+          renderAuthStatus();
+        }
+      });
+    } else {
+      authStatusEl.innerHTML = `<a class="btn" href="#/login?returnTo=${encodeURIComponent('/library')}">Ingresar</a>`;
+    }
+  }
+  renderAuthStatus();
 
   const syncBtn = container.querySelector('#sync-btn');
   const syncStatusEl = container.querySelector('#sync-status');
