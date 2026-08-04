@@ -9,7 +9,7 @@ import { getSpaces, getCurrentSpaceKey } from '../storage/settings.js';
 // ⚠️ COMPLETAR: la URL fija de la página pública, una vez que esté
 // desplegada (ej. "https://tu-usuario.github.io/cancionero-iglesia/" o la
 // URL de Netlify que le hayas puesto a pagina-publica).
-const PUBLIC_URL = 'https://TU-USUARIO.github.io/cancionero-iglesia/';
+const PUBLIC_URL = 'https://cute-donut-4f119e.netlify.app/';
 
 export function renderQrView(container) {
   const isConfigured = !PUBLIC_URL.includes('TU-USUARIO');
