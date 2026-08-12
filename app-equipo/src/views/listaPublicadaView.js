@@ -42,21 +42,34 @@ export function renderListaPublicadaView(container) {
       contentEl.innerHTML = `<div class="warning-box">Falta configurar Supabase.</div>`;
       return;
     }
-    const { data, error } = await supabase
-      .from('lista_actual')
-      .select('fecha, items')
-      .eq('space', selectedSpace)
-      .order('fecha', { ascending: false })
-      .limit(1);
+    const [listaResult, anunciosResult] = await Promise.all([
+      supabase
+        .from('lista_actual')
+        .select('fecha, items')
+        .eq('space', selectedSpace)
+        .order('updated_at', { ascending: false })
+        .limit(1),
+      supabase
+        .from('anuncios')
+        .select('titulo, cuerpo')
+        .eq('space', selectedSpace)
+        .order('updated_at', { ascending: false }),
+    ]);
+
+    const { data, error } = listaResult;
+    const anuncios = anunciosResult.error ? [] : anunciosResult.data;
 
     if (error) {
       contentEl.innerHTML = `<div class="warning-box">No se pudo cargar (revisá la conexión).</div>`;
       return;
     }
     if (!data || data.length === 0) {
-      contentEl.innerHTML = `<div class="empty-state">Todavía no se publicó ninguna lista para ${escapeHtml(
-        getSpaceLabel(selectedSpace)
-      )}.</div>`;
+      contentEl.innerHTML = `
+        <div class="empty-state">Todavía no se publicó ninguna lista para ${escapeHtml(
+          getSpaceLabel(selectedSpace)
+        )}.</div>
+        ${renderNovedades(anuncios)}
+      `;
       return;
     }
 
@@ -71,6 +84,25 @@ export function renderListaPublicadaView(container) {
             <h3 class="publicada-categoria">${escapeHtml(item.categoria)}</h3>
             <h4 class="publicada-titulo">${escapeHtml(item.titulo_cancion)}</h4>
             <p class="publicada-letra">${escapeHtml(item.letra_sin_acordes)}</p>
+          </section>`
+          )
+          .join('')}
+      </div>
+      ${renderNovedades(anuncios)}
+    `;
+  }
+
+  function renderNovedades(anuncios) {
+    if (!anuncios || anuncios.length === 0) return '';
+    return `
+      <div class="lista-publicada novedades">
+        <h3 class="novedades-titulo">Novedades</h3>
+        ${anuncios
+          .map(
+            (anuncio) => `
+          <section class="publicada-cancion novedad">
+            <h4 class="publicada-titulo">${escapeHtml(anuncio.titulo)}</h4>
+            <p class="publicada-letra">${escapeHtml(anuncio.cuerpo)}</p>
           </section>`
           )
           .join('')}

@@ -57,6 +57,11 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
         </div>
       </div>
 
+      <label class="shared-field">
+        <input type="checkbox" id="shared-input" ${existing?.shared ? 'checked' : ''} />
+        Compartir con otras parroquias (otros equipos van a poder copiarla a su propio cancionero)
+      </label>
+
       <div class="mode-tabs">
         <button type="button" class="mode-tab" data-mode-tab="paste">Pegar o foto</button>
         <button type="button" class="mode-tab" data-mode-tab="write">Escribir y poner acordes</button>
@@ -171,6 +176,7 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
       container.querySelectorAll('input[name="category"]:checked')
     ).map((input) => input.value);
     const chordpro = chordproInput.value.trim();
+    const shared = container.querySelector('#shared-input').checked;
 
     if (!title || !chordpro) {
       alert('Falta el título o el contenido de la canción.');
@@ -182,8 +188,8 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
     }
 
     const saved = existing
-      ? await updateSong(existing.id, { title, artist, categories, chordpro })
-      : await saveSong({ title, artist, categories, chordpro, space: getCurrentSpaceKey() });
+      ? await updateSong(existing.id, { title, artist, categories, chordpro, shared })
+      : await saveSong({ title, artist, categories, chordpro, shared, space: getCurrentSpaceKey() });
 
     window.location.hash = `#/song/${saved.id}`;
     // En segundo plano, sin bloquear la navegación: si hay sesión y

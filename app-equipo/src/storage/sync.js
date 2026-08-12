@@ -16,7 +16,7 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 import { getAllSongs, getSongByUuid, applyRemoteSong, deleteSongByUuid } from './db.js';
 import { getSession } from './auth.js';
-import { getCurrentSpaceKey } from './settings.js';
+import { getCurrentSpaceKey, getSpaceFullLabel } from './settings.js';
 
 const PENDING_DELETES_KEY = 'cancionero-iglesia:pending-deletes';
 
@@ -123,10 +123,12 @@ export async function syncNow() {
         {
           uuid: song.uuid,
           space: song.space,
+          space_name: getSpaceFullLabel(song.space),
           title: song.title,
           artist: song.artist,
           categories: song.categories,
           chordpro: song.chordpro,
+          shared: song.shared || false,
           updated_at: song.updatedAt,
           deleted_at: null,
         },

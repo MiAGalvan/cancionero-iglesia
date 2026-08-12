@@ -162,3 +162,44 @@ que solo tenga, por ejemplo, `{tucuman}` en `spaces`, cambiá el selector de
 parroquia a una de Ushuaia, y confirmá que "Sincronizar" o "Publicar" fallan
 (mensaje de "no se pudo..."). Esa es la prueba de que el rechazo pasa en el
 servidor, no en la pantalla.
+
+## 9. Novedades (avisos, eventos, lecturas del día)
+
+Agrega una tabla `anuncios` para la sección "Novedades" — avisos como
+"VIACRUCIS VIERNES 15 HS" o las lecturas de la semana, que se ven en la
+página pública junto con los cantos. Mismo esquema de permisos que todo lo
+demás: lectura pública, escritura solo para el equipo autorizado de esa
+parroquia (`team_members`).
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-anuncios.sql`](./migracion-anuncios.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta nada
+extra: la tabla `anuncios` ya está incluida ahí.
+
+Se administra desde la app, en **📣 Novedades** (junto a "Ver publicada"),
+con sesión iniciada.
+
+## 10. Compartir canciones entre parroquias
+
+Agrega la posibilidad de marcar una canción como "Compartir con otras
+parroquias" — el resto de los equipos (de cualquier parroquia del mismo
+proyecto de Supabase) la puede ver en **📚 Compartidas** y copiarla a su
+propio cancionero con un botón, en vez de tipearla o pegarla de nuevo desde
+cero. La copia es independiente: cada parroquia puede después editarla sin
+afectar a la original.
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-compartir.sql`](./migracion-compartir.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta nada
+extra: ya está incluido ahí.
+
+No hace falta que las canciones a compartir tengan derechos "libres" ni
+nada especial — es lo mismo que ya hace cada equipo hoy con lo que usa en
+su propia misa, solo que ahora, si quieren, se lo pueden facilitar a otra
+parroquia en vez de que esa persona tenga que tipearlo de cero.

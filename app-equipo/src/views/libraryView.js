@@ -78,6 +78,8 @@ async function renderFoldersView(container) {
         <button class="btn btn-icon" id="sync-btn" title="Sincronizar cancionero con el resto del equipo">🔄</button>
         <a class="btn" href="#/lista-publicada" title="Ver la lista publicada, sin login">👀 Ver publicada</a>
         <a class="btn" href="#/proyeccion" title="Pantalla grande para HDMI/proyector">🖥 Proyección</a>
+        <a class="btn" href="#/novedades" title="Avisos, eventos y lecturas para la página pública">📣 Novedades</a>
+        <a class="btn" href="#/compartidas" title="Canciones que otras parroquias compartieron">📚 Compartidas</a>
         <a class="btn" href="#/misa/nueva" title="Armar lista de misa">📋 Lista de misa</a>
         <button class="btn" id="new-folder-btn">+ Nueva carpeta</button>
         <a class="btn btn-accent" href="#/song/new">+ Nueva canción</a>

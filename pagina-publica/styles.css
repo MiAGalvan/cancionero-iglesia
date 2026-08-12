@@ -96,6 +96,43 @@ h1 {
   margin: 0;
 }
 
+.novedades {
+  border-top: 4px double var(--accent);
+  margin-top: 24px;
+  padding-top: 24px;
+}
+
+.novedades-titulo {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  text-align: center;
+}
+
+.novedad {
+  border-top: 2px solid var(--border);
+  padding: 16px 0;
+}
+
+.novedad:first-of-type {
+  border-top: none;
+}
+
+.novedad-titulo {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+}
+
+.novedad-cuerpo {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  white-space: pre-line;
+  color: var(--text-dim);
+}
+
 .loading, .empty, .error {
   text-align: center;
   color: var(--text-dim);

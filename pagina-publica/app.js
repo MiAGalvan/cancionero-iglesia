@@ -38,12 +38,20 @@ async function cargarYMostrar() {
     return;
   }
 
-  const { data, error } = await supabase
-    .from('lista_actual')
-    .select('fecha, items, space_name')
-    .eq('space', space)
-    .order('fecha', { ascending: false })
-    .limit(1);
+  const [listaResult, anunciosResult] = await Promise.all([
+    supabase
+      .from('lista_actual')
+      .select('fecha, items, space_name')
+      .eq('space', space)
+      .order('updated_at', { ascending: false })
+      .limit(1),
+    // Si la tabla `anuncios` todavía no existe (falta correr la migración),
+    // esto da error — no es grave, la página igual muestra los cantos.
+    supabase.from('anuncios').select('titulo, cuerpo').eq('space', space).order('updated_at', { ascending: false }),
+  ]);
+
+  const { data, error } = listaResult;
+  const anuncios = anunciosResult.error ? [] : anunciosResult.data;
 
   if (error) {
     app.innerHTML = `<p class="error">No se pudo cargar la lista. Revisá tu conexión.</p>`;
@@ -52,16 +60,19 @@ async function cargarYMostrar() {
   }
 
   if (!data || data.length === 0) {
-    app.innerHTML = `<p class="empty">Todavía no se publicó ninguna lista para ${escapeHtml(
-      SPACE_LABELS_DE_ARRANQUE[space] || space
-    )}.</p>`;
+    app.innerHTML = `
+      <p class="empty">Todavía no se publicó ninguna lista para ${escapeHtml(
+        SPACE_LABELS_DE_ARRANQUE[space] || space
+      )}.</p>
+      ${renderNovedades(anuncios)}
+    `;
     return;
   }
 
-  render(data[0]);
+  render(data[0], anuncios);
 }
 
-function render({ fecha, items, space_name }) {
+function render({ fecha, items, space_name }, anuncios) {
   app.innerHTML = `
     <h1>Cantos de la misa</h1>
     <p class="parroquia">${escapeHtml(space_name || SPACE_LABELS_DE_ARRANQUE[space] || space)}</p>
@@ -76,6 +87,25 @@ function render({ fecha, items, space_name }) {
       </section>`
       )
       .join('')}
+    ${renderNovedades(anuncios)}
+  `;
+}
+
+function renderNovedades(anuncios) {
+  if (!anuncios || anuncios.length === 0) return '';
+  return `
+    <section class="novedades">
+      <h2 class="novedades-titulo">Novedades</h2>
+      ${anuncios
+        .map(
+          (anuncio) => `
+        <article class="novedad">
+          <h3 class="novedad-titulo">${escapeHtml(anuncio.titulo)}</h3>
+          <p class="novedad-cuerpo">${escapeHtml(anuncio.cuerpo)}</p>
+        </article>`
+        )
+        .join('')}
+    </section>
   `;
 }
 

@@ -31,6 +31,24 @@ usuario (`is_admin: true` = todas, para el responsable general del
 sistema). Es una restricción real del lado del servidor (RLS), no solo un
 botón oculto en la app.
 
+## Novedades (avisos, eventos, lecturas)
+
+Además de los cantos, cada parroquia puede publicar "Novedades" — avisos
+tipo pizarra (título + texto libre), para eventos como un Vía Crucis o para
+pegar ahí las lecturas de la semana. Se administran desde **📣 Novedades**
+en la app (con login), y se ven en la página pública debajo de la lista de
+cantos, junto con "Ver publicada" dentro de la app. Ver paso 9 de
+`supabase/SETUP.md`.
+
+## Compartir canciones entre parroquias
+
+Cualquier canción se puede marcar "Compartir con otras parroquias" al
+cargarla o editarla. Las demás parroquias del mismo proyecto la ven en
+**📚 Compartidas** y la copian a su propio cancionero con un botón — para no
+tener que tipear o pegar de nuevo lo que otro equipo ya cargó. La copia
+queda independiente: cada parroquia la puede editar sin afectar a la
+original. Ver paso 10 de `supabase/SETUP.md`.
+
 ## Orden para poner todo en marcha
 
 1. **Supabase**: seguir [`supabase/SETUP.md`](./supabase/SETUP.md) — crear las

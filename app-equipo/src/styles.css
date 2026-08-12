@@ -492,6 +492,20 @@ a {
   height: 18px;
 }
 
+.shared-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+.shared-field input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 /* --- Lista de misa --- */
 .misa-categories {
   display: flex;
@@ -873,6 +887,36 @@ a {
   margin: 0;
   font-size: 1.15rem;
   line-height: 1.6;
+  white-space: pre-line;
+}
+
+.lista-publicada.novedades {
+  border-top: 4px double var(--accent);
+  margin-top: 20px;
+  padding-top: 4px;
+}
+
+.novedades-titulo {
+  margin: 14px 0 0;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+/* --- Novedades (crear/editar) --- */
+.novedad-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+}
+
+.novedad-item .song-artist {
   white-space: pre-line;
 }
 

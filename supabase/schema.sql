@@ -111,10 +111,12 @@ create policy "actualizacion solo equipo autorizado"
 create table if not exists songs (
   uuid text primary key,
   space text not null default 'merced',
+  space_name text, -- "Nombre — Localidad, Provincia", para mostrar de dónde es al compartirla
   title text not null,
   artist text not null default '',
   categories jsonb not null default '[]',
   chordpro text not null default '',
+  shared boolean not null default false, -- true = cualquier otra parroquia la puede ver y copiar a su cancionero
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
@@ -132,6 +134,18 @@ create policy "equipo autorizado lee el cancionero"
         and (tm.is_admin or songs.space = any(tm.spaces))
     )
   );
+
+-- Además de leer el cancionero propio (política de arriba), cualquier
+-- persona del equipo logueada (de cualquier parroquia) puede leer las
+-- canciones que OTRAS parroquias marcaron como "compartir" — para poder
+-- copiarlas a su propio cancionero en vez de tipearlas de nuevo. Postgres
+-- combina las dos políticas de SELECT con "o", así que esto no le quita
+-- acceso a nada de lo que ya podía ver.
+create policy "equipo lee canciones compartidas de otras parroquias"
+  on songs
+  for select
+  to authenticated
+  using (shared = true);
 
 create policy "equipo autorizado agrega canciones"
   on songs
@@ -161,5 +175,70 @@ create policy "equipo autorizado actualiza canciones"
       select 1 from team_members tm
       where tm.user_id = auth.uid()
         and (tm.is_admin or songs.space = any(tm.spaces))
+    )
+  );
+
+-- --- anuncios: tabla pública, "Novedades" (avisos, eventos, lecturas) ---
+-- Mismo patrón de permisos que lista_actual: cualquiera puede leerla (la ve
+-- la página pública, junto con los cantos), pero solo el equipo autorizado
+-- de esa parroquia puede crear/editar/borrar.
+
+create table if not exists anuncios (
+  id bigint generated always as identity primary key,
+  space text not null,
+  titulo text not null,
+  cuerpo text not null default '',
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+alter table anuncios enable row level security;
+
+create policy "lectura publica de novedades"
+  on anuncios
+  for select
+  to anon, authenticated
+  using (true);
+
+create policy "equipo autorizado agrega novedades"
+  on anuncios
+  for insert
+  to authenticated
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or anuncios.space = any(tm.spaces))
+    )
+  );
+
+create policy "equipo autorizado actualiza novedades"
+  on anuncios
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or anuncios.space = any(tm.spaces))
+    )
+  )
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or anuncios.space = any(tm.spaces))
+    )
+  );
+
+create policy "equipo autorizado borra novedades"
+  on anuncios
+  for delete
+  to authenticated
+  using (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or anuncios.space = any(tm.spaces))
     )
   );

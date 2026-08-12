@@ -90,7 +90,7 @@ export function renderProyeccionView(container) {
       .from('lista_actual')
       .select('items')
       .eq('space', state.space)
-      .order('fecha', { ascending: false })
+      .order('updated_at', { ascending: false })
       .limit(1);
     if (error || !data || data.length === 0 || !data[0].items.length) return false;
     state.items = data[0].items;
