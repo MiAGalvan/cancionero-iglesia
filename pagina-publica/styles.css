@@ -96,6 +96,19 @@ h1 {
   margin: 0;
 }
 
+.parish-banner {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.parish-banner img {
+  max-height: 72px;
+  max-width: 240px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
 .novedades {
   border-top: 4px double var(--accent);
   margin-top: 24px;

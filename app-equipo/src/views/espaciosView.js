@@ -4,8 +4,13 @@
 // se usa en más lugares (otras ciudades, otras provincias) hace falta poder
 // diferenciarlas claramente por localidad y provincia.
 import { getSpaces, addSpace, updateSpace, deleteSpace, getCurrentSpaceKey } from '../storage/settings.js';
+import { getSession } from '../storage/auth.js';
+import { uploadSpaceLogo, getLogosForSpaces } from '../storage/logos.js';
 
-export function renderEspaciosView(container) {
+export async function renderEspaciosView(container) {
+  const loggedIn = Boolean(await getSession());
+  let logos = await getLogosForSpaces(getSpaces().map((s) => s.key));
+
   container.innerHTML = `
     <div class="topbar">
       <a class="btn" href="#/library">← Cancionero</a>
@@ -17,15 +22,22 @@ export function renderEspaciosView(container) {
         Cada una tiene su propio cancionero, lista de misa, QR y pantalla de
         proyección, separados del resto — aunque todas comparten esta misma
         app y el mismo login del equipo.
+        ${
+          loggedIn
+            ? ''
+            : ' Iniciá sesión para poder subir o cambiar el logo de cada una.'
+        }
       </p>
       <div class="form-actions">
         <button type="button" class="btn btn-accent" id="add-space-btn">+ Agregar parroquia o capilla</button>
       </div>
+      <div id="logo-status" class="warning-box" hidden></div>
       <ul class="song-list" id="spaces-list"></ul>
     </div>
   `;
 
   const listEl = container.querySelector('#spaces-list');
+  const statusEl = container.querySelector('#logo-status');
 
   function render() {
     const spaces = [...getSpaces()].sort((a, b) => {
@@ -37,16 +49,50 @@ export function renderEspaciosView(container) {
 
   function spaceItemHtml(space) {
     const place = [space.locality, space.province].filter(Boolean).join(', ');
+    const logoUrl = logos[space.key];
     return `
-      <li class="song-item" data-key="${escapeAttr(space.key)}">
-        <span>
-          ${escapeHtml(space.label)}${space.key === getCurrentSpaceKey() ? ' <span class="category-tag">actual</span>' : ''}
-          <span class="song-artist">${escapeHtml(place || 'Sin localidad/provincia todavía')}</span>
+      <li class="song-item space-item" data-key="${escapeAttr(space.key)}">
+        <span class="space-info">
+          ${logoUrl ? `<img class="space-logo-thumb" src="${escapeAttr(logoUrl)}" alt="" />` : ''}
+          <span>
+            ${escapeHtml(space.label)}${space.key === getCurrentSpaceKey() ? ' <span class="category-tag">actual</span>' : ''}
+            <span class="song-artist">${escapeHtml(place || 'Sin localidad/provincia todavía')}</span>
+          </span>
         </span>
+        ${
+          loggedIn
+            ? `<label class="btn btn-icon" title="Subir o cambiar el logo">
+                🖼️
+                <input type="file" accept="image/*" data-logo-input="${escapeAttr(space.key)}" hidden />
+              </label>`
+            : ''
+        }
         <button type="button" class="btn btn-icon" data-edit="${escapeAttr(space.key)}" title="Editar">✏️</button>
         <button type="button" class="btn btn-danger btn-icon" data-delete="${escapeAttr(space.key)}" title="Eliminar">✕</button>
       </li>`;
   }
+
+  listEl.addEventListener('change', async (event) => {
+    const spaceKey = event.target.dataset.logoInput;
+    if (!spaceKey) return;
+    const file = event.target.files[0];
+    if (!file) return;
+
+    event.target.disabled = true;
+    statusEl.hidden = true;
+    try {
+      await uploadSpaceLogo(spaceKey, file);
+      logos = await getLogosForSpaces(getSpaces().map((s) => s.key));
+      render();
+    } catch (err) {
+      statusEl.textContent =
+        err?.code === '42501' || err?.statusCode === '403'
+          ? 'Tu usuario no tiene permiso para subir el logo de esta parroquia.'
+          : `No se pudo subir el logo: ${err?.message || err}`;
+      statusEl.hidden = false;
+      event.target.disabled = false;
+    }
+  });
 
   container.querySelector('#add-space-btn').addEventListener('click', () => {
     const label = prompt('Nombre de la parroquia o capilla');

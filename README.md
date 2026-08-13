@@ -49,6 +49,15 @@ tener que tipear o pegar de nuevo lo que otro equipo ya cargó. La copia
 queda independiente: cada parroquia la puede editar sin afectar a la
 original. Ver paso 10 de `supabase/SETUP.md`.
 
+## Logo de cada parroquia/capilla
+
+Cada parroquia puede tener su propio logo, subido desde **⚙️ Parroquias y
+capillas** (ícono 🖼️, con login). Se ve como un banner chico arriba de todo
+en la página del QR y en "Ver publicada" — ayuda a reconocer de un vistazo
+de qué parroquia es cada pantalla, sobre todo en dispositivos que se usan
+para más de una. Ver paso 11 de `supabase/SETUP.md` (necesita crear un
+bucket de Storage a mano, una sola vez).
+
 ## Orden para poner todo en marcha
 
 1. **Supabase**: seguir [`supabase/SETUP.md`](./supabase/SETUP.md) — crear las

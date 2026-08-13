@@ -147,6 +147,91 @@ create policy "equipo lee canciones compartidas de otras parroquias"
   to authenticated
   using (shared = true);
 
+-- --- espacio_logos: URL del logo de cada parroquia/capilla -------------
+-- El archivo en sí vive en Supabase Storage (bucket "logos", creado a
+-- mano desde el dashboard — ver supabase/SETUP.md); acá solo se guarda la
+-- URL pública, para que la página pública la pueda leer con una consulta
+-- simple, sin depender de la API de Storage.
+
+create table if not exists espacio_logos (
+  space text primary key,
+  logo_url text,
+  updated_at timestamptz not null default now()
+);
+
+alter table espacio_logos enable row level security;
+
+create policy "lectura publica de logos"
+  on espacio_logos
+  for select
+  to anon, authenticated
+  using (true);
+
+create policy "equipo autorizado sube o cambia el logo"
+  on espacio_logos
+  for insert
+  to authenticated
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or espacio_logos.space = any(tm.spaces))
+    )
+  );
+
+create policy "equipo autorizado actualiza el logo"
+  on espacio_logos
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or espacio_logos.space = any(tm.spaces))
+    )
+  )
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or espacio_logos.space = any(tm.spaces))
+    )
+  );
+
+-- --- Storage: bucket "logos" ---------------------------------------
+-- El bucket lo tenés que crear a mano una sola vez: Dashboard → Storage →
+-- New bucket → nombre "logos" → tildar "Public bucket". Estas políticas
+-- solo controlan quién puede SUBIR archivos ahí (la lectura ya es pública
+-- por el toggle del bucket, no hace falta una política aparte para eso).
+-- Cada archivo tiene que guardarse como "{parroquia}/logo" — la carpeta es
+-- lo que usamos acá para saber de qué parroquia es y chequear el permiso.
+
+create policy "equipo autorizado sube su logo a storage"
+  on storage.objects
+  for insert
+  to authenticated
+  with check (
+    bucket_id = 'logos'
+    and exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or (storage.foldername(name))[1] = any(tm.spaces))
+    )
+  );
+
+create policy "equipo autorizado reemplaza su logo en storage"
+  on storage.objects
+  for update
+  to authenticated
+  using (
+    bucket_id = 'logos'
+    and exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or (storage.foldername(name))[1] = any(tm.spaces))
+    )
+  );
+
 create policy "equipo autorizado agrega canciones"
   on songs
   for insert

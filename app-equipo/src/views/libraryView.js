@@ -8,6 +8,7 @@
 import { searchSongs, deleteSong, getAllSongs, getSongsByCategory } from '../storage/db.js';
 import { propagateDelete, syncNow } from '../storage/sync.js';
 import { getSession, signOut } from '../storage/auth.js';
+import { getSpaceLogoUrl } from '../storage/logos.js';
 import {
   getAllCategories,
   isCustomCategory,
@@ -63,6 +64,7 @@ async function renderFoldersView(container) {
   container.innerHTML = `
     <div class="topbar">
       <div class="header-title-row">
+        <img id="space-logo" class="space-logo-icon" alt="" hidden />
         <h1 id="header-title">${escapeHtml(getHeaderTitle())}</h1>
         <button class="btn btn-icon" id="edit-title-btn" title="Cambiar título">✏️</button>
         <button class="btn btn-icon" id="theme-toggle-btn" title="Cambiar entre pantalla clara y oscura">${
@@ -91,6 +93,17 @@ async function renderFoldersView(container) {
     </div>
     <div id="library-content"></div>
   `;
+
+  // Se pide aparte (no bloquea el resto de la pantalla): si no hay logo
+  // cargado para esta parroquia, o no hay conexión, el título se queda
+  // igual que siempre, sin el ícono.
+  getSpaceLogoUrl(getCurrentSpaceKey()).then((logoUrl) => {
+    if (!logoUrl) return;
+    const logoEl = container.querySelector('#space-logo');
+    if (!logoEl) return;
+    logoEl.src = logoUrl;
+    logoEl.hidden = false;
+  });
 
   container.querySelector('#space-switcher').addEventListener('change', (event) => {
     setCurrentSpaceKey(event.target.value);

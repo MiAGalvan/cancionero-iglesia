@@ -492,6 +492,31 @@ a {
   height: 18px;
 }
 
+.space-logo-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.space-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.space-logo-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
 .shared-field {
   display: flex;
   align-items: center;
@@ -888,6 +913,19 @@ a {
   font-size: 1.15rem;
   line-height: 1.6;
   white-space: pre-line;
+}
+
+.parish-banner {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.parish-banner img {
+  max-height: 64px;
+  max-width: 220px;
+  object-fit: contain;
+  border-radius: 10px;
 }
 
 .lista-publicada.novedades {

@@ -42,7 +42,7 @@ export function renderListaPublicadaView(container) {
       contentEl.innerHTML = `<div class="warning-box">Falta configurar Supabase.</div>`;
       return;
     }
-    const [listaResult, anunciosResult] = await Promise.all([
+    const [listaResult, anunciosResult, logoResult] = await Promise.all([
       supabase
         .from('lista_actual')
         .select('fecha, items')
@@ -54,10 +54,14 @@ export function renderListaPublicadaView(container) {
         .select('titulo, cuerpo')
         .eq('space', selectedSpace)
         .order('updated_at', { ascending: false }),
+      supabase.from('espacio_logos').select('logo_url').eq('space', selectedSpace).maybeSingle(),
     ]);
 
     const { data, error } = listaResult;
     const anuncios = anunciosResult.error ? [] : anunciosResult.data;
+    const logoHtml = logoResult.error || !logoResult.data?.logo_url
+      ? ''
+      : `<div class="parish-banner"><img src="${escapeHtml(logoResult.data.logo_url)}" alt="" /></div>`;
 
     if (error) {
       contentEl.innerHTML = `<div class="warning-box">No se pudo cargar (revisá la conexión).</div>`;
@@ -65,6 +69,7 @@ export function renderListaPublicadaView(container) {
     }
     if (!data || data.length === 0) {
       contentEl.innerHTML = `
+        ${logoHtml}
         <div class="empty-state">Todavía no se publicó ninguna lista para ${escapeHtml(
           getSpaceLabel(selectedSpace)
         )}.</div>
@@ -75,6 +80,7 @@ export function renderListaPublicadaView(container) {
 
     const { fecha, items } = data[0];
     contentEl.innerHTML = `
+      ${logoHtml}
       <p class="qr-url">${formatFecha(fecha)}</p>
       <div class="lista-publicada">
         ${items

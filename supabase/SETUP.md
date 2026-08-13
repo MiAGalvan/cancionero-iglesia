@@ -203,3 +203,29 @@ No hace falta que las canciones a compartir tengan derechos "libres" ni
 nada especial — es lo mismo que ya hace cada equipo hoy con lo que usa en
 su propia misa, solo que ahora, si quieren, se lo pueden facilitar a otra
 parroquia en vez de que esa persona tenga que tipearlo de cero.
+
+## 11. Logo de cada parroquia/capilla
+
+Agrega un banner chico con el logo (arriba de todo, en la página del QR y
+en "Ver publicada" dentro de la app) — más fácil para reconocer de un
+vistazo de qué parroquia es cada pantalla.
+
+**Paso 1 — crear el bucket de Storage** (una sola vez, a mano):
+
+1. Menú lateral → **Storage** → **New bucket**.
+2. Nombre: `logos` (tal cual, en minúscula).
+3. Tildá **Public bucket**.
+4. **Create bucket**.
+
+**Paso 2 — correr la migración:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-logos.sql`](./migracion-logos.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta la
+migración — ya está incluida ahí (igual creá el bucket a mano como en el
+paso 1, eso no lo puede hacer un script SQL).
+
+Se sube desde la app, en **⚙️ Parroquias y capillas** → ícono 🖼️ junto a
+cada una, con sesión iniciada. Una foto nueva reemplaza a la anterior (no
+hace falta borrar nada a mano).

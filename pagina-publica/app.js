@@ -38,20 +38,23 @@ async function cargarYMostrar() {
     return;
   }
 
-  const [listaResult, anunciosResult] = await Promise.all([
+  const [listaResult, anunciosResult, logoResult] = await Promise.all([
     supabase
       .from('lista_actual')
       .select('fecha, items, space_name')
       .eq('space', space)
       .order('updated_at', { ascending: false })
       .limit(1),
-    // Si la tabla `anuncios` todavía no existe (falta correr la migración),
-    // esto da error — no es grave, la página igual muestra los cantos.
+    // Si la tabla `anuncios` (o `espacio_logos`, más abajo) todavía no
+    // existe porque falta correr la migración, esto da error — no es
+    // grave, la página igual muestra los cantos.
     supabase.from('anuncios').select('titulo, cuerpo').eq('space', space).order('updated_at', { ascending: false }),
+    supabase.from('espacio_logos').select('logo_url').eq('space', space).maybeSingle(),
   ]);
 
   const { data, error } = listaResult;
   const anuncios = anunciosResult.error ? [] : anunciosResult.data;
+  const logoUrl = logoResult.error ? null : logoResult.data?.logo_url || null;
 
   if (error) {
     app.innerHTML = `<p class="error">No se pudo cargar la lista. Revisá tu conexión.</p>`;
@@ -61,6 +64,7 @@ async function cargarYMostrar() {
 
   if (!data || data.length === 0) {
     app.innerHTML = `
+      ${renderBanner(logoUrl)}
       <p class="empty">Todavía no se publicó ninguna lista para ${escapeHtml(
         SPACE_LABELS_DE_ARRANQUE[space] || space
       )}.</p>
@@ -69,11 +73,21 @@ async function cargarYMostrar() {
     return;
   }
 
-  render(data[0], anuncios);
+  render(data[0], anuncios, logoUrl);
 }
 
-function render({ fecha, items, space_name }, anuncios) {
+function renderBanner(logoUrl) {
+  if (!logoUrl) return '';
+  return `
+    <div class="parish-banner">
+      <img src="${escapeHtml(logoUrl)}" alt="" />
+    </div>
+  `;
+}
+
+function render({ fecha, items, space_name }, anuncios, logoUrl) {
   app.innerHTML = `
+    ${renderBanner(logoUrl)}
     <h1>Cantos de la misa</h1>
     <p class="parroquia">${escapeHtml(space_name || SPACE_LABELS_DE_ARRANQUE[space] || space)}</p>
     <p class="fecha">${formatFecha(fecha)}</p>
