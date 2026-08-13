@@ -117,6 +117,7 @@ create table if not exists songs (
   categories jsonb not null default '[]',
   chordpro text not null default '',
   shared boolean not null default false, -- true = cualquier otra parroquia la puede ver y copiar a su cancionero
+  tags jsonb not null default '[]', -- tiempos/temas litúrgicos (Adviento, Cuaresma, Buen Pastor...), eje aparte de categories
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );

@@ -23,6 +23,29 @@ export const CATEGORIES = [
   'SALIDA',
 ];
 
+// Tiempos y temas litúrgicos: a diferencia de CATEGORIES (el MOMENTO de la
+// misa: Entrada, Comunión...), esto es OTRO eje, independiente — de qué
+// época/tema es la canción, para poder acotar las opciones en "Lista de
+// misa" según el tiempo litúrgico de esa semana. Es una lista de arranque,
+// editable desde la app igual que las carpetas agregadas (ver
+// storage/settings.js) — una canción puede no tener ninguna, lo que
+// significa "sirve en cualquier época".
+export const LITURGICAL_TAGS = [
+  'Adviento',
+  'Navidad',
+  'Cuaresma',
+  'Semana Santa',
+  'Pascua',
+  'Pentecostés',
+  'Tiempo Ordinario',
+  'Buen Pastor',
+  'Eucaristía',
+  'María',
+  'Perdón/Reconciliación',
+  'Envío/Misión',
+  'Espíritu Santo',
+];
+
 // La lista de parroquias/capillas (espacios) es editable desde la app — ver
 // storage/settings.js, que es donde vive de verdad (con nombre, localidad y
 // provincia de cada una). Acá solo queda la key de la que se usa como

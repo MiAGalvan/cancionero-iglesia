@@ -229,3 +229,19 @@ paso 1, eso no lo puede hacer un script SQL).
 Se sube desde la app, en **⚙️ Parroquias y capillas** → ícono 🖼️ junto a
 cada una, con sesión iniciada. Una foto nueva reemplaza a la anterior (no
 hace falta borrar nada a mano).
+
+## 12. Tiempos/temas litúrgicos (filtro en Lista de misa)
+
+Agrega la columna `tags` a las canciones — un eje aparte de las categorías
+(que son el *momento* de la misa: Entrada, Comunión...). Sirve para acotar
+las opciones de "Lista de misa" según el tiempo litúrgico de la semana
+(Cuaresma, Pascua, Buen Pastor, etc.), eligiéndolo al cargar/editar cada
+canción.
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-tags.sql`](./migracion-tags.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta nada
+extra: ya está incluido ahí.

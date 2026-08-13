@@ -58,6 +58,15 @@ de qué parroquia es cada pantalla, sobre todo en dispositivos que se usan
 para más de una. Ver paso 11 de `supabase/SETUP.md` (necesita crear un
 bucket de Storage a mano, una sola vez).
 
+## Tiempos/temas litúrgicos
+
+Cada canción puede tener, además de sus categorías (el momento de la misa),
+uno o más tiempos/temas litúrgicos (Adviento, Cuaresma, Buen Pastor,
+Eucaristía, etc. — ampliable desde la app). En "Lista de misa" hay un
+filtro que, al elegir un tiempo, acota las opciones de cada categoría a
+las canciones de ese tiempo (más las que no tienen ninguno puesto, que
+sirven para cualquier época). Ver paso 12 de `supabase/SETUP.md`.
+
 ## Orden para poner todo en marcha
 
 1. **Supabase**: seguir [`supabase/SETUP.md`](./supabase/SETUP.md) — crear las

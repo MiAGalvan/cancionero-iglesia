@@ -4,7 +4,16 @@
 // "Entrada de la Palabra". Se guarda en IndexedDB, 100% offline; publicarla
 // a la nube es un paso aparte (ver publicarView.js).
 import { getSongsByCategory, getMisa, saveMisa, getAllMisas } from '../storage/db.js';
-import { getAllCategories, getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
+import { getAllCategories, getAllTags, getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
+
+// Sin filtro, o si la canción no tiene ninguna etiqueta puesta ("sirve para
+// cualquier época"), siempre se muestra — el filtro solo ESCONDE canciones
+// que tienen etiquetas puestas y ninguna coincide con la elegida.
+function songMatchesFilter(song, filterTag) {
+  if (!filterTag) return true;
+  if (!song.tags || song.tags.length === 0) return true;
+  return song.tags.includes(filterTag);
+}
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -34,9 +43,17 @@ export async function renderMisaListView(container, { fecha } = {}) {
         <input type="date" id="fecha-input" value="${selectedFecha}" />
       </label>
 
-      <div class="misa-categories">
-        ${categories.map((cat, i) => renderCategoryRow(cat, songsByCategory[i], items[cat])).join('')}
-      </div>
+      <label>
+        Filtrar por tiempo/tema litúrgico (acota las opciones de cada categoría)
+        <select id="tag-filter">
+          <option value="">Todas las canciones</option>
+          ${getAllTags()
+            .map((tag) => `<option value="${escapeAttr(tag)}">${escapeHtml(tag)}</option>`)
+            .join('')}
+        </select>
+      </label>
+
+      <div class="misa-categories" id="misa-categories-wrap"></div>
 
       <div class="form-actions">
         <button class="btn btn-accent" id="save-btn">Guardar lista</button>
@@ -47,17 +64,45 @@ export async function renderMisaListView(container, { fecha } = {}) {
     </div>
   `;
 
+  const categoriesWrapEl = container.querySelector('#misa-categories-wrap');
+  const tagFilterEl = container.querySelector('#tag-filter');
+  let filterTag = '';
+
+  function renderCategories(selections) {
+    categoriesWrapEl.innerHTML = categories
+      .map((cat, i) => renderCategoryRow(cat, songsByCategory[i], selections[cat], filterTag))
+      .join('');
+  }
+
+  function readCurrentSelections() {
+    const selections = {};
+    for (const cat of categories) {
+      const select = categoriesWrapEl.querySelector(`select[data-category="${cssEscape(cat)}"]`);
+      selections[cat] = select && select.value ? Number(select.value) : null;
+    }
+    return selections;
+  }
+
+  renderCategories(items);
+
+  tagFilterEl.addEventListener('change', () => {
+    // Guardamos lo que ya se había elegido en pantalla (aunque todavía no
+    // se haya tocado "Guardar lista") para que cambiar el filtro no borre
+    // selecciones en curso — y en renderCategoryRow nos aseguramos de que
+    // la canción ya elegida siga apareciendo en el desplegable aunque no
+    // tenga la etiqueta del filtro nuevo.
+    const selections = readCurrentSelections();
+    filterTag = tagFilterEl.value;
+    renderCategories(selections);
+  });
+
   const fechaInput = container.querySelector('#fecha-input');
   fechaInput.addEventListener('change', () => {
     window.location.hash = `#/misa/${fechaInput.value}`;
   });
 
   container.querySelector('#save-btn').addEventListener('click', async () => {
-    const newItems = {};
-    for (const cat of categories) {
-      const select = container.querySelector(`select[data-category="${cssEscape(cat)}"]`);
-      newItems[cat] = select.value ? Number(select.value) : null;
-    }
+    const newItems = readCurrentSelections();
     await saveMisa(space, fechaInput.value, newItems);
     // Re-renderizamos la misma pantalla en vez de solo cambiar el hash, para
     // que "Misas guardadas" se actualice ya mismo aunque la fecha no haya
@@ -66,13 +111,16 @@ export async function renderMisaListView(container, { fecha } = {}) {
   });
 }
 
-function renderCategoryRow(category, songs, selectedSongId) {
+function renderCategoryRow(category, songs, selectedSongId, filterTag) {
+  const visibleSongs = songs.filter(
+    (song) => songMatchesFilter(song, filterTag) || song.id === selectedSongId
+  );
   return `
     <div class="misa-category-row">
       <span class="misa-category-name">${escapeHtml(category)}</span>
       <select data-category="${escapeAttr(category)}">
         <option value="">— (sin canción) —</option>
-        ${songs
+        ${visibleSongs
           .map(
             (song) => `
           <option value="${song.id}" ${song.id === selectedSongId ? 'selected' : ''}>

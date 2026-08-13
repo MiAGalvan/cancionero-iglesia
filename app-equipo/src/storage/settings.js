@@ -4,9 +4,10 @@
 // se está trabajando ahora mismo. Se guarda en localStorage (no hace falta
 // IndexedDB para esto: son valores chiquitos, no el cancionero entero), así
 // que también funciona 100% sin conexión.
-import { CATEGORIES } from './constants.js';
+import { CATEGORIES, LITURGICAL_TAGS } from './constants.js';
 
 const CUSTOM_CATEGORIES_KEY = 'cancionero-iglesia:custom-categories';
+const CUSTOM_TAGS_KEY = 'cancionero-iglesia:custom-tags';
 const HEADER_TITLE_KEY = 'cancionero-iglesia:header-title';
 const CURRENT_SPACE_KEY = 'cancionero-iglesia:current-space';
 const SPACES_KEY = 'cancionero-iglesia:spaces';
@@ -207,6 +208,46 @@ export function addCustomCategory(name) {
 export function deleteCustomCategory(name) {
   saveCustomCategories(getCustomCategories().filter((c) => c !== name));
   return getAllCategories();
+}
+
+// Tiempos/temas litúrgicos (ver storage/constants.js para la explicación
+// de por qué es un eje aparte de las categorías). Mismo patrón que las
+// carpetas agregadas: una lista fija de arranque + las que el equipo suma.
+export function getCustomTags() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CUSTOM_TAGS_KEY));
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomTags(tags) {
+  localStorage.setItem(CUSTOM_TAGS_KEY, JSON.stringify(tags));
+}
+
+export function getAllTags() {
+  return [...LITURGICAL_TAGS, ...getCustomTags()];
+}
+
+export function isCustomTag(name) {
+  return !LITURGICAL_TAGS.includes(name);
+}
+
+export function addCustomTag(name) {
+  const trimmed = name.trim();
+  if (!trimmed) return getAllTags();
+
+  const existingNames = getAllTags().map((t) => t.toLowerCase());
+  if (existingNames.includes(trimmed.toLowerCase())) return getAllTags();
+
+  saveCustomTags([...getCustomTags(), trimmed]);
+  return getAllTags();
+}
+
+export function deleteCustomTag(name) {
+  saveCustomTags(getCustomTags().filter((t) => t !== name));
+  return getAllTags();
 }
 
 export function getHeaderTitle() {

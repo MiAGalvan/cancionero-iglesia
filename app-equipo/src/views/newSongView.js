@@ -17,12 +17,13 @@ import { renderChordEditor } from '../editor/chordEditorWidget.js';
 import { recognizeTextFromImage } from '../ocr/ocrText.js';
 import { saveSong, updateSong, getSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
-import { getAllCategories, getCurrentSpaceKey } from '../storage/settings.js';
+import { getAllCategories, getAllTags, addCustomTag, getCurrentSpaceKey } from '../storage/settings.js';
 
 export async function renderNewSongView(container, { editId, presetCategory } = {}) {
   const existing = editId ? await getSong(Number(editId)) : null;
   const selectedCategories = existing ? existing.categories : presetCategory ? [presetCategory] : [];
   const categoryOptions = getAllCategories();
+  const selectedTags = existing ? existing.tags || [] : [];
 
   // Una canción ya escrita casi siempre se sigue editando "a mano" (tocando
   // acordes); una canción nueva lo más común es traerla pegada de una web.
@@ -57,6 +58,14 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
         </div>
       </div>
 
+      <div class="categories-field">
+        <span class="categories-label">
+          Tiempo/tema litúrgico (opcional — sin ninguno tildado, sirve para cualquier época)
+        </span>
+        <div class="categories-checkboxes" id="tags-checkboxes"></div>
+        <button type="button" class="btn" id="add-tag-btn">+ Agregar tiempo o tema</button>
+      </div>
+
       <label class="shared-field">
         <input type="checkbox" id="shared-input" ${existing?.shared ? 'checked' : ''} />
         Compartir con otras parroquias (otros equipos van a poder copiarla a su propio cancionero)
@@ -82,6 +91,37 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
   const chordproInput = container.querySelector('#chordpro-input');
   const modeContentEl = container.querySelector('#mode-content');
   const tabButtons = container.querySelectorAll('[data-mode-tab]');
+  const tagsCheckboxesEl = container.querySelector('#tags-checkboxes');
+  let currentTags = [...selectedTags];
+
+  function renderTagCheckboxes() {
+    tagsCheckboxesEl.innerHTML = getAllTags()
+      .map(
+        (tag) => `
+        <label class="category-checkbox">
+          <input type="checkbox" name="tag" value="${escapeAttr(tag)}" ${
+          currentTags.includes(tag) ? 'checked' : ''
+        } />
+          ${escapeHtml(tag)}
+        </label>`
+      )
+      .join('');
+  }
+  renderTagCheckboxes();
+
+  tagsCheckboxesEl.addEventListener('change', () => {
+    currentTags = Array.from(tagsCheckboxesEl.querySelectorAll('input[name="tag"]:checked')).map(
+      (input) => input.value
+    );
+  });
+
+  container.querySelector('#add-tag-btn').addEventListener('click', () => {
+    const nombre = prompt('Nombre del tiempo o tema litúrgico (ej. "Bautismo", "Confirmación")');
+    if (nombre === null || !nombre.trim()) return;
+    addCustomTag(nombre);
+    currentTags = [...currentTags, nombre.trim()];
+    renderTagCheckboxes();
+  });
 
   function updateTabsUI() {
     tabButtons.forEach((btn) => {
@@ -188,8 +228,8 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
     }
 
     const saved = existing
-      ? await updateSong(existing.id, { title, artist, categories, chordpro, shared })
-      : await saveSong({ title, artist, categories, chordpro, shared, space: getCurrentSpaceKey() });
+      ? await updateSong(existing.id, { title, artist, categories, chordpro, shared, tags: currentTags })
+      : await saveSong({ title, artist, categories, chordpro, shared, tags: currentTags, space: getCurrentSpaceKey() });
 
     window.location.hash = `#/song/${saved.id}`;
     // En segundo plano, sin bloquear la navegación: si hay sesión y
