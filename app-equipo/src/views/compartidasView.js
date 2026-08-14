@@ -6,7 +6,7 @@
 // Requiere sesión iniciada (la tabla `songs` no tiene lectura pública, ni
 // siquiera para lo compartido — es "entre equipos", no para cualquiera).
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
-import { getSession } from '../storage/auth.js';
+import { getSession, isAdmin } from '../storage/auth.js';
 import { saveSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
 import { getCurrentSpaceKey } from '../storage/settings.js';
@@ -15,19 +15,29 @@ export async function renderCompartidasView(container) {
   const space = getCurrentSpaceKey();
   const session = await getSession();
   const loggedIn = Boolean(session);
+  // El admin (acceso a todas las parroquias, ver team_members) ve TODO el
+  // cancionero de todas las parroquias acá, no solo lo marcado "compartir"
+  // — así tiene un único lugar para ver o copiar cualquier canción de
+  // cualquier parroquia. El resto del equipo sigue viendo solo lo que cada
+  // parroquia decidió compartir a propósito.
+  const admin = loggedIn && (await isAdmin());
 
   container.innerHTML = `
     <div class="topbar">
       <a class="btn" href="#/library">← Cancionero</a>
-      <h2>Biblioteca compartida</h2>
+      <h2>${admin ? 'Todas las canciones (todas las parroquias)' : 'Biblioteca compartida'}</h2>
       <span></span>
     </div>
     <div class="form-view">
       <p class="chord-editor-hint">
-        Canciones que otras parroquias marcaron como "Compartir con otras
+        ${
+          admin
+            ? 'Como admin, ves acá el cancionero completo de todas las parroquias — no solo lo que marcaron compartir. Copiala a tu cancionero en vez de tipearla de nuevo: queda como una canción propia, independiente, que después podés editar sin afectar a la original de esa parroquia.'
+            : `Canciones que otras parroquias marcaron como "Compartir con otras
         parroquias". Copiala a tu cancionero en vez de tipearla de nuevo —
         queda como una canción propia, independiente, que después podés
-        editar sin afectar a la original.
+        editar sin afectar a la original.`
+        }
       </p>
       ${
         !isSupabaseConfigured
@@ -72,9 +82,11 @@ export async function renderCompartidasView(container) {
 
     if (filtered.length === 0) {
       listEl.innerHTML = `<li class="empty-state">${
-        songs.length === 0
-          ? 'Todavía ninguna otra parroquia compartió canciones.'
-          : 'Ninguna coincide con la búsqueda.'
+        songs.length > 0
+          ? 'Ninguna coincide con la búsqueda.'
+          : admin
+          ? 'Todavía no hay canciones cargadas en otras parroquias.'
+          : 'Todavía ninguna otra parroquia compartió canciones.'
       }</li>`;
       return;
     }
@@ -87,19 +99,21 @@ export async function renderCompartidasView(container) {
       <li class="song-item" data-uuid="${escapeAttr(song.uuid)}">
         <span>
           ${escapeHtml(song.title)}${song.artist ? ` — <span class="song-artist">${escapeHtml(song.artist)}</span>` : ''}
-          <span class="song-artist">Compartida por ${escapeHtml(song.space_name || song.space)}</span>
+          <span class="song-artist">${admin ? 'De' : 'Compartida por'} ${escapeHtml(song.space_name || song.space)}</span>
         </span>
         <button type="button" class="btn btn-accent" data-copy="${escapeAttr(song.uuid)}">Copiar a mi cancionero</button>
       </li>`;
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('songs')
     .select('uuid, title, artist, categories, chordpro, space, space_name')
-    .eq('shared', true)
     .neq('space', space)
     .is('deleted_at', null)
     .order('title', { ascending: true });
+  if (!admin) query = query.eq('shared', true);
+
+  const { data, error } = await query;
 
   if (error) {
     listEl.innerHTML = `<li class="empty-state">No se pudo cargar (revisá la conexión).</li>`;

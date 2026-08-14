@@ -27,6 +27,21 @@ export async function getSession() {
   return data.session;
 }
 
+// true si la sesión actual es de un admin (acceso a todas las parroquias,
+// ver team_members en supabase/schema.sql). false tanto si no hay sesión
+// como si es un integrante normal (restringido a sus propias parroquias).
+export async function isAdmin() {
+  if (!isSupabaseConfigured) return false;
+  const session = await getSession();
+  if (!session) return false;
+  const { data } = await supabase
+    .from('team_members')
+    .select('is_admin')
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+  return Boolean(data?.is_admin);
+}
+
 // Se dispara cuando cambia el estado de login (login, logout, refresh de
 // token). Útil para actualizar botones ("Publicar") en cualquier pantalla
 // abierta sin tener que recargar la página.

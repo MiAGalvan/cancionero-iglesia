@@ -45,6 +45,7 @@ create table if not exists lista_actual (
   space_name text, -- "Nombre — Localidad, Provincia" tal cual se ve en la app al publicar
   fecha date not null,
   items jsonb not null,
+  published_by text, -- email de quién tocó "Publicar" por última vez (solo visible dentro de la app, no en la página pública)
   updated_at timestamptz not null default now(),
   unique (space, fecha)
 );
@@ -118,6 +119,7 @@ create table if not exists songs (
   chordpro text not null default '',
   shared boolean not null default false, -- true = cualquier otra parroquia la puede ver y copiar a su cancionero
   tags jsonb not null default '[]', -- tiempos/temas litúrgicos (Adviento, Cuaresma, Buen Pastor...), eje aparte de categories
+  updated_by text, -- email de quién la creó/editó por última vez
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );

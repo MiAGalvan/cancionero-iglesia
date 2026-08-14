@@ -120,7 +120,7 @@ function getDb() {
 // una carpeta agregada, ver storage/settings.js). `space` es de qué
 // parroquia es (ver storage/constants.js) — cada espacio tiene su propio
 // cancionero, separado del de las demás.
-export async function saveSong({ title, artist, categories, chordpro, space, shared = false, tags = [] }) {
+export async function saveSong({ title, artist, categories, chordpro, space, shared = false, tags = [], updatedBy = null }) {
   const db = await getDb();
   const now = new Date().toISOString();
   const id = await db.add(SONGS_STORE, {
@@ -132,13 +132,14 @@ export async function saveSong({ title, artist, categories, chordpro, space, sha
     chordpro,
     shared,
     tags: tags && tags.length ? tags : [],
+    updatedBy,
     createdAt: now,
     updatedAt: now,
   });
   return getSong(id);
 }
 
-export async function updateSong(id, { title, artist, categories, chordpro, shared, tags }) {
+export async function updateSong(id, { title, artist, categories, chordpro, shared, tags, updatedBy }) {
   const db = await getDb();
   const existing = await db.get(SONGS_STORE, id);
   if (!existing) throw new Error(`No existe la canción con id ${id}`);
@@ -150,6 +151,7 @@ export async function updateSong(id, { title, artist, categories, chordpro, shar
     chordpro,
     shared: shared ?? existing.shared ?? false,
     tags: tags && tags.length ? tags : [],
+    updatedBy: updatedBy ?? existing.updatedBy ?? null,
     updatedAt: new Date().toISOString(),
   };
   await db.put(SONGS_STORE, updated);
@@ -200,6 +202,7 @@ export async function applyRemoteSong(remote) {
     chordpro: remote.chordpro,
     shared: remote.shared || false,
     tags: remote.tags || [],
+    updatedBy: remote.updated_by || null,
     createdAt: existing ? existing.createdAt : remote.updated_at,
     updatedAt: remote.updated_at,
   };

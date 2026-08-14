@@ -130,6 +130,7 @@ export async function syncNow() {
           chordpro: song.chordpro,
           shared: song.shared || false,
           tags: song.tags || [],
+          updated_by: song.updatedBy || null,
           updated_at: song.updatedAt,
           deleted_at: null,
         },

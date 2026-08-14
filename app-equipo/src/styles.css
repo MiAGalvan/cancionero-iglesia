@@ -306,6 +306,12 @@ a {
   gap: 8px;
 }
 
+.song-updated-by {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
 .sidebar-group h3 {
   margin: 0;
   font-size: 0.72rem;
@@ -630,6 +636,12 @@ a {
   color: var(--text-dim);
   font-size: 0.9rem;
   word-break: break-all;
+}
+
+.publicada-por {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  margin: -8px 0 12px;
 }
 
 /* --- Pestañas "Pegar de la web" / "Escribir y poner acordes" --- */

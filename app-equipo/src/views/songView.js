@@ -28,6 +28,14 @@ export async function renderSongView(container, { id }) {
     </div>
     <div class="song-layout">
       <aside class="song-sidebar" id="song-sidebar">
+        ${
+          song.updatedBy
+            ? `<div class="sidebar-group">
+                <h3>Última edición</h3>
+                <p class="song-updated-by">${escapeHtml(song.updatedBy)}</p>
+              </div>`
+            : ''
+        }
         <div class="sidebar-group">
           <h3>Transporte</h3>
           <div class="transpose-controls">

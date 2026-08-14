@@ -17,6 +17,7 @@ import { renderChordEditor } from '../editor/chordEditorWidget.js';
 import { recognizeTextFromImage } from '../ocr/ocrText.js';
 import { saveSong, updateSong, getSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
+import { getSession } from '../storage/auth.js';
 import { getAllCategories, getAllTags, addCustomTag, getCurrentSpaceKey } from '../storage/settings.js';
 
 export async function renderNewSongView(container, { editId, presetCategory } = {}) {
@@ -227,9 +228,23 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
       return;
     }
 
+    // Si no hay sesión (edición offline, sin login), queda sin autoría —
+    // no bloquea guardar, es solo un dato informativo para el equipo.
+    const session = await getSession();
+    const updatedBy = session?.user?.email || null;
+
     const saved = existing
-      ? await updateSong(existing.id, { title, artist, categories, chordpro, shared, tags: currentTags })
-      : await saveSong({ title, artist, categories, chordpro, shared, tags: currentTags, space: getCurrentSpaceKey() });
+      ? await updateSong(existing.id, { title, artist, categories, chordpro, shared, tags: currentTags, updatedBy })
+      : await saveSong({
+          title,
+          artist,
+          categories,
+          chordpro,
+          shared,
+          tags: currentTags,
+          updatedBy,
+          space: getCurrentSpaceKey(),
+        });
 
     window.location.hash = `#/song/${saved.id}`;
     // En segundo plano, sin bloquear la navegación: si hay sesión y

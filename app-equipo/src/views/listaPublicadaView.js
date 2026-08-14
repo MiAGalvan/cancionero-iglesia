@@ -45,7 +45,7 @@ export function renderListaPublicadaView(container) {
     const [listaResult, anunciosResult, logoResult] = await Promise.all([
       supabase
         .from('lista_actual')
-        .select('fecha, items')
+        .select('fecha, items, published_by')
         .eq('space', selectedSpace)
         .order('updated_at', { ascending: false })
         .limit(1),
@@ -78,10 +78,15 @@ export function renderListaPublicadaView(container) {
       return;
     }
 
-    const { fecha, items } = data[0];
+    const { fecha, items, published_by } = data[0];
     contentEl.innerHTML = `
       ${logoHtml}
       <p class="qr-url">${formatFecha(fecha)}</p>
+      ${
+        published_by
+          ? `<p class="publicada-por">Publicado por ${escapeHtml(published_by)}</p>`
+          : ''
+      }
       <div class="lista-publicada">
         ${items
           .map(

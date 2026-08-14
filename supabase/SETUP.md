@@ -268,3 +268,29 @@ tener su propia lista local, un poco distinta (por ejemplo, si agregaste
 Tucumán solo en la compu). Al loguearte o sincronizar en cada dispositivo,
 las listas se mezclan automáticamente por fecha de última edición — no
 hace falta borrar ni volver a cargar nada a mano.
+
+## 14. Quién publicó/editó cada cosa
+
+Agrega `published_by` (en `lista_actual`) y `updated_by` (en `songs`): el
+email de la cuenta que tocó "Publicar" o guardó una canción por última
+vez. Se ve dentro de la app ("Ver publicada" y el visor de cada canción)
+— **nunca en la página pública**, para no exponer emails de voluntarios a
+los feligreses.
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-trazabilidad.sql`](./migracion-trazabilidad.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta nada
+extra: ya está incluido ahí.
+
+## 15. "Todas las canciones" para el admin
+
+En **📚 Compartidas**, si entrás con una cuenta `is_admin: true` (ver paso
+8), en vez de ver solo lo que cada parroquia marcó "compartir", ves el
+cancionero completo de TODAS las parroquias — pensado para vos, como
+responsable de todo el sistema, para tener un lugar único donde mirar o
+copiar cualquier canción de cualquier parroquia. El resto del equipo (sin
+`is_admin`) sigue viendo solo lo que se compartió a propósito. No necesita
+ninguna migración aparte — usa los mismos permisos que ya tenías.

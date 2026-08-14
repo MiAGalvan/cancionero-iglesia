@@ -74,6 +74,15 @@ donde la cargaste — se sincroniza entre todos, como el cancionero. Agregar
 o editar una desde la compu la hace aparecer sola en el celular (y
 viceversa) al loguearse o sincronizar. Ver paso 13 de `supabase/SETUP.md`.
 
+## Quién publicó/editó cada cosa, y catálogo del admin
+
+"Ver publicada" muestra qué cuenta publicó la lista actual, y el visor de
+cada canción muestra quién la editó por última vez — solo dentro de la
+app, nunca en la página pública. Además, si entrás como admin (acceso a
+todas las parroquias), **📚 Compartidas** deja de mostrar solo lo
+"compartido" y pasa a mostrar el cancionero completo de todas las
+parroquias, en un solo lugar. Ver pasos 14 y 15 de `supabase/SETUP.md`.
+
 ## Orden para poner todo en marcha
 
 1. **Supabase**: seguir [`supabase/SETUP.md`](./supabase/SETUP.md) — crear las

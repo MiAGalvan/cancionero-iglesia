@@ -3,6 +3,7 @@
 // dispositivo: acá solo se manda título + letra en texto plano.
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSong } from '../storage/db.js';
+import { getSession } from '../storage/auth.js';
 import { getAllCategories, getSpaceFullLabel } from '../storage/settings.js';
 import { chordProToPlainLyrics } from './textoPlano.js';
 
@@ -31,13 +32,14 @@ export async function publishMisa(misa) {
   if (!isSupabaseConfigured) {
     throw new Error('Falta configurar Supabase en src/storage/supabaseClient.js');
   }
-  const items = await buildPublishPayload(misa);
+  const [items, session] = await Promise.all([buildPublishPayload(misa), getSession()]);
   const { error } = await supabase.from('lista_actual').upsert(
     {
       space: misa.space,
       space_name: getSpaceFullLabel(misa.space),
       fecha: misa.fecha,
       items,
+      published_by: session?.user?.email || null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'space,fecha' }
