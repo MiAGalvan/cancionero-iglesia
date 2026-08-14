@@ -175,6 +175,23 @@ a {
   gap: 8px;
 }
 
+.folder-move {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.folder-move .btn-icon {
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.folder-move .btn-icon:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 .folder-item {
   flex: 1;
   display: flex;

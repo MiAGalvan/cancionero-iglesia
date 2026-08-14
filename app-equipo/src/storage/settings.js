@@ -7,6 +7,7 @@
 import { CATEGORIES, LITURGICAL_TAGS } from './constants.js';
 
 const CUSTOM_CATEGORIES_KEY = 'cancionero-iglesia:custom-categories';
+const CATEGORY_ORDER_KEY = 'cancionero-iglesia:category-order';
 const CUSTOM_TAGS_KEY = 'cancionero-iglesia:custom-tags';
 const HEADER_TITLE_KEY = 'cancionero-iglesia:header-title';
 const CURRENT_SPACE_KEY = 'cancionero-iglesia:current-space';
@@ -202,12 +203,54 @@ function saveCustomCategories(categories) {
   localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(categories));
 }
 
-// Las 12 litúrgicas fijas primero (siempre en su orden), y después las
-// carpetas que el equipo fue agregando. Es la lista que hay que usar en
-// cualquier lugar de la app que necesite "todas las carpetas", en vez de
-// CATEGORIES (que son solo las 12 fijas, sin las agregadas).
+function getCategoryOrder() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CATEGORY_ORDER_KEY));
+    return Array.isArray(saved) ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCategoryOrder(order) {
+  localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(order));
+}
+
+// Arranca con las 12 litúrgicas fijas en su orden, más las carpetas
+// agregadas al final (en el orden en que se fueron creando) — pero a
+// partir de ahí, el orden real es el que haya quedado guardado después de
+// usar moveCategory(): una carpeta agregada (ej. "Salmo") se puede mover
+// para que quede intercalada entre las fijas, no solo al final. Es la
+// lista que hay que usar en cualquier lugar de la app que necesite "todas
+// las carpetas", en vez de CATEGORIES (que son solo las 12 fijas).
 export function getAllCategories() {
-  return [...CATEGORIES, ...getCustomCategories()];
+  const all = [...CATEGORIES, ...getCustomCategories()];
+  const order = getCategoryOrder();
+  if (!order) return all;
+
+  // Por si el orden guardado quedó con nombres que ya no existen (se borró
+  // esa carpeta agregada), o le faltan nombres nuevos (recién agregada,
+  // todavía no se guardó ningún orden con ella adentro) — esos se agregan
+  // al final, como si nunca se hubiera movido nada.
+  const known = new Set(all);
+  const ordered = order.filter((name) => known.has(name));
+  const missing = all.filter((name) => !ordered.includes(name));
+  return [...ordered, ...missing];
+}
+
+// Intercambia una carpeta con la de al lado (arriba o abajo) y guarda ese
+// orden. No hace nada si ya está en la punta correspondiente. Devuelve la
+// lista ya actualizada, lista para volver a pintar la pantalla.
+export function moveCategory(name, direction) {
+  const order = getAllCategories();
+  const index = order.indexOf(name);
+  const targetIndex = direction === 'up' ? index - 1 : index + 1;
+  if (index === -1 || targetIndex < 0 || targetIndex >= order.length) return order;
+
+  const newOrder = [...order];
+  [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
+  saveCategoryOrder(newOrder);
+  return newOrder;
 }
 
 export function isCustomCategory(name) {

@@ -15,6 +15,7 @@ import {
   isCustomCategory,
   addCustomCategory,
   deleteCustomCategory,
+  moveCategory,
   getHeaderTitle,
   setHeaderTitle,
   getCurrentSpaceKey,
@@ -212,6 +213,8 @@ async function renderFoldersView(container) {
   contentEl.addEventListener('click', async (event) => {
     const deleteId = event.target.dataset.delete;
     const deleteCategory = event.target.dataset.deleteCategory;
+    const moveUp = event.target.dataset.moveUp;
+    const moveDown = event.target.dataset.moveDown;
     if (deleteId) {
       if (confirm('¿Eliminar esta canción?')) {
         const deleted = await deleteSong(Number(deleteId));
@@ -223,6 +226,12 @@ async function renderFoldersView(container) {
         deleteCustomCategory(deleteCategory);
         renderResultsOrFolders();
       }
+    } else if (moveUp) {
+      moveCategory(moveUp, 'up');
+      renderResultsOrFolders();
+    } else if (moveDown) {
+      moveCategory(moveDown, 'down');
+      renderResultsOrFolders();
     }
   });
 
@@ -235,12 +244,17 @@ async function renderFoldersView(container) {
         for (const song of songs) {
           for (const cat of song.categories) counts[cat] = (counts[cat] || 0) + 1;
         }
+        const cats = getAllCategories();
         contentEl.innerHTML = `
           <ul class="folder-list">
-            ${getAllCategories()
+            ${cats
               .map(
-                (cat) => `
+                (cat, i) => `
               <li>
+                <span class="folder-move">
+                  <button class="btn btn-icon" data-move-up="${escapeAttr(cat)}" title="Subir" ${i === 0 ? 'disabled' : ''}>▲</button>
+                  <button class="btn btn-icon" data-move-down="${escapeAttr(cat)}" title="Bajar" ${i === cats.length - 1 ? 'disabled' : ''}>▼</button>
+                </span>
                 <a class="folder-item" href="#/library/${encodeURIComponent(cat)}">
                   <span class="folder-icon">📁</span>
                   <span class="folder-name">${escapeHtml(cat)}</span>
