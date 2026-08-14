@@ -8,7 +8,7 @@
 import { searchSongs, deleteSong, getAllSongs, getSongsByCategory } from '../storage/db.js';
 import { propagateDelete, syncNow } from '../storage/sync.js';
 import { syncSpacesNow } from '../storage/spacesSync.js';
-import { getSession, signOut } from '../storage/auth.js';
+import { getSession, signOut, getVisibleSpaces } from '../storage/auth.js';
 import { getSpaceLogoUrl } from '../storage/logos.js';
 import {
   getAllCategories,
@@ -23,15 +23,19 @@ import {
   getSpaces,
   getEffectiveTheme,
   setStoredTheme,
+  getDeviceGroup,
+  setDeviceGroup,
 } from '../storage/settings.js';
 
 // Agrupa las opciones del selector por provincia (con <optgroup>), así con
 // varias parroquias en distintos lugares queda claro cuál es cuál de un
 // vistazo, sin tener que abrir "Parroquias y capillas" para acordarse.
-function renderSpaceOptions() {
+// `spaces` ya viene filtrada (ver getVisibleSpaces): un integrante
+// restringido a una sola parroquia ni siquiera ve acá las demás.
+function renderSpaceOptions(spaces) {
   const currentKey = getCurrentSpaceKey();
   const byProvince = new Map();
-  for (const space of getSpaces()) {
+  for (const space of spaces) {
     const province = space.province || 'Sin provincia';
     if (!byProvince.has(province)) byProvince.set(province, []);
     byProvince.get(province).push(space);
@@ -63,6 +67,15 @@ export async function renderLibraryView(container, { category } = {}) {
 }
 
 async function renderFoldersView(container) {
+  const visibleSpaces = await getVisibleSpaces();
+  // Si el espacio actual ya no está entre los permitidos (ej. cambiaron
+  // los permisos de este usuario, o es la primera vez que entra
+  // restringido), lo corregimos solo a la primera parroquia que sí puede
+  // tocar, en vez de dejarlo trabajando en una que ya no le corresponde.
+  if (!visibleSpaces.some((space) => space.key === getCurrentSpaceKey())) {
+    setCurrentSpaceKey(visibleSpaces[0].key);
+  }
+
   container.innerHTML = `
     <div class="topbar">
       <div class="header-title-row">
@@ -75,9 +88,12 @@ async function renderFoldersView(container) {
       </div>
       <div class="form-actions">
         <select id="space-switcher" title="Parroquia o capilla con la que estás trabajando ahora">
-          ${renderSpaceOptions()}
+          ${renderSpaceOptions(visibleSpaces)}
         </select>
         <a class="btn btn-icon" href="#/espacios" title="Agregar o editar parroquias y capillas">⚙️</a>
+        <button class="btn btn-icon" id="device-group-btn" title="Qué grupo/coro usa este dispositivo (para saber quién publicó o editó cada cosa)">
+          🎤 ${escapeHtml(getDeviceGroup() || 'Grupo')}
+        </button>
         <span id="auth-status"></span>
         <button class="btn btn-icon" id="sync-btn" title="Sincronizar cancionero con el resto del equipo">🔄</button>
         <a class="btn" href="#/lista-publicada" title="Ver la lista publicada, sin login">👀 Ver publicada</a>
@@ -124,6 +140,16 @@ async function renderFoldersView(container) {
     if (nuevoTitulo === null) return; // canceló
     setHeaderTitle(nuevoTitulo);
     container.querySelector('#header-title').textContent = getHeaderTitle();
+  });
+
+  container.querySelector('#device-group-btn').addEventListener('click', () => {
+    const nuevoGrupo = prompt(
+      'Con qué grupo/coro se usa este dispositivo (ej. "Coro sábado"). Queda guardado en este dispositivo, no se comparte con los demás.',
+      getDeviceGroup()
+    );
+    if (nuevoGrupo === null) return; // canceló
+    setDeviceGroup(nuevoGrupo);
+    container.querySelector('#device-group-btn').textContent = `🎤 ${getDeviceGroup() || 'Grupo'}`;
   });
 
   container.querySelector('#new-folder-btn').addEventListener('click', () => {

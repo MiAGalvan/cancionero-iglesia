@@ -4,7 +4,7 @@
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSong } from '../storage/db.js';
 import { getSession } from '../storage/auth.js';
-import { getAllCategories, getSpaceFullLabel } from '../storage/settings.js';
+import { getAllCategories, getSpaceFullLabel, getDeviceGroup } from '../storage/settings.js';
 import { chordProToPlainLyrics } from './textoPlano.js';
 
 // `misa.items` es { [categoria]: songId | null }. Devuelve solo las
@@ -39,7 +39,10 @@ export async function publishMisa(misa) {
       space_name: getSpaceFullLabel(misa.space),
       fecha: misa.fecha,
       items,
-      published_by: session?.user?.email || null,
+      // El grupo del dispositivo (ej. "CORO SÁBADO") es más útil que el
+      // email cuando varios grupos comparten un solo login de parroquia —
+      // si no está configurado, se usa el email como respaldo.
+      published_by: getDeviceGroup() || session?.user?.email || null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'space,fecha' }

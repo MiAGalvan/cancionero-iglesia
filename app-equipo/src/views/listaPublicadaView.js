@@ -4,12 +4,16 @@
 // Usa la tabla pública `lista_actual` (lectura abierta a cualquiera, ver
 // supabase/schema.sql), la misma que lee pagina-publica.
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
-import { getSpaces, getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
+import { getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
+import { getVisibleSpaces } from '../storage/auth.js';
 
 const REFRESH_MS = 45000;
 
-export function renderListaPublicadaView(container) {
-  let selectedSpace = getCurrentSpaceKey();
+export async function renderListaPublicadaView(container) {
+  const spaces = await getVisibleSpaces();
+  let selectedSpace = spaces.some((space) => space.key === getCurrentSpaceKey())
+    ? getCurrentSpaceKey()
+    : spaces[0].key;
   let refreshTimer = null;
 
   container.innerHTML = `
@@ -20,7 +24,7 @@ export function renderListaPublicadaView(container) {
     </div>
     <div class="form-view">
       <div class="mode-tabs" id="space-tabs">
-        ${getSpaces().map(
+        ${spaces.map(
           (space) => `<button type="button" class="mode-tab" data-space-tab="${space.key}">${escapeHtml(
             space.locality ? `${space.label} (${space.locality})` : space.label
           )}</button>`

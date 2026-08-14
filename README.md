@@ -29,7 +29,11 @@ conocen entre sí, seguí el paso 8 de `SETUP.md` para restringir esto: una
 tabla `team_members` en Supabase dice qué parroquia(s) puede tocar cada
 usuario (`is_admin: true` = todas, para el responsable general del
 sistema). Es una restricción real del lado del servidor (RLS), no solo un
-botón oculto en la app.
+botón oculto en la app. Además, un integrante restringido a una o dos
+parroquias ni siquiera VE las demás en los selectores de la app (biblioteca,
+QR, Ver publicada, Proyección, Parroquias y capillas) — no es solo que no
+las pueda tocar, directamente no aparecen, para que no se confunda ni las
+encuentre por accidente. El admin (`is_admin: true`) sigue viendo todas.
 
 ## Novedades (avisos, eventos, lecturas)
 
@@ -82,6 +86,16 @@ app, nunca en la página pública. Además, si entrás como admin (acceso a
 todas las parroquias), **📚 Compartidas** deja de mostrar solo lo
 "compartido" y pasa a mostrar el cancionero completo de todas las
 parroquias, en un solo lugar. Ver pasos 14 y 15 de `supabase/SETUP.md`.
+
+## Grupo por dispositivo (varios coros, un solo login)
+
+Si varios grupos de una misma parroquia comparten un único login (en vez
+de un usuario de Supabase por grupo), cada dispositivo puede configurar su
+propio "Grupo" (🎤, junto al selector de parroquia) — ej. "CORO SÁBADO".
+No se sincroniza entre dispositivos (es una etiqueta de "quién usa ESTE
+aparato"), y se usa en vez del email para `published_by`/`updated_by`, así
+"Ver publicada" y el visor de canciones muestran qué grupo publicó o
+editó cada cosa. No necesita ninguna migración.
 
 ## Orden para poner todo en marcha
 

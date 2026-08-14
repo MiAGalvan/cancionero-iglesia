@@ -18,7 +18,7 @@ import { recognizeTextFromImage } from '../ocr/ocrText.js';
 import { saveSong, updateSong, getSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
 import { getSession } from '../storage/auth.js';
-import { getAllCategories, getAllTags, addCustomTag, getCurrentSpaceKey } from '../storage/settings.js';
+import { getAllCategories, getAllTags, addCustomTag, getCurrentSpaceKey, getDeviceGroup } from '../storage/settings.js';
 
 export async function renderNewSongView(container, { editId, presetCategory } = {}) {
   const existing = editId ? await getSong(Number(editId)) : null;
@@ -228,10 +228,12 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
       return;
     }
 
-    // Si no hay sesión (edición offline, sin login), queda sin autoría —
-    // no bloquea guardar, es solo un dato informativo para el equipo.
+    // El grupo del dispositivo (ej. "CORO SÁBADO") es más útil que el
+    // email cuando varios grupos comparten un solo login de parroquia. Sin
+    // grupo configurado ni sesión, queda sin autoría — no bloquea guardar,
+    // es solo un dato informativo para el equipo.
     const session = await getSession();
-    const updatedBy = session?.user?.email || null;
+    const updatedBy = getDeviceGroup() || session?.user?.email || null;
 
     const saved = existing
       ? await updateSong(existing.id, { title, artist, categories, chordpro, shared, tags: currentTags, updatedBy })

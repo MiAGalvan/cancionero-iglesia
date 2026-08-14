@@ -8,6 +8,7 @@ import { CATEGORIES, LITURGICAL_TAGS } from './constants.js';
 
 const CUSTOM_CATEGORIES_KEY = 'cancionero-iglesia:custom-categories';
 const CATEGORY_ORDER_KEY = 'cancionero-iglesia:category-order';
+const DEVICE_GROUP_KEY = 'cancionero-iglesia:device-group';
 const CUSTOM_TAGS_KEY = 'cancionero-iglesia:custom-tags';
 const HEADER_TITLE_KEY = 'cancionero-iglesia:header-title';
 const CURRENT_SPACE_KEY = 'cancionero-iglesia:current-space';
@@ -315,6 +316,27 @@ export function addCustomTag(name) {
 export function deleteCustomTag(name) {
   saveCustomTags(getCustomTags().filter((t) => t !== name));
   return getAllTags();
+}
+
+// "Grupo" (ej. "CORO SÁBADO"): a diferencia de todo lo demás en este
+// archivo, esto NO se sincroniza entre dispositivos a propósito — es una
+// etiqueta de "quién usa ESTE dispositivo en particular", pensada para
+// cuando varios grupos comparten un solo login de parroquia (en vez de un
+// usuario de Supabase por grupo). Se usa para saber quién publicó/editó
+// cada cosa (ver liturgia/publicar.js y views/newSongView.js) sin tener
+// que crear una cuenta nueva por cada grupo. Se guarda en mayúsculas para
+// que no queden variantes tipo "Coro Sábado" vs "coro sabado" mezcladas.
+export function getDeviceGroup() {
+  return localStorage.getItem(DEVICE_GROUP_KEY) || '';
+}
+
+export function setDeviceGroup(name) {
+  const trimmed = name.trim().toUpperCase();
+  if (trimmed) {
+    localStorage.setItem(DEVICE_GROUP_KEY, trimmed);
+  } else {
+    localStorage.removeItem(DEVICE_GROUP_KEY);
+  }
 }
 
 export function getHeaderTitle() {

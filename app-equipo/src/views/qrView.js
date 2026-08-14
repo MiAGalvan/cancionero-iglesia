@@ -4,16 +4,20 @@
 // esa URL (ver publicarView.js / pagina-publica). Cada espacio (parroquia)
 // tiene su propio QR, porque cada uno tiene su propia lista publicada.
 import QRCode from 'qrcode';
-import { getSpaces, getCurrentSpaceKey } from '../storage/settings.js';
+import { getCurrentSpaceKey } from '../storage/settings.js';
+import { getVisibleSpaces } from '../storage/auth.js';
 
 // ⚠️ COMPLETAR: la URL fija de la página pública, una vez que esté
 // desplegada (ej. "https://tu-usuario.github.io/cancionero-iglesia/" o la
 // URL de Netlify que le hayas puesto a pagina-publica).
 const PUBLIC_URL = 'https://cute-donut-4f119e.netlify.app/';
 
-export function renderQrView(container) {
+export async function renderQrView(container) {
   const isConfigured = !PUBLIC_URL.includes('TU-USUARIO');
-  let selectedSpace = getCurrentSpaceKey();
+  const spaces = await getVisibleSpaces();
+  let selectedSpace = spaces.some((space) => space.key === getCurrentSpaceKey())
+    ? getCurrentSpaceKey()
+    : spaces[0].key;
 
   container.innerHTML = `
     <div class="topbar">
@@ -38,7 +42,7 @@ export function renderQrView(container) {
         el contenido que el equipo publica, no el QR.
       </p>
       <div class="mode-tabs" id="space-tabs">
-        ${getSpaces().map(
+        ${spaces.map(
           (space) => `<button type="button" class="mode-tab" data-space-tab="${space.key}">${escapeHtml(
             space.locality ? `${space.label} (${space.locality})` : space.label
           )}</button>`

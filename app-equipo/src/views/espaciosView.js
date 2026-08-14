@@ -4,12 +4,19 @@
 // se usa en más lugares (otras ciudades, otras provincias) hace falta poder
 // diferenciarlas claramente por localidad y provincia.
 import { getSpaces, addSpace, updateSpace, deleteSpace, getCurrentSpaceKey } from '../storage/settings.js';
-import { getSession } from '../storage/auth.js';
+import { getSession, getAllowedSpaceKeys, isAdmin } from '../storage/auth.js';
 import { uploadSpaceLogo, getLogosForSpaces } from '../storage/logos.js';
 import { pushSpace, pushSpaceDeletion, syncSpacesNow } from '../storage/spacesSync.js';
 
 export async function renderEspaciosView(container) {
   const loggedIn = Boolean(await getSession());
+  // Un integrante restringido a su(s) parroquia(s) ni siquiera ve acá las
+  // demás — y como crear una parroquia NUEVA queda solo para el admin (ver
+  // supabase/schema.sql), a un integrante logueado y no-admin le
+  // escondemos directamente ese botón en vez de dejar que lo intente y se
+  // encuentre con un rechazo. Sin sesión (uso 100% offline, sin ningún
+  // login) se sigue viendo, como siempre — ahí no hay nada que restringir.
+  const [allowedKeys, admin] = await Promise.all([getAllowedSpaceKeys(), loggedIn ? isAdmin() : true]);
   let logos = await getLogosForSpaces(getSpaces().map((s) => s.key));
 
   container.innerHTML = `
@@ -29,9 +36,13 @@ export async function renderEspaciosView(container) {
             : ' Iniciá sesión para poder subir o cambiar el logo de cada una.'
         }
       </p>
-      <div class="form-actions">
-        <button type="button" class="btn btn-accent" id="add-space-btn">+ Agregar parroquia o capilla</button>
-      </div>
+      ${
+        admin
+          ? `<div class="form-actions">
+              <button type="button" class="btn btn-accent" id="add-space-btn">+ Agregar parroquia o capilla</button>
+            </div>`
+          : ''
+      }
       <div id="logo-status" class="warning-box" hidden></div>
       <ul class="song-list" id="spaces-list"></ul>
     </div>
@@ -41,7 +52,9 @@ export async function renderEspaciosView(container) {
   const statusEl = container.querySelector('#logo-status');
 
   function render() {
-    const spaces = [...getSpaces()].sort((a, b) => {
+    const all = getSpaces();
+    const visible = allowedKeys ? all.filter((space) => allowedKeys.includes(space.key)) : all;
+    const spaces = [...(visible.length > 0 ? visible : all)].sort((a, b) => {
       const byProvince = (a.province || '').localeCompare(b.province || '', 'es');
       return byProvince !== 0 ? byProvince : a.label.localeCompare(b.label, 'es');
     });
@@ -95,7 +108,7 @@ export async function renderEspaciosView(container) {
     }
   });
 
-  container.querySelector('#add-space-btn').addEventListener('click', () => {
+  container.querySelector('#add-space-btn')?.addEventListener('click', () => {
     const label = prompt('Nombre de la parroquia o capilla');
     if (label === null || !label.trim()) return;
     const locality = prompt('Localidad (ciudad/pueblo)', '') || '';

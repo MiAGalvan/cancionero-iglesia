@@ -5,14 +5,16 @@
 // canción a mitad de la misa y vuelve a publicar, acá se actualiza sola,
 // sin tocar nada en la compu conectada a la pantalla.
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
-import { getSpaces, getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
+import { getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
+import { getVisibleSpaces } from '../storage/auth.js';
 
 const REFRESH_MS = 45000;
 
-export function renderProyeccionView(container) {
+export async function renderProyeccionView(container) {
+  const spaces = await getVisibleSpaces();
   const state = {
     phase: 'setup',
-    space: getCurrentSpaceKey(),
+    space: spaces.some((space) => space.key === getCurrentSpaceKey()) ? getCurrentSpaceKey() : spaces[0].key,
     items: [],
     index: 0,
   };
@@ -43,7 +45,7 @@ export function renderProyeccionView(container) {
           sola si el equipo publica un cambio durante la misa.
         </p>
         <div class="mode-tabs" id="space-tabs">
-          ${getSpaces().map(
+          ${spaces.map(
             (space) => `<button type="button" class="mode-tab" data-space-tab="${space.key}">${escapeHtml(
               space.locality ? `${space.label} (${space.locality})` : space.label
             )}</button>`
