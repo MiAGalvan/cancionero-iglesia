@@ -217,8 +217,10 @@ export async function getAllSongs(space) {
   return songs.sort((a, b) => a.title.localeCompare(b.title, 'es'));
 }
 
-// Búsqueda simple por nombre o artista: alcanza y sobra para un cancionero de
-// parroquia (decenas/cientos de canciones), no hace falta un índice de texto.
+// Búsqueda simple por nombre, artista o tiempo/tema litúrgico (ej. buscar
+// "pascua" encuentra las canciones etiquetadas "Pascua" aunque la palabra
+// no esté en el título): alcanza y sobra para un cancionero de parroquia
+// (decenas/cientos de canciones), no hace falta un índice de texto.
 export async function searchSongs(query, space) {
   const songs = await getAllSongs(space);
   const needle = query.trim().toLowerCase();
@@ -226,7 +228,8 @@ export async function searchSongs(query, space) {
   return songs.filter(
     (song) =>
       song.title.toLowerCase().includes(needle) ||
-      song.artist.toLowerCase().includes(needle)
+      song.artist.toLowerCase().includes(needle) ||
+      (song.tags || []).some((tag) => tag.toLowerCase().includes(needle))
   );
 }
 

@@ -67,6 +67,13 @@ filtro que, al elegir un tiempo, acota las opciones de cada categoría a
 las canciones de ese tiempo (más las que no tienen ninguno puesto, que
 sirven para cualquier época). Ver paso 12 de `supabase/SETUP.md`.
 
+## Parroquias y capillas sincronizadas
+
+La lista de "Parroquias y capillas" (⚙️) ya no vive solo en el dispositivo
+donde la cargaste — se sincroniza entre todos, como el cancionero. Agregar
+o editar una desde la compu la hace aparecer sola en el celular (y
+viceversa) al loguearse o sincronizar. Ver paso 13 de `supabase/SETUP.md`.
+
 ## Orden para poner todo en marcha
 
 1. **Supabase**: seguir [`supabase/SETUP.md`](./supabase/SETUP.md) — crear las

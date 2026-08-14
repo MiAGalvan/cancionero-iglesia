@@ -233,6 +233,81 @@ create policy "equipo autorizado reemplaza su logo en storage"
     )
   );
 
+-- --- spaces: lista de parroquias/capillas, sincronizada entre dispositivos
+-- Antes esta lista vivía solo en localStorage de cada dispositivo (cada
+-- celu/tablet tenía que cargarla a mano) — ahora se sincroniza como el
+-- resto, con el mismo patrón de "gana la edición más reciente" +
+-- tombstones para que un borrado también se propague (ver
+-- app-equipo/src/storage/spacesSync.js).
+
+create table if not exists spaces (
+  key text primary key,
+  label text not null,
+  locality text not null default '',
+  province text not null default '',
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+alter table spaces enable row level security;
+
+create policy "lectura publica de espacios"
+  on spaces
+  for select
+  to anon, authenticated
+  using (true);
+
+-- Mismo chequeo para insert/update/delete a propósito: como se sube con
+-- upsert(), Postgres evalúa la política de INSERT incluso cuando el
+-- resultado real es una actualización (fila ya existente) — si acá solo
+-- dejáramos crear a un admin, un integrante normal ni siquiera podría
+-- editar el nombre de SU propia parroquia. Con este chequeo simétrico: un
+-- admin puede todo, y alguien no-admin puede crear/editar/borrar solo las
+-- que ya tiene asignadas en team_members (una parroquia nueva de cero,
+-- como es lógico, la tiene que dar de alta un admin).
+create policy "equipo autorizado agrega o edita espacios"
+  on spaces
+  for insert
+  to authenticated
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or spaces.key = any(tm.spaces))
+    )
+  );
+
+create policy "equipo autorizado actualiza espacios"
+  on spaces
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or spaces.key = any(tm.spaces))
+    )
+  )
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or spaces.key = any(tm.spaces))
+    )
+  );
+
+create policy "equipo autorizado borra espacios"
+  on spaces
+  for delete
+  to authenticated
+  using (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or spaces.key = any(tm.spaces))
+    )
+  );
+
 create policy "equipo autorizado agrega canciones"
   on songs
   for insert

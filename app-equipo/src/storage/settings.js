@@ -66,6 +66,16 @@ function saveSpaces(spaces) {
   localStorage.setItem(SPACES_KEY, JSON.stringify(spaces));
 }
 
+// Usado solo por storage/spacesSync.js, después de mezclar la lista local
+// con lo que bajó de Supabase (última edición gana) — bypasea addSpace
+// porque las keys ya vienen generadas de antes, no hay que crearlas de
+// nuevo. Si la parroquia actual dejó de estar en la lista (la borraron
+// desde otro dispositivo), getCurrentSpaceKey() ya cae sola a la primera
+// disponible, no hace falta nada especial acá.
+export function replaceSpacesFromSync(spaces) {
+  saveSpaces(spaces);
+}
+
 // Vuelve "Nuestra Señora del Carmen" + "Tucumán" en "nuestra-senora-del-
 // carmen-tucuman": sin tildes, en minúscula, sin nada raro — así sirve como
 // identificador en la base de datos y en la URL de la página pública/QR.
@@ -104,7 +114,13 @@ export function addSpace({ label, locality = '', province = '' }) {
     suffix += 1;
   }
 
-  const newSpace = { key, label: trimmedLabel, locality: locality.trim(), province: province.trim() };
+  const newSpace = {
+    key,
+    label: trimmedLabel,
+    locality: locality.trim(),
+    province: province.trim(),
+    updatedAt: new Date().toISOString(),
+  };
   saveSpaces([...spaces, newSpace]);
   return newSpace;
 }
@@ -114,26 +130,34 @@ export function addSpace({ label, locality = '', province = '' }) {
 // sin ningún problema.
 export function updateSpace(key, { label, locality = '', province = '' }) {
   const trimmedLabel = label.trim();
-  if (!trimmedLabel) return;
+  if (!trimmedLabel) return null;
+  const updatedAt = new Date().toISOString();
+  let updatedSpace = null;
   saveSpaces(
-    getSpaces().map((space) =>
-      space.key === key ? { ...space, label: trimmedLabel, locality: locality.trim(), province: province.trim() } : space
-    )
+    getSpaces().map((space) => {
+      if (space.key !== key) return space;
+      updatedSpace = { ...space, label: trimmedLabel, locality: locality.trim(), province: province.trim(), updatedAt };
+      return updatedSpace;
+    })
   );
+  return updatedSpace;
 }
 
 // No deja borrar la última que queda (siempre tiene que haber al menos una
 // parroquia/capilla para poder usar la app). Las canciones/listas que ya
 // tenía esa parroquia no se borran, solo dejan de ser accesibles desde acá
-// — igual que al borrar una carpeta agregada.
+// — igual que al borrar una carpeta agregada. Devuelve la parroquia
+// borrada (para que quien llama pueda avisarle a Supabase, ver
+// storage/spacesSync.js) o null si no se pudo.
 export function deleteSpace(key) {
   const spaces = getSpaces();
-  if (spaces.length <= 1) return false;
+  if (spaces.length <= 1) return null;
+  const deleted = spaces.find((space) => space.key === key) || null;
   saveSpaces(spaces.filter((space) => space.key !== key));
   if (getCurrentSpaceKey() === key) {
     setCurrentSpaceKey(getSpaces()[0].key);
   }
-  return true;
+  return deleted;
 }
 
 export function getCurrentSpaceKey() {

@@ -134,7 +134,7 @@ assertEqual(
 // --- no deja borrar la última que queda ---
 for (const space of getSpaces().slice(1)) deleteSpace(space.key);
 assertEqual(getSpaces().length, 1, 'se puede borrar hasta dejar una sola');
-assertEqual(deleteSpace(getSpaces()[0].key), false, 'no deja borrar la única parroquia que queda');
+assertEqual(deleteSpace(getSpaces()[0].key), null, 'no deja borrar la única parroquia que queda');
 assertEqual(getSpaces().length, 1, 'sigue habiendo una parroquia después de intentar borrar la última');
 
 // --- tema (claro/oscuro) ---

@@ -7,6 +7,7 @@
 // biblioteca, sin importar la categoría.
 import { searchSongs, deleteSong, getAllSongs, getSongsByCategory } from '../storage/db.js';
 import { propagateDelete, syncNow } from '../storage/sync.js';
+import { syncSpacesNow } from '../storage/spacesSync.js';
 import { getSession, signOut } from '../storage/auth.js';
 import { getSpaceLogoUrl } from '../storage/logos.js';
 import {
@@ -169,8 +170,16 @@ async function renderFoldersView(container) {
       syncStatusEl.hidden = false;
       syncStatusEl.textContent = 'Sincronizando...';
     }
-    const result = await syncNow();
+    const [result, spacesResult] = await Promise.all([syncNow(), syncSpacesNow()]);
     if (!silent) syncBtn.disabled = false;
+
+    // Si cambió la lista de parroquias (una nueva, un nombre editado desde
+    // otro dispositivo), repintamos toda la pantalla para que el selector
+    // de arriba quede al día — no solo la lista de canciones.
+    if (spacesResult.changed) {
+      renderFoldersView(container);
+      return;
+    }
 
     if (result.synced) {
       if (result.pulled > 0) renderResultsOrFolders();
@@ -296,7 +305,9 @@ async function renderCategoryView(container, category) {
     const filtered = needle
       ? songs.filter(
           (song) =>
-            song.title.toLowerCase().includes(needle) || song.artist.toLowerCase().includes(needle)
+            song.title.toLowerCase().includes(needle) ||
+            song.artist.toLowerCase().includes(needle) ||
+            (song.tags || []).some((tag) => tag.toLowerCase().includes(needle))
         )
       : songs;
 
@@ -326,6 +337,7 @@ function songItemHtml(song) {
         <span class="song-artist">
           ${escapeHtml(song.artist || '')}
           ${song.categories.map((cat) => `<span class="category-tag">${escapeHtml(cat)}</span>`).join('')}
+          ${(song.tags || []).map((tag) => `<span class="liturgical-tag">🕊️ ${escapeHtml(tag)}</span>`).join('')}
         </span>
       </a>
       <button class="btn btn-danger btn-icon" data-delete="${song.id}" title="Eliminar">✕</button>

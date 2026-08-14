@@ -6,6 +6,7 @@
 import { getSpaces, addSpace, updateSpace, deleteSpace, getCurrentSpaceKey } from '../storage/settings.js';
 import { getSession } from '../storage/auth.js';
 import { uploadSpaceLogo, getLogosForSpaces } from '../storage/logos.js';
+import { pushSpace, pushSpaceDeletion, syncSpacesNow } from '../storage/spacesSync.js';
 
 export async function renderEspaciosView(container) {
   const loggedIn = Boolean(await getSession());
@@ -99,7 +100,11 @@ export async function renderEspaciosView(container) {
     if (label === null || !label.trim()) return;
     const locality = prompt('Localidad (ciudad/pueblo)', '') || '';
     const province = prompt('Provincia', '') || '';
-    if (addSpace({ label, locality, province })) render();
+    const created = addSpace({ label, locality, province });
+    if (created) {
+      render();
+      pushSpace(created); // en segundo plano, no bloquea la pantalla
+    }
   });
 
   listEl.addEventListener('click', (event) => {
@@ -115,8 +120,9 @@ export async function renderEspaciosView(container) {
       if (locality === null) return;
       const province = prompt('Provincia', space.province || '');
       if (province === null) return;
-      updateSpace(editKey, { label, locality, province });
+      const updated = updateSpace(editKey, { label, locality, province });
       render();
+      if (updated) pushSpace(updated);
     } else if (deleteKey) {
       const space = getSpaces().find((s) => s.key === deleteKey);
       if (!space) return;
@@ -124,12 +130,23 @@ export async function renderEspaciosView(container) {
         `¿Eliminar "${space.label}"? El cancionero y las listas que ya tenía no se borran, pero dejan de ser accesibles desde acá.`
       );
       if (!confirmado) return;
-      if (!deleteSpace(deleteKey)) {
+      const deleted = deleteSpace(deleteKey);
+      if (!deleted) {
         alert('No se puede eliminar: tiene que quedar al menos una parroquia o capilla.');
         return;
       }
       render();
+      pushSpaceDeletion(deleted);
     }
+  });
+
+  // Al abrir esta pantalla, de paso bajamos lo que hayan agregado/editado
+  // desde otros dispositivos — así no hace falta ir primero a la
+  // biblioteca para que aparezca una parroquia nueva.
+  syncSpacesNow().then(async (result) => {
+    if (!result.changed) return;
+    logos = await getLogosForSpaces(getSpaces().map((s) => s.key));
+    render();
   });
 
   render();

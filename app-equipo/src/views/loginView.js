@@ -6,6 +6,7 @@
 import { signIn } from '../storage/auth.js';
 import { isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { syncNow } from '../storage/sync.js';
+import { syncSpacesNow } from '../storage/spacesSync.js';
 
 export function renderLoginView(container, { returnTo } = {}) {
   container.innerHTML = `
@@ -68,7 +69,11 @@ export function renderLoginView(container, { returnTo } = {}) {
     loginBtn.textContent = 'Ingresando...';
     try {
       await signIn(email, password);
-      syncNow(); // arranca en segundo plano, no hace falta esperarla para navegar
+      // Arrancan en segundo plano, no hace falta esperarlas para navegar —
+      // así, apenas se loguea por primera vez en un dispositivo nuevo, le
+      // llegan solas el cancionero y la lista de parroquias/capillas.
+      syncNow();
+      syncSpacesNow();
       window.location.hash = returnTo || '#/library';
     } catch (err) {
       showError(

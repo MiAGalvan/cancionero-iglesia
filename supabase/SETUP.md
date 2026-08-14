@@ -245,3 +245,26 @@ canción.
 
 Si estás instalando todo de cero con `schema.sql`, no hace falta nada
 extra: ya está incluido ahí.
+
+## 13. Sincronizar la lista de parroquias/capillas entre dispositivos
+
+Antes, "Parroquias y capillas" vivía solo en el localStorage de cada
+dispositivo — si agregabas una parroquia desde la compu, no aparecía sola
+en el celular; había que cargarla a mano en cada uno. Esto lo sincroniza
+como el resto: agregar/editar una parroquia en un dispositivo la hace
+aparecer en los demás (con sesión iniciada), automáticamente al loguearse
+o al tocar 🔄 en la biblioteca.
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-espacios-sync.sql`](./migracion-espacios-sync.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta nada
+extra: ya está incluido ahí.
+
+**Importante:** la primera vez que corras esto, cada dispositivo puede
+tener su propia lista local, un poco distinta (por ejemplo, si agregaste
+Tucumán solo en la compu). Al loguearte o sincronizar en cada dispositivo,
+las listas se mezclan automáticamente por fecha de última edición — no
+hace falta borrar ni volver a cargar nada a mano.

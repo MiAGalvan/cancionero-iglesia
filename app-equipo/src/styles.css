@@ -453,6 +453,17 @@ a {
 }
 
 /* --- Tags de categoría (biblioteca) --- */
+.liturgical-tag {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 1px 7px;
+  margin-left: 6px;
+  font-size: 0.78rem;
+  color: var(--accent);
+}
+
 .category-tag {
   display: inline-block;
   background: var(--bg);
