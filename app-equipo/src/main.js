@@ -86,3 +86,52 @@ if ('serviceWorker' in navigator) {
     }
   }
 }
+
+// --- Avisar cuando hay una versión nueva publicada -----------------------
+// No alcanza con que el Service Worker esté registrado: como
+// service-worker.js no cambia de contenido de un despliegue a otro (solo
+// cambian los archivos que él sirve), el navegador no tiene ninguna señal
+// para darse cuenta solo de que hay algo nuevo — por eso a veces la app
+// tarda en "verse" actualizada en otros dispositivos aunque ya esté
+// publicada. Acá comparamos directamente el index.html real (sin caché)
+// contra el que ya tenemos cargado, cada vez que se abre la app o se
+// vuelve a ella después de tenerla en segundo plano — si cambió, avisamos
+// con un cartel en vez de recargar solos (para no perder algo a medio
+// escribir).
+if (import.meta.env.PROD) {
+  let currentHtml = null;
+
+  function showUpdateBanner() {
+    if (document.getElementById('update-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'update-banner';
+    banner.className = 'update-banner';
+    banner.innerHTML = `
+      Hay una versión nueva de la app.
+      <button type="button" id="update-banner-btn" class="btn btn-accent">Actualizar</button>
+    `;
+    document.body.appendChild(banner);
+    banner.querySelector('#update-banner-btn').addEventListener('click', () => window.location.reload());
+  }
+
+  async function checkForUpdate() {
+    try {
+      const res = await fetch('/index.html', { cache: 'no-store' });
+      const html = await res.text();
+      if (currentHtml === null) {
+        currentHtml = html;
+        return;
+      }
+      if (html !== currentHtml) showUpdateBanner();
+    } catch {
+      // Sin conexión, o falló el pedido: no pasa nada, se reintenta solo la
+      // próxima vez que se dispare el chequeo.
+    }
+  }
+
+  checkForUpdate();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkForUpdate();
+  });
+  setInterval(checkForUpdate, 10 * 60 * 1000); // cada 10 min, por si queda abierta mucho rato
+}
