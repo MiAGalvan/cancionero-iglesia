@@ -9,6 +9,7 @@ import { CATEGORIES, LITURGICAL_TAGS } from './constants.js';
 const CUSTOM_CATEGORIES_KEY = 'cancionero-iglesia:custom-categories';
 const CATEGORY_ORDER_KEY = 'cancionero-iglesia:category-order';
 const DEVICE_GROUP_KEY = 'cancionero-iglesia:device-group';
+const SHOW_CHORDS_KEY = 'cancionero-iglesia:show-chords';
 const CUSTOM_TAGS_KEY = 'cancionero-iglesia:custom-tags';
 const HEADER_TITLE_KEY = 'cancionero-iglesia:header-title';
 const CURRENT_SPACE_KEY = 'cancionero-iglesia:current-space';
@@ -337,6 +338,17 @@ export function setDeviceGroup(name) {
   } else {
     localStorage.removeItem(DEVICE_GROUP_KEY);
   }
+}
+
+// Preferencia personal de este dispositivo: mostrar los acordes en el
+// visor, o solo la letra (para quien no toca ningún instrumento y los
+// acordes le quedan de más). Por defecto se muestran, igual que siempre.
+export function getShowChords() {
+  return localStorage.getItem(SHOW_CHORDS_KEY) !== 'false';
+}
+
+export function setShowChords(show) {
+  localStorage.setItem(SHOW_CHORDS_KEY, show ? 'true' : 'false');
 }
 
 export function getHeaderTitle() {

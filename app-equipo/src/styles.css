@@ -300,6 +300,45 @@ a {
   display: none;
 }
 
+/* En pantalla completa (HDMI/celular durante la misa) el panel de
+   controles no necesita ser una columna fija de 200px — molesta más de lo
+   que ayuda. Queda chico y flotando en una esquina, y la letra usa todo el
+   ancho de la pantalla debajo. */
+:fullscreen .song-layout {
+  position: relative;
+}
+
+:fullscreen .song-sidebar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 20;
+  width: 148px;
+  max-height: calc(100% - 20px);
+  padding: 10px;
+  gap: 12px;
+  font-size: 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  opacity: 0.94;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+:fullscreen .sidebar-group h3 {
+  font-size: 0.62rem;
+}
+
+:fullscreen .song-sidebar .btn,
+:fullscreen .song-sidebar .btn-icon {
+  padding: 3px 8px;
+  font-size: 0.78rem;
+}
+
+:fullscreen .speed-slider {
+  width: 78px;
+}
+
 .sidebar-group {
   display: flex;
   flex-direction: column;
@@ -369,7 +408,11 @@ a {
   overflow-y: auto;
   padding: 24px 20px 40vh;
   font-size: 1.9rem;
-  line-height: 2.4;
+  line-height: 1.7;
+}
+
+.lyrics-container.hide-chords .chord-sheet .chord {
+  display: none;
 }
 
 /* Salida de HtmlDivFormatter (chordsheetjs) */

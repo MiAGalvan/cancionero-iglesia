@@ -7,6 +7,7 @@ import { parseChordPro, renderSong } from '../viewer/songViewer.js';
 import { createAutoScroller } from '../scroll/autoScroll.js';
 import { getGuitarVoicings, drawGuitarVoicing } from '../diagrams/guitarDiagram.js';
 import { renderPianoDiagram } from '../diagrams/pianoDiagram.js';
+import { getShowChords, setShowChords } from '../storage/settings.js';
 
 export async function renderSongView(container, { id }) {
   const song = await getSong(Number(id));
@@ -52,6 +53,20 @@ export async function renderSongView(container, { id }) {
           </div>
         </div>
         <div class="sidebar-group">
+          <h3>Interlineado</h3>
+          <div class="fontsize-controls">
+            <button class="btn btn-icon" id="lineheight-down">≡−</button>
+            <button class="btn btn-icon" id="lineheight-up">≡+</button>
+          </div>
+        </div>
+        <div class="sidebar-group">
+          <h3>Acordes</h3>
+          <label class="shared-field">
+            <input type="checkbox" id="show-chords-input" ${getShowChords() ? 'checked' : ''} />
+            Mostrar acordes
+          </label>
+        </div>
+        <div class="sidebar-group">
           <h3>Instrumento</h3>
           <div class="instrument-controls">
             <label><input type="radio" name="instrument" value="guitar" checked /> Guitarra</label>
@@ -84,6 +99,11 @@ export async function renderSongView(container, { id }) {
   const FONT_MIN = 1.2;
   const FONT_MAX = 3.4;
 
+  let lineHeight = 1.7; // mismo valor que el default de .lyrics-container en styles.css
+  const LINE_HEIGHT_STEP = 0.2;
+  const LINE_HEIGHT_MIN = 1.1;
+  const LINE_HEIGHT_MAX = 2.6;
+
   const lyricsContainer = container.querySelector('#lyrics-container');
   const transposeValueEl = container.querySelector('#transpose-value');
 
@@ -100,6 +120,13 @@ export async function renderSongView(container, { id }) {
   }
   applyFontSize();
 
+  function applyLineHeight() {
+    lyricsContainer.style.lineHeight = lineHeight;
+  }
+  applyLineHeight();
+
+  lyricsContainer.classList.toggle('hide-chords', !getShowChords());
+
   container.querySelector('#fontsize-up').addEventListener('click', () => {
     fontSize = Math.min(FONT_MAX, fontSize + FONT_STEP);
     applyFontSize();
@@ -107,6 +134,20 @@ export async function renderSongView(container, { id }) {
   container.querySelector('#fontsize-down').addEventListener('click', () => {
     fontSize = Math.max(FONT_MIN, fontSize - FONT_STEP);
     applyFontSize();
+  });
+
+  container.querySelector('#lineheight-up').addEventListener('click', () => {
+    lineHeight = Math.min(LINE_HEIGHT_MAX, +(lineHeight + LINE_HEIGHT_STEP).toFixed(1));
+    applyLineHeight();
+  });
+  container.querySelector('#lineheight-down').addEventListener('click', () => {
+    lineHeight = Math.max(LINE_HEIGHT_MIN, +(lineHeight - LINE_HEIGHT_STEP).toFixed(1));
+    applyLineHeight();
+  });
+
+  container.querySelector('#show-chords-input').addEventListener('change', (event) => {
+    setShowChords(event.target.checked);
+    lyricsContainer.classList.toggle('hide-chords', !event.target.checked);
   });
 
   container.querySelector('#transpose-up').addEventListener('click', () => {
