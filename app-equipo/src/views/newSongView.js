@@ -19,6 +19,7 @@ import { saveSong, updateSong, getSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
 import { getSession } from '../storage/auth.js';
 import { getAllCategories, getAllTags, addCustomTag, getCurrentSpaceKey, getDeviceGroup } from '../storage/settings.js';
+import { pushCustomTag } from '../storage/labelsSync.js';
 
 export async function renderNewSongView(container, { editId, presetCategory } = {}) {
   const existing = editId ? await getSong(Number(editId)) : null;
@@ -122,6 +123,7 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
     addCustomTag(nombre);
     currentTags = [...currentTags, nombre.trim()];
     renderTagCheckboxes();
+    pushCustomTag(nombre.trim()); // en segundo plano, no bloquea la pantalla
   });
 
   function updateTabsUI() {

@@ -235,6 +235,38 @@ create policy "equipo autorizado reemplaza su logo en storage"
     )
   );
 
+-- --- custom_labels: carpetas agregadas y tiempos/temas litúrgicos ------
+-- A diferencia de todo lo demás, esto NO es por parroquia — las carpetas y
+-- los tiempos litúrgicos se comparten entre todas (ver storage/settings.js),
+-- así que cualquier integrante logueado puede leerlas y agregar nuevas, sin
+-- chequeo de team_members. Nada sensible viaja acá, son solo nombres.
+create table if not exists custom_labels (
+  kind text not null check (kind in ('category', 'tag')),
+  name text not null,
+  updated_at timestamptz not null default now(),
+  primary key (kind, name)
+);
+
+alter table custom_labels enable row level security;
+
+create policy "equipo logueado lee carpetas y tiempos"
+  on custom_labels
+  for select
+  to authenticated
+  using (true);
+
+create policy "equipo logueado agrega carpetas y tiempos"
+  on custom_labels
+  for insert
+  to authenticated
+  with check (true);
+
+create policy "equipo logueado borra carpetas y tiempos"
+  on custom_labels
+  for delete
+  to authenticated
+  using (true);
+
 -- --- spaces: lista de parroquias/capillas, sincronizada entre dispositivos
 -- Antes esta lista vivía solo en localStorage de cada dispositivo (cada
 -- celu/tablet tenía que cargarla a mano) — ahora se sincroniza como el

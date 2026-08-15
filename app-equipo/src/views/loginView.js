@@ -7,6 +7,7 @@ import { signIn } from '../storage/auth.js';
 import { isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { syncNow } from '../storage/sync.js';
 import { syncSpacesNow } from '../storage/spacesSync.js';
+import { syncLabelsNow } from '../storage/labelsSync.js';
 
 export function renderLoginView(container, { returnTo } = {}) {
   container.innerHTML = `
@@ -74,6 +75,7 @@ export function renderLoginView(container, { returnTo } = {}) {
       // llegan solas el cancionero y la lista de parroquias/capillas.
       syncNow();
       syncSpacesNow();
+      syncLabelsNow();
       window.location.hash = returnTo || '#/library';
     } catch (err) {
       showError(

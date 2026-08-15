@@ -294,3 +294,20 @@ responsable de todo el sistema, para tener un lugar único donde mirar o
 copiar cualquier canción de cualquier parroquia. El resto del equipo (sin
 `is_admin`) sigue viendo solo lo que se compartió a propósito. No necesita
 ninguna migración aparte — usa los mismos permisos que ya tenías.
+
+## 16. Sincronizar carpetas agregadas y tiempos/temas litúrgicos
+
+Antes, las carpetas que agregaban (ej. "Salmo") y los tiempos/temas
+litúrgicos agregados vivían solo en el localStorage de cada dispositivo —
+agregar uno en el celu no aparecía en la compu. A diferencia de las
+parroquias, esto NO es por parroquia: se comparte entre todas, así que
+cualquier integrante logueado (de cualquier parroquia) lo puede ver y
+agregar.
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-labels.sql`](./migracion-labels.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta nada
+extra: ya está incluido ahí.

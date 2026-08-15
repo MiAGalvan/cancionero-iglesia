@@ -8,6 +8,7 @@
 import { searchSongs, deleteSong, getAllSongs, getSongsByCategory } from '../storage/db.js';
 import { propagateDelete, syncNow } from '../storage/sync.js';
 import { syncSpacesNow } from '../storage/spacesSync.js';
+import { syncLabelsNow, pushCustomCategory, pushCustomCategoryDeletion } from '../storage/labelsSync.js';
 import { getSession, signOut, getVisibleSpaces } from '../storage/auth.js';
 import { getSpaceLogoUrl } from '../storage/logos.js';
 import {
@@ -157,6 +158,7 @@ async function renderFoldersView(container) {
     if (nombre === null || !nombre.trim()) return;
     addCustomCategory(nombre);
     renderResultsOrFolders();
+    pushCustomCategory(nombre.trim()); // en segundo plano, no bloquea la pantalla
   });
 
   const authStatusEl = container.querySelector('#auth-status');
@@ -197,13 +199,14 @@ async function renderFoldersView(container) {
       syncStatusEl.hidden = false;
       syncStatusEl.textContent = 'Sincronizando...';
     }
-    const [result, spacesResult] = await Promise.all([syncNow(), syncSpacesNow()]);
+    const [result, spacesResult, labelsResult] = await Promise.all([syncNow(), syncSpacesNow(), syncLabelsNow()]);
     if (!silent) syncBtn.disabled = false;
 
     // Si cambió la lista de parroquias (una nueva, un nombre editado desde
-    // otro dispositivo), repintamos toda la pantalla para que el selector
-    // de arriba quede al día — no solo la lista de canciones.
-    if (spacesResult.changed) {
+    // otro dispositivo) o aparecieron carpetas/tiempos nuevos, repintamos
+    // toda la pantalla para que el selector y las carpetas queden al día —
+    // no solo la lista de canciones.
+    if (spacesResult.changed || labelsResult.changed) {
       renderFoldersView(container);
       return;
     }
@@ -251,6 +254,7 @@ async function renderFoldersView(container) {
       if (confirm(`¿Eliminar la carpeta "${deleteCategory}"? Las canciones no se borran, solo dejan de tener esa etiqueta.`)) {
         deleteCustomCategory(deleteCategory);
         renderResultsOrFolders();
+        pushCustomCategoryDeletion(deleteCategory); // en segundo plano
       }
     } else if (moveUp) {
       moveCategory(moveUp, 'up');
