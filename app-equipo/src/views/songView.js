@@ -235,8 +235,13 @@ export async function renderSongView(container, { id }) {
   container.querySelector('#delete-btn').addEventListener('click', async () => {
     if (confirm(`¿Eliminar "${song.title}"?`)) {
       const deleted = await deleteSong(song.id);
+      // Esperamos a que el borrado quede confirmado en el servidor ANTES de
+      // navegar — si no, la sincronización que se dispara sola al entrar a
+      // la biblioteca puede llegar primero y, como todavía no ve el
+      // borrado en la nube, "resucita" la canción que acabamos de borrar.
+      if (deleted) await propagateDelete(deleted.uuid);
       window.location.hash = '#/library';
-      if (deleted) propagateDelete(deleted.uuid).then(() => syncNow());
+      syncNow();
     }
   });
 }

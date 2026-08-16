@@ -248,8 +248,12 @@ async function renderFoldersView(container) {
     if (deleteId) {
       if (confirm('¿Eliminar esta canción?')) {
         const deleted = await deleteSong(Number(deleteId));
+        // Esperamos a que el borrado quede confirmado en el servidor antes
+        // de repintar/sincronizar — si no, una sincronización que llegue
+        // primero puede "resucitar" la canción recién borrada.
+        if (deleted) await propagateDelete(deleted.uuid);
         renderResultsOrFolders();
-        if (deleted) propagateDelete(deleted.uuid).then(() => syncNow());
+        syncNow();
       }
     } else if (deleteCategory) {
       if (confirm(`¿Eliminar la carpeta "${deleteCategory}"? Las canciones no se borran, solo dejan de tener esa etiqueta.`)) {
@@ -339,8 +343,9 @@ async function renderCategoryView(container, category) {
     if (!deleteId) return;
     if (confirm('¿Eliminar esta canción?')) {
       const deleted = await deleteSong(Number(deleteId));
+      if (deleted) await propagateDelete(deleted.uuid);
       refresh(searchInput.value);
-      if (deleted) propagateDelete(deleted.uuid).then(() => syncNow());
+      syncNow();
     }
   });
 
