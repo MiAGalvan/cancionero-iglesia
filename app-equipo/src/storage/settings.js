@@ -10,6 +10,7 @@ const CUSTOM_CATEGORIES_KEY = 'cancionero-iglesia:custom-categories';
 const CATEGORY_ORDER_KEY = 'cancionero-iglesia:category-order';
 const DEVICE_GROUP_KEY = 'cancionero-iglesia:device-group';
 const SHOW_CHORDS_KEY = 'cancionero-iglesia:show-chords';
+const CHORD_NOTATION_KEY = 'cancionero-iglesia:chord-notation';
 const CUSTOM_TAGS_KEY = 'cancionero-iglesia:custom-tags';
 const HEADER_TITLE_KEY = 'cancionero-iglesia:header-title';
 const CURRENT_SPACE_KEY = 'cancionero-iglesia:current-space';
@@ -349,6 +350,20 @@ export function getShowChords() {
 
 export function setShowChords(show) {
   localStorage.setItem(SHOW_CHORDS_KEY, show ? 'true' : 'false');
+}
+
+// Preferencia personal de este dispositivo: en qué cifrado mostrar los
+// acordes — "symbol" (americano: C, D, E...) o "solfege" (europeo/latino:
+// Do, Re, Mi...) — sin importar en cuál se hayan tipeado originalmente.
+// Por defecto americano, que es como suelen venir las canciones pegadas de
+// sitios de acordes.
+export function getChordNotation() {
+  const saved = localStorage.getItem(CHORD_NOTATION_KEY);
+  return saved === 'solfege' ? 'solfege' : 'symbol';
+}
+
+export function setChordNotation(notation) {
+  localStorage.setItem(CHORD_NOTATION_KEY, notation === 'solfege' ? 'solfege' : 'symbol');
 }
 
 export function getHeaderTitle() {

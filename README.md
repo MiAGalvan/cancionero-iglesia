@@ -97,6 +97,18 @@ aparato"), y se usa en vez del email para `published_by`/`updated_by`, así
 "Ver publicada" y el visor de canciones muestran qué grupo publicó o
 editó cada cosa. No necesita ninguna migración.
 
+## Cifrado americano/europeo, preview en Compartidas, y afinador
+
+En el visor de cada canción, un check "Cifrado europeo (Do, Re, Mi...)"
+convierte los acordes entre el cifrado americano (C, D, E...) y el
+europeo/latino, sin importar en cuál se hayan tipeado originalmente. En
+**📚 Compartidas**, el ícono 👁 abre una vista previa de la letra y los
+acordes antes de decidir copiar una canción a tu cancionero. Y hay un
+**🎸 Afinador** nuevo: usa el micrófono para detectar el tono de cada
+cuerda (afinación estándar) — todo el análisis es local, no graba ni manda
+nada a ningún lado, funciona sin conexión. Ninguna de las tres necesita
+migración.
+
 ## Orden para poner todo en marcha
 
 1. **Supabase**: seguir [`supabase/SETUP.md`](./supabase/SETUP.md) — crear las

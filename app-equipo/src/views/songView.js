@@ -7,7 +7,7 @@ import { parseChordPro, renderSong } from '../viewer/songViewer.js';
 import { createAutoScroller } from '../scroll/autoScroll.js';
 import { getGuitarVoicings, drawGuitarVoicing } from '../diagrams/guitarDiagram.js';
 import { renderPianoDiagram } from '../diagrams/pianoDiagram.js';
-import { getShowChords, setShowChords } from '../storage/settings.js';
+import { getShowChords, setShowChords, getChordNotation, setChordNotation } from '../storage/settings.js';
 
 export async function renderSongView(container, { id }) {
   const song = await getSong(Number(id));
@@ -65,6 +65,10 @@ export async function renderSongView(container, { id }) {
             <input type="checkbox" id="show-chords-input" ${getShowChords() ? 'checked' : ''} />
             Acordes
           </label>
+          <label class="shared-field">
+            <input type="checkbox" id="chord-notation-input" ${getChordNotation() === 'solfege' ? 'checked' : ''} />
+            Cifrado europeo (Do, Re, Mi...)
+          </label>
         </div>
         <div class="sidebar-group">
           <h3>Instrumento</h3>
@@ -104,11 +108,13 @@ export async function renderSongView(container, { id }) {
   const LINE_HEIGHT_MIN = 1.1;
   const LINE_HEIGHT_MAX = 2.6;
 
+  let notation = getChordNotation();
+
   const lyricsContainer = container.querySelector('#lyrics-container');
   const transposeValueEl = container.querySelector('#transpose-value');
 
   function renderLyrics() {
-    lyricsContainer.innerHTML = renderSong(baseSong, semitones);
+    lyricsContainer.innerHTML = renderSong(baseSong, semitones, notation);
   }
   renderLyrics();
 
@@ -148,6 +154,12 @@ export async function renderSongView(container, { id }) {
   container.querySelector('#show-chords-input').addEventListener('change', (event) => {
     setShowChords(event.target.checked);
     lyricsContainer.classList.toggle('hide-chords', !event.target.checked);
+  });
+
+  container.querySelector('#chord-notation-input').addEventListener('change', (event) => {
+    notation = event.target.checked ? 'solfege' : 'symbol';
+    setChordNotation(notation);
+    renderLyrics();
   });
 
   container.querySelector('#transpose-up').addEventListener('click', () => {

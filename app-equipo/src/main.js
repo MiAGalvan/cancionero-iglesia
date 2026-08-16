@@ -3,7 +3,8 @@
 // #/song/new, #/song/new/:categoria, #/song/:id, #/song/:id/edit,
 // #/login (opcional ?returnTo=/ruta/de/vuelta),
 // #/misa/nueva, #/misa/:fecha, #/publicar/:fecha, #/qr,
-// #/lista-publicada, #/proyeccion, #/espacios, #/novedades, #/compartidas
+// #/lista-publicada, #/proyeccion, #/espacios, #/novedades, #/compartidas,
+// #/afinador
 import './styles.css';
 import { renderLibraryView } from './views/libraryView.js';
 import { renderNewSongView } from './views/newSongView.js';
@@ -17,6 +18,7 @@ import { renderProyeccionView } from './views/proyeccionView.js';
 import { renderEspaciosView } from './views/espaciosView.js';
 import { renderNovedadesView } from './views/novedadesView.js';
 import { renderCompartidasView } from './views/compartidasView.js';
+import { renderTunerView } from './views/tunerView.js';
 
 const app = document.getElementById('app');
 
@@ -53,6 +55,8 @@ function router() {
     renderNovedadesView(app);
   } else if (parts[0] === 'compartidas') {
     renderCompartidasView(app);
+  } else if (parts[0] === 'afinador') {
+    renderTunerView(app);
   } else if (parts[0] === 'library' && parts[1]) {
     renderLibraryView(app, { category: parts[1] });
   } else {

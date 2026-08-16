@@ -229,6 +229,140 @@ a {
   padding: 14px 16px;
 }
 
+/* --- Afinador --- */
+.tuner-strings {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tuner-string-btn {
+  flex: 1;
+  min-width: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tuner-string-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tuner-string-label {
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.tuner-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+}
+
+.tuner-note {
+  font-size: 4rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-dim);
+}
+
+.tuner-display.in-tune .tuner-note {
+  color: var(--accent);
+}
+
+.tuner-display.out-of-tune .tuner-note {
+  color: var(--danger);
+}
+
+.tuner-freq {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.tuner-meter {
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  margin-top: 10px;
+}
+
+.tuner-meter::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--border);
+  transform: translateX(-50%);
+}
+
+.tuner-meter-needle {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transform: translateX(-50%);
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.tuner-display.in-tune .tuner-meter-needle {
+  background: var(--accent);
+}
+
+.tuner-display.out-of-tune .tuner-meter-needle {
+  background: var(--danger);
+}
+
+.compartida-item {
+  display: block;
+}
+
+.compartida-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.compartida-preview {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.compartida-lyrics {
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+  font-size: 1.3rem;
+  line-height: 1.5;
+}
+
 .song-item a {
   text-decoration: none;
   color: var(--text);

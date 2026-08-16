@@ -9,7 +9,8 @@ import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSession, isAdmin } from '../storage/auth.js';
 import { saveSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
-import { getCurrentSpaceKey } from '../storage/settings.js';
+import { getCurrentSpaceKey, getChordNotation } from '../storage/settings.js';
+import { parseChordPro, renderSong } from '../viewer/songViewer.js';
 
 export async function renderCompartidasView(container) {
   const space = getCurrentSpaceKey();
@@ -96,13 +97,33 @@ export async function renderCompartidasView(container) {
 
   function songItemHtml(song) {
     return `
-      <li class="song-item" data-uuid="${escapeAttr(song.uuid)}">
-        <span>
-          ${escapeHtml(song.title)}${song.artist ? ` — <span class="song-artist">${escapeHtml(song.artist)}</span>` : ''}
-          <span class="song-artist">${admin ? 'De' : 'Compartida por'} ${escapeHtml(song.space_name || song.space)}</span>
-        </span>
-        <button type="button" class="btn btn-accent" data-copy="${escapeAttr(song.uuid)}">Copiar a mi cancionero</button>
+      <li class="song-item compartida-item" data-uuid="${escapeAttr(song.uuid)}">
+        <div class="compartida-item-row">
+          <span>
+            ${escapeHtml(song.title)}${song.artist ? ` — <span class="song-artist">${escapeHtml(song.artist)}</span>` : ''}
+            <span class="song-artist">${admin ? 'De' : 'Compartida por'} ${escapeHtml(song.space_name || song.space)}</span>
+          </span>
+          <button type="button" class="btn btn-icon" data-preview="${escapeAttr(song.uuid)}" title="Ver letra y acordes">👁</button>
+          <button type="button" class="btn btn-accent" data-copy="${escapeAttr(song.uuid)}">Copiar a mi cancionero</button>
+        </div>
+        <div class="compartida-preview" id="preview-${escapeAttr(song.uuid)}" hidden></div>
       </li>`;
+  }
+
+  function togglePreview(uuid, button) {
+    const previewEl = listEl.querySelector(`#preview-${CSS.escape(uuid)}`);
+    if (!previewEl) return;
+    const opening = previewEl.hidden;
+    if (opening) {
+      const song = songs.find((s) => s.uuid === uuid);
+      const parsed = parseChordPro(song.chordpro);
+      previewEl.innerHTML = `<div class="lyrics-container compartida-lyrics">${renderSong(parsed, 0, getChordNotation())}</div>`;
+    } else {
+      previewEl.innerHTML = '';
+    }
+    previewEl.hidden = !opening;
+    button.textContent = opening ? '🙈' : '👁';
+    button.title = opening ? 'Ocultar letra' : 'Ver letra y acordes';
   }
 
   let query = supabase
@@ -125,6 +146,12 @@ export async function renderCompartidasView(container) {
   searchInput.addEventListener('input', () => renderList(searchInput.value));
 
   listEl.addEventListener('click', async (event) => {
+    const previewUuid = event.target.dataset.preview;
+    if (previewUuid) {
+      togglePreview(previewUuid, event.target);
+      return;
+    }
+
     const uuid = event.target.dataset.copy;
     if (!uuid) return;
     const song = songs.find((s) => s.uuid === uuid);
