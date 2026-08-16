@@ -29,35 +29,59 @@ function getPendingDeletes() {
   }
 }
 
-function setPendingDeletes(uuids) {
-  localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(uuids));
+function setPendingDeletes(songs) {
+  localStorage.setItem(PENDING_DELETES_KEY, JSON.stringify(songs));
 }
 
 // Marca una canción como borrada en Supabase (no se borra la fila de
 // verdad: queda con `deleted_at` puesto, como un "tombstone", para que la
 // próxima vez que otro dispositivo sincronice sepa que tiene que borrarla
 // también en vez de simplemente no encontrarla).
-async function pushTombstone(uuid) {
-  if (!isSupabaseConfigured) return false;
+//
+// Manda los datos de la canción completos (no solo el uuid) a propósito:
+// si esta canción en particular nunca había llegado a subirse a la nube
+// antes (por ejemplo, se cargó estando sin conexión o sin sesión en ese
+// momento), Supabase todavía no tiene ninguna fila con ese uuid — el
+// "upsert" termina siendo una creación nueva, no una actualización, y sin
+// estos datos la rechazaría por faltarle el título (es un campo
+// obligatorio). Sin esto, el aviso de borrado se perdía en silencio y la
+// canción volvía a aparecer en la próxima sincronización.
+async function pushTombstone(song) {
+  if (!isSupabaseConfigured || !song?.uuid) return false;
   const session = await getSession();
   if (!session) return false;
   const now = new Date().toISOString();
-  const { error } = await supabase
-    .from('songs')
-    .upsert({ uuid, deleted_at: now, updated_at: now }, { onConflict: 'uuid' });
+  const { error } = await supabase.from('songs').upsert(
+    {
+      uuid: song.uuid,
+      space: song.space,
+      space_name: getSpaceFullLabel(song.space),
+      title: song.title,
+      artist: song.artist || '',
+      categories: song.categories || [],
+      chordpro: song.chordpro || '',
+      shared: song.shared || false,
+      tags: song.tags || [],
+      deleted_at: now,
+      updated_at: now,
+    },
+    { onConflict: 'uuid' }
+  );
+  if (error) console.error('No se pudo avisar el borrado de la canción a Supabase:', error);
   return !error;
 }
 
-// Se llama justo después de borrar una canción localmente. Si hay sesión y
-// conexión, avisa ya mismo a Supabase para que desaparezca en los demás
-// dispositivos; si falla (sin conexión, por ejemplo), la deja anotada para
-// la próxima vez que se sincronice — así el borrado nunca se pierde, solo
-// se demora.
-export async function propagateDelete(uuid) {
-  if (!uuid) return;
-  const pushed = await pushTombstone(uuid);
+// Se llama justo después de borrar una canción localmente, pasándole el
+// registro completo tal cual estaba antes de borrarse (lo que devuelve
+// deleteSong/deleteSongByUuid). Si hay sesión y conexión, avisa ya mismo a
+// Supabase para que desaparezca en los demás dispositivos; si falla (sin
+// conexión, por ejemplo), la deja anotada — con todos sus datos, no solo
+// el uuid — para la próxima vez que se sincronice.
+export async function propagateDelete(song) {
+  if (!song?.uuid) return;
+  const pushed = await pushTombstone(song);
   if (!pushed) {
-    setPendingDeletes([...getPendingDeletes(), uuid]);
+    setPendingDeletes([...getPendingDeletes(), song]);
   }
 }
 
@@ -75,13 +99,24 @@ export async function syncNow() {
 
   try {
     // 1. Primero, los borrados pendientes de este dispositivo (por si se
-    // borró algo estando sin conexión): así no "resucitan" por accidente
-    // al subir el resto de las canciones más abajo.
+    // borró algo estando sin conexión, o el aviso falló la primera vez):
+    // así no "resucitan" por accidente al bajar/subir el resto más abajo.
+    // Los que sigan fallando quedan anotados para reintentar la próxima
+    // vez, en vez de descartarse silenciosamente.
     const pending = getPendingDeletes();
-    for (const uuid of pending) {
-      await pushTombstone(uuid);
+    if (pending.length) {
+      const stillPending = [];
+      for (const song of pending) {
+        // Por si quedó algo anotado con el formato viejo (solo el uuid, de
+        // antes de este arreglo): no se puede reintentar sin el resto de
+        // los datos, así que lo descartamos en vez de dejarlo trabado para
+        // siempre.
+        if (!song?.uuid || typeof song !== 'object') continue;
+        const ok = await pushTombstone(song);
+        if (!ok) stillPending.push(song);
+      }
+      setPendingDeletes(stillPending);
     }
-    if (pending.length) setPendingDeletes([]);
 
     // 2. Bajar todo lo que hay en la nube PARA ESTE ESPACIO (parroquia) y
     // aplicar lo que sea más nuevo que la copia local (o que todavía no

@@ -251,7 +251,7 @@ async function renderFoldersView(container) {
         // Esperamos a que el borrado quede confirmado en el servidor antes
         // de repintar/sincronizar — si no, una sincronización que llegue
         // primero puede "resucitar" la canción recién borrada.
-        if (deleted) await propagateDelete(deleted.uuid);
+        if (deleted) await propagateDelete(deleted);
         renderResultsOrFolders();
         syncNow();
       }
@@ -343,7 +343,7 @@ async function renderCategoryView(container, category) {
     if (!deleteId) return;
     if (confirm('¿Eliminar esta canción?')) {
       const deleted = await deleteSong(Number(deleteId));
-      if (deleted) await propagateDelete(deleted.uuid);
+      if (deleted) await propagateDelete(deleted);
       refresh(searchInput.value);
       syncNow();
     }

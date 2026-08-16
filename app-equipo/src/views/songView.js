@@ -239,7 +239,7 @@ export async function renderSongView(container, { id }) {
       // navegar — si no, la sincronización que se dispara sola al entrar a
       // la biblioteca puede llegar primero y, como todavía no ve el
       // borrado en la nube, "resucita" la canción que acabamos de borrar.
-      if (deleted) await propagateDelete(deleted.uuid);
+      if (deleted) await propagateDelete(deleted);
       window.location.hash = '#/library';
       syncNow();
     }
