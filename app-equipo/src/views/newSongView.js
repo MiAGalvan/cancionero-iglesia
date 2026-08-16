@@ -69,8 +69,8 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
       </div>
 
       <label class="shared-field">
-        <input type="checkbox" id="shared-input" ${existing?.shared ? 'checked' : ''} />
-        Compartir con otras parroquias (otros equipos van a poder copiarla a su propio cancionero)
+        <input type="checkbox" id="shared-input" ${(existing ? existing.shared : true) ? 'checked' : ''} />
+        Compartir con otras parroquias (recomendado — desmarcá solo si esta canción en particular tiene que quedar privada)
       </label>
 
       <div class="mode-tabs">

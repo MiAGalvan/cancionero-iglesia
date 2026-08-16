@@ -117,7 +117,7 @@ create table if not exists songs (
   artist text not null default '',
   categories jsonb not null default '[]',
   chordpro text not null default '',
-  shared boolean not null default false, -- true = cualquier otra parroquia la puede ver y copiar a su cancionero
+  shared boolean not null default true, -- true (default) = cualquier otra parroquia la puede ver y copiar a su cancionero; se puede destildar para el caso puntual de mantener una canción privada
   tags jsonb not null default '[]', -- tiempos/temas litúrgicos (Adviento, Cuaresma, Buen Pastor...), eje aparte de categories
   updated_by text, -- email de quién la creó/editó por última vez
   updated_at timestamptz not null default now(),
