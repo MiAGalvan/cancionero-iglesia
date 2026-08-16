@@ -31,7 +31,7 @@ export async function renderSongView(container, { id }) {
       <aside class="song-sidebar" id="song-sidebar">
         ${
           song.updatedBy
-            ? `<div class="sidebar-group">
+            ? `<div class="sidebar-group song-updated-by-group">
                 <h3>Última edición</h3>
                 <p class="song-updated-by">${escapeHtml(song.updatedBy)}</p>
               </div>`
@@ -63,7 +63,7 @@ export async function renderSongView(container, { id }) {
           <h3>Acordes</h3>
           <label class="shared-field">
             <input type="checkbox" id="show-chords-input" ${getShowChords() ? 'checked' : ''} />
-            Mostrar acordes
+            Acordes
           </label>
         </div>
         <div class="sidebar-group">

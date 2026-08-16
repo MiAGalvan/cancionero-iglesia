@@ -302,31 +302,52 @@ a {
 
 /* En pantalla completa (HDMI/celular durante la misa) el panel de
    controles no necesita ser una columna fija de 200px — molesta más de lo
-   que ayuda. Queda chico y flotando en una esquina, y la letra usa todo el
-   ancho de la pantalla debajo. */
+   que ayuda, sobre todo en el celular. Pasa a ser una barrita horizontal
+   pegada arriba de todo (se acomoda en más de una línea sola si no entra
+   todo en una), y la letra empieza más abajo para que la barra nunca la
+   tape. */
 :fullscreen .song-layout {
   position: relative;
 }
 
 :fullscreen .song-sidebar {
-  position: absolute;
-  top: 10px;
-  right: 10px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 20;
-  width: 148px;
-  max-height: calc(100% - 20px);
-  padding: 10px;
-  gap: 12px;
-  font-size: 0.85rem;
-  border-radius: 12px;
+  width: auto;
+  max-height: none;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  row-gap: 4px;
+  column-gap: 14px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  border-radius: 0 0 14px 14px;
   border: 1px solid var(--border);
+  border-top: none;
   background: var(--bg-elevated);
   opacity: 0.94;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
+:fullscreen .sidebar-group {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Los títulos de sección ("TRANSPORTE", "ACORDES"...) no hacen falta acá:
+   son autoexplicativos en una barra chica y solo suman ancho. */
 :fullscreen .sidebar-group h3 {
-  font-size: 0.62rem;
+  display: none;
+}
+
+:fullscreen .song-updated-by-group {
+  display: none;
 }
 
 :fullscreen .song-sidebar .btn,
@@ -335,8 +356,23 @@ a {
   font-size: 0.78rem;
 }
 
+:fullscreen .instrument-controls {
+  flex-direction: row;
+  gap: 10px;
+}
+
+:fullscreen .scroll-controls {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
 :fullscreen .speed-slider {
-  width: 78px;
+  width: 64px;
+}
+
+:fullscreen .lyrics-container {
+  padding-top: 64px;
 }
 
 .sidebar-group {
