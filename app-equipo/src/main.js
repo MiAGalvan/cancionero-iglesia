@@ -21,12 +21,37 @@ import { renderCompartidasView } from './views/compartidasView.js';
 import { renderTunerView } from './views/tunerView.js';
 
 const app = document.getElementById('app');
+const bottomNav = document.getElementById('bottom-nav');
+
+// Solo los 5 accesos más usados durante el día a día (armar/ver la lista,
+// buscar una canción compartida, cargar una nueva) — el resto de las
+// pantallas (afinador, novedades, proyección, etc.) siguen viviendo en la
+// barra superior de siempre, no hace falta duplicar todo acá.
+const BOTTOM_NAV_ITEMS = [
+  { match: (parts) => parts[0] === 'library', href: '#/library', icon: '🎵', label: 'Cancionero' },
+  { match: (parts) => parts[0] === 'misa' || parts[0] === 'publicar', href: '#/misa/nueva', icon: '📋', label: 'Lista' },
+  { match: (parts) => parts[0] === 'song' && parts[1] === 'new', href: '#/song/new', icon: '➕', label: 'Nueva' },
+  { match: (parts) => parts[0] === 'compartidas', href: '#/compartidas', icon: '📚', label: 'Compartidas' },
+  { match: (parts) => parts[0] === 'lista-publicada', href: '#/lista-publicada', icon: '👀', label: 'Publicada' },
+];
+
+function renderBottomNav(parts) {
+  bottomNav.innerHTML = BOTTOM_NAV_ITEMS.map(
+    (item) => `
+    <a class="bottom-nav-item${item.match(parts) ? ' active' : ''}" href="${item.href}">
+      <span class="bottom-nav-icon">${item.icon}</span>
+      <span class="bottom-nav-label">${item.label}</span>
+    </a>`
+  ).join('');
+}
 
 function router() {
   const hash = window.location.hash || '#/library';
   const [pathPart, queryPart] = hash.replace(/^#\//, '').split('?');
   const parts = pathPart.split('/').map(decodeURIComponent);
   const params = new URLSearchParams(queryPart || '');
+
+  renderBottomNav(parts);
 
   if (parts[0] === 'login') {
     const returnTo = params.get('returnTo');

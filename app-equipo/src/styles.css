@@ -141,6 +141,13 @@ a {
   padding: 6px 10px;
 }
 
+/* --- Barra de navegación inferior: SOLO celular, ver media query más abajo.
+   En tablet/desktop la barra superior de siempre ya tiene lugar de sobra
+   para todos los accesos, así que esto queda oculto ahí. */
+.bottom-nav {
+  display: none;
+}
+
 /* --- Biblioteca --- */
 .library-search {
   padding: 12px 16px;
@@ -474,6 +481,17 @@ a {
    tape. */
 :fullscreen .song-layout {
   position: relative;
+}
+
+/* La barra inferior no tiene nada que hacer acá: pantalla completa es
+   justamente para dejar la letra ocupando todo, sin ningún control extra
+   flotando abajo. */
+:fullscreen .bottom-nav {
+  display: none;
+}
+
+:fullscreen #app {
+  padding-bottom: 0;
 }
 
 :fullscreen .song-sidebar {
@@ -1468,6 +1486,55 @@ a {
 
   .chord-editor-lines {
     padding: 12px;
+  }
+
+  /* Barra inferior fija, tipo app: los 5 accesos de todos los días a un
+     toque del pulgar, en vez de tener que ir a buscarlos en la fila de
+     botones de arriba. El padding-bottom en #app le deja el hueco de abajo
+     para que esta barra (position: fixed) nunca tape el final de la letra
+     ni de ninguna lista. */
+  #app {
+    padding-bottom: 60px;
+  }
+
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 2px;
+    border-radius: 10px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.68rem;
+    line-height: 1.2;
+  }
+
+  .bottom-nav-item:active {
+    background: var(--border);
+  }
+
+  .bottom-nav-item.active {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .bottom-nav-icon {
+    font-size: 1.3rem;
+    line-height: 1;
   }
 }
 
