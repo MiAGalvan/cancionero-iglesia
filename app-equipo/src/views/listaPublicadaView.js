@@ -6,6 +6,7 @@
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
 import { getVisibleSpaces } from '../storage/auth.js';
+import { getSongByUuid } from '../storage/db.js';
 
 const REFRESH_MS = 45000;
 
@@ -83,6 +84,19 @@ export async function renderListaPublicadaView(container) {
     }
 
     const { fecha, items, published_by } = data[0];
+
+    // Si la canción publicada existe en el cancionero de ESTE dispositivo
+    // (se busca por uuid, el mismo id que usa la sincronización), el título
+    // se convierte en un link directo a la vista con acordes, transporte y
+    // autoscroll — así quien está tocando no tiene que salir a buscarla a
+    // mano por las carpetas. Si no está localmente (por ejemplo, mirando la
+    // lista de otra parroquia), se queda como texto plano nomás, sin
+    // romperse. Nunca se toca la tabla `songs` (con acordes) desde este
+    // dispositivo si no la tiene ya — no se descarga nada nuevo acá.
+    const localMatches = await Promise.all(
+      items.map((item) => (item.song_uuid ? getSongByUuid(item.song_uuid) : null))
+    );
+
     contentEl.innerHTML = `
       ${logoHtml}
       <p class="qr-url">${formatFecha(fecha)}</p>
@@ -93,14 +107,18 @@ export async function renderListaPublicadaView(container) {
       }
       <div class="lista-publicada">
         ${items
-          .map(
-            (item) => `
+          .map((item, i) => {
+            const local = localMatches[i];
+            const tituloHtml = local
+              ? `<a href="#/song/${local.id}">${escapeHtml(item.titulo_cancion)} 🎸</a>`
+              : escapeHtml(item.titulo_cancion);
+            return `
           <section class="publicada-cancion">
             <h3 class="publicada-categoria">${escapeHtml(item.categoria)}</h3>
-            <h4 class="publicada-titulo">${escapeHtml(item.titulo_cancion)}</h4>
+            <h4 class="publicada-titulo">${tituloHtml}</h4>
             <p class="publicada-letra">${escapeHtml(item.letra_sin_acordes)}</p>
-          </section>`
-          )
+          </section>`;
+          })
           .join('')}
       </div>
       ${renderNovedades(anuncios)}

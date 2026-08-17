@@ -21,6 +21,12 @@ export async function buildPublishPayload(misa) {
       categoria,
       titulo_cancion: song.title,
       letra_sin_acordes: chordProToPlainLyrics(song.chordpro),
+      // El uuid no es información sensible (ya viaja entre dispositivos del
+      // equipo por la sincronización normal) y la página pública del QR no
+      // lo usa para nada — solo sirve para que "Ver publicada", adentro de
+      // la app, pueda linkear directo a la canción con acordes si la
+      // encuentra en el cancionero local (ver listaPublicadaView.js).
+      song_uuid: song.uuid,
     });
   }
   return items;

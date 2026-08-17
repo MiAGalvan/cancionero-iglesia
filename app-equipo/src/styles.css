@@ -1229,6 +1229,16 @@ a {
   font-size: 1.2rem;
 }
 
+.publicada-titulo a {
+  color: var(--text);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.publicada-titulo a:hover {
+  color: var(--accent);
+}
+
 .publicada-letra {
   margin: 0;
   font-size: 1.15rem;
