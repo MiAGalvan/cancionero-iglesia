@@ -20,6 +20,7 @@ import { getSession } from '../storage/auth.js';
 import { createAudioRecorder } from '../recorder/audioRecorder.js';
 import { uploadSongRecording } from '../storage/recordings.js';
 import { isSupabaseConfigured } from '../storage/supabaseClient.js';
+import { updatePublishedSong } from '../liturgia/publicar.js';
 
 export async function renderSongView(container, { id, returnTo }) {
   const song = await getSong(Number(id));
@@ -31,12 +32,21 @@ export async function renderSongView(container, { id, returnTo }) {
   }
 
   const returnToQuery = returnTo ? `?returnTo=${encodeURIComponent(returnTo.replace(/^#/, ''))}` : '';
+  // Se llegó desde "Ver publicada" (el link 🎸 de una canción que YA está
+  // publicada hoy): solo ahí tiene sentido ofrecer el atajo de actualizar
+  // esa corrección puntual en lo que está viendo la gente ahora mismo.
+  const fromListaPublicada = returnTo === '#/lista-publicada';
 
   container.innerHTML = `
     <div class="topbar">
       <a class="btn" href="${backHref}">${backLabel}</a>
       <h2>${escapeHtml(song.title)}</h2>
       <div class="form-actions">
+        ${
+          fromListaPublicada
+            ? `<button class="btn" id="update-published-btn">🔄 Actualizar en la lista publicada</button>`
+            : ''
+        }
         <button class="btn btn-icon" id="sidebar-toggle" title="Mostrar/ocultar controles">☰</button>
         <button class="btn btn-icon" id="fullscreen-toggle" title="Pantalla completa">⛶</button>
         <a class="btn" href="#/song/${song.id}/edit${returnToQuery}">Editar</a>
@@ -335,6 +345,27 @@ export async function renderSongView(container, { id, returnTo }) {
     if (!chordEl || !chordEl.textContent.trim()) return;
     showChordPopover(chordEl.textContent.trim(), () => instrument);
   });
+
+  const updatePublishedBtn = container.querySelector('#update-published-btn');
+  if (updatePublishedBtn) {
+    updatePublishedBtn.addEventListener('click', async () => {
+      updatePublishedBtn.disabled = true;
+      const original = updatePublishedBtn.textContent;
+      updatePublishedBtn.textContent = 'Actualizando...';
+      try {
+        const { updated } = await updatePublishedSong(song);
+        updatePublishedBtn.textContent = updated ? '✓ Actualizada' : 'No estaba en la lista publicada';
+      } catch (err) {
+        console.error(err);
+        updatePublishedBtn.textContent = 'No se pudo actualizar';
+      } finally {
+        setTimeout(() => {
+          updatePublishedBtn.textContent = original;
+          updatePublishedBtn.disabled = false;
+        }, 2500);
+      }
+    });
+  }
 
   container.querySelector('#delete-btn').addEventListener('click', async () => {
     if (confirm(`¿Eliminar "${song.title}"?`)) {

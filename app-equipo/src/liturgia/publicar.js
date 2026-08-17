@@ -55,3 +55,49 @@ export async function publishMisa(misa) {
   );
   if (error) throw error;
 }
+
+// "Publicar" saca una FOTO de la letra en ese momento — si después se
+// corrige la canción en el cancionero, esa corrección no le llega sola a la
+// lista ya publicada (a propósito: evita subir algo a medio escribir cada
+// vez que se guarda). Esto es el atajo para cuando SÍ hace falta que
+// llegue ya mismo (un error que se nota en el momento, durante la misa):
+// busca la lista publicada más reciente de la parroquia de esta canción y
+// le actualiza SOLO el/los renglones de esta canción puntual (matcheando
+// por uuid), sin tocar el resto de la lista.
+export async function updatePublishedSong(song) {
+  if (!isSupabaseConfigured) {
+    throw new Error('Falta configurar Supabase en src/storage/supabaseClient.js');
+  }
+  const { data, error: fetchError } = await supabase
+    .from('lista_actual')
+    .select('fecha, items')
+    .eq('space', song.space)
+    .order('updated_at', { ascending: false })
+    .limit(1);
+  if (fetchError) throw fetchError;
+  if (!data || data.length === 0) return { updated: false };
+
+  const { fecha, items } = data[0];
+  let matched = false;
+  const updatedItems = items.map((item) => {
+    if (item.song_uuid !== song.uuid) return item;
+    matched = true;
+    return { ...item, titulo_cancion: song.title, letra_sin_acordes: chordProToPlainLyrics(song.chordpro) };
+  });
+  if (!matched) return { updated: false };
+
+  const session = await getSession();
+  const { error } = await supabase.from('lista_actual').upsert(
+    {
+      space: song.space,
+      space_name: getSpaceFullLabel(song.space),
+      fecha,
+      items: updatedItems,
+      published_by: getDeviceGroup() || session?.user?.email || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'space,fecha' }
+  );
+  if (error) throw error;
+  return { updated: true };
+}
