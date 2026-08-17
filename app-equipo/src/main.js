@@ -1,11 +1,13 @@
 // Router mínimo por hash: no hace falta una librería para estas pantallas.
-// Rutas: #/library (default), #/library/:categoria,
+// Rutas: #/inicio (default: parroquia + accesos en cuadrados), #/library
+// (carpetas y canciones), #/library/:categoria,
 // #/song/new, #/song/new/:categoria, #/song/:id, #/song/:id/edit,
 // #/login (opcional ?returnTo=/ruta/de/vuelta),
 // #/misa/nueva, #/misa/:fecha, #/publicar/:fecha, #/qr,
 // #/lista-publicada, #/proyeccion, #/espacios, #/novedades, #/compartidas,
 // #/afinador
 import './styles.css';
+import { renderHomeView } from './views/homeView.js';
 import { renderLibraryView } from './views/libraryView.js';
 import { renderNewSongView } from './views/newSongView.js';
 import { renderSongView } from './views/songView.js';
@@ -46,7 +48,7 @@ function renderBottomNav(parts) {
 }
 
 function router() {
-  const hash = window.location.hash || '#/library';
+  const hash = window.location.hash || '#/inicio';
   const [pathPart, queryPart] = hash.replace(/^#\//, '').split('?');
   const parts = pathPart.split('/').map(decodeURIComponent);
   const params = new URLSearchParams(queryPart || '');
@@ -86,8 +88,10 @@ function router() {
     renderTunerView(app);
   } else if (parts[0] === 'library' && parts[1]) {
     renderLibraryView(app, { category: parts[1] });
-  } else {
+  } else if (parts[0] === 'library') {
     renderLibraryView(app);
+  } else {
+    renderHomeView(app);
   }
 }
 
