@@ -9,8 +9,8 @@ import { getVisibleSpaces } from '../storage/auth.js';
 
 // ⚠️ COMPLETAR: la URL fija de la página pública, una vez que esté
 // desplegada (ej. "https://tu-usuario.github.io/cancionero-iglesia/" o la
-// URL de Netlify que le hayas puesto a pagina-publica).
-const PUBLIC_URL = 'https://cute-donut-4f119e.netlify.app/';
+// URL de Vercel que le hayas puesto a pagina-publica).
+const PUBLIC_URL = 'https://cancionero-iglesia-qk5n.vercel.app/';
 
 export async function renderQrView(container) {
   const isConfigured = !PUBLIC_URL.includes('TU-USUARIO');

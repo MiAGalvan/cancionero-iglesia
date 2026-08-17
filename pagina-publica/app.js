@@ -29,8 +29,87 @@ const space = new URLSearchParams(window.location.search).get('space') || 'merce
 
 const app = document.getElementById('app');
 
+// Traducción automática para turistas: nadie del equipo tiene que cargar
+// nada a mano. Al tocar PT o EN, se le pide la traducción a Google
+// Translate (el mismo servicio gratuito que usan los navegadores) desde acá
+// mismo, y se cachea en memoria para no volver a pedirla si se toca el
+// botón de nuevo. Es un endpoint no oficial (sin API key, gratis, el mismo
+// que usan muchas extensiones de traducción) — funciona bien en la
+// práctica, pero al no ser una API con contrato firme, si algún día Google
+// lo bloquea, la página se queda mostrando español en vez de romperse.
+const LANGS = { es: 'Español', pt: 'Português', en: 'English' };
+const LANG_KEY = 'cancionero-iglesia:lang';
+let lang = localStorage.getItem(LANG_KEY) in LANGS ? localStorage.getItem(LANG_KEY) : 'es';
+
+const translationCache = new Map(); // clave: "idioma::texto original" -> texto traducido
+
+async function translateText(text, targetLang) {
+  if (!text) return text;
+  const key = `${targetLang}::${text}`;
+  if (translationCache.has(key)) return translationCache.get(key);
+
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=es&tl=${targetLang}&dt=t&q=${encodeURIComponent(
+    text
+  )}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('No se pudo traducir');
+  const data = await res.json();
+  const translated = data[0].map((chunk) => chunk[0]).join('');
+  translationCache.set(key, translated);
+  return translated;
+}
+
+// Los nombres de las 12 categorías litúrgicas fijas son siempre los mismos,
+// así que se pueden traducir con un diccionario fijo (instantáneo, sin
+// depender de la red) en vez de pedirlos a Google cada vez. Una carpeta
+// agregada a mano por una parroquia en particular no está acá: se traduce
+// igual que el resto (por Google), no queda sin traducir.
+const CATEGORY_LABELS = {
+  ENTRADA: { pt: 'Entrada', en: 'Entrance' },
+  KYRIE: { pt: 'Kyrie', en: 'Kyrie' },
+  'PERDÓN': { pt: 'Ato Penitencial', en: 'Penitential Act' },
+  'ENTRADA DE LA PALABRA': { pt: 'Entrada da Palavra', en: 'Entrance of the Word' },
+  GLORIA: { pt: 'Glória', en: 'Gloria' },
+  ALELUYA: { pt: 'Aleluia', en: 'Alleluia' },
+  OFERTORIO: { pt: 'Ofertório', en: 'Offertory' },
+  SANTO: { pt: 'Santo', en: 'Holy' },
+  CORDERO: { pt: 'Cordeiro de Deus', en: 'Lamb of God' },
+  'COMUNIÓN': { pt: 'Comunhão', en: 'Communion' },
+  'MEDITACIÓN': { pt: 'Meditação', en: 'Meditation' },
+  SALIDA: { pt: 'Saída', en: 'Sending Forth' },
+};
+
+const UI_TEXT = {
+  es: { titulo: 'Cantos de la misa', avisoError: '' },
+  pt: { titulo: 'Cânticos da missa', avisoError: '(não foi possível traduzir esta parte)' },
+  en: { titulo: 'Songs of the Mass', avisoError: '(this part could not be translated)' },
+};
+
+async function categoriaLabel(categoria) {
+  if (lang === 'es') return categoria;
+  return CATEGORY_LABELS[categoria]?.[lang] || translateText(categoria, lang);
+}
+
+function renderLangSwitcher() {
+  return `
+    <div class="lang-switcher">
+      ${Object.keys(LANGS)
+        .map(
+          (code) => `<button type="button" class="lang-btn${code === lang ? ' active' : ''}" data-lang="${code}">${code.toUpperCase()}</button>`
+        )
+        .join('')}
+    </div>
+  `;
+}
+
 const isConfigured = !SUPABASE_URL.includes('TU-PROYECTO') && !SUPABASE_ANON_KEY.includes('TU-ANON-KEY');
 const supabase = isConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+// Se guarda lo último que se trajo de Supabase para poder cambiar de idioma
+// (re-renderizar) sin tener que pedirlo de nuevo a la red.
+let ultimaData = null;
+let ultimosAnuncios = [];
+let ultimoLogoUrl = null;
 
 async function cargarYMostrar() {
   if (!isConfigured) {
@@ -62,18 +141,37 @@ async function cargarYMostrar() {
     return;
   }
 
-  if (!data || data.length === 0) {
+  ultimaData = data && data.length > 0 ? data[0] : null;
+  ultimosAnuncios = anuncios;
+  ultimoLogoUrl = logoUrl;
+  renderTodo();
+}
+
+// A diferencia de cargarYMostrar (que pide datos nuevos), esto solo vuelve
+// a pintar la pantalla con lo último que ya se trajo — se usa al tocar un
+// botón de idioma, para que sea instantáneo y no dependa de pedir de nuevo
+// la lista de cantos (la traducción en sí sí necesita red, ver render()).
+function renderTodo() {
+  if (!ultimaData) {
     app.innerHTML = `
-      ${renderBanner(logoUrl)}
+      ${renderBanner(ultimoLogoUrl)}
+      ${renderLangSwitcher()}
       <p class="empty">Todavía no se publicó ninguna lista para ${escapeHtml(
         SPACE_LABELS_DE_ARRANQUE[space] || space
       )}.</p>
-      ${renderNovedades(anuncios)}
+      ${renderNovedades(ultimosAnuncios)}
     `;
-    return;
+  } else {
+    render(ultimaData, ultimosAnuncios, ultimoLogoUrl);
   }
 
-  render(data[0], anuncios, logoUrl);
+  app.querySelectorAll('[data-lang]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      lang = btn.dataset.lang;
+      localStorage.setItem(LANG_KEY, lang);
+      renderTodo();
+    });
+  });
 }
 
 function renderBanner(logoUrl) {
@@ -85,24 +183,57 @@ function renderBanner(logoUrl) {
   `;
 }
 
+// Pinta primero todo en español (instantáneo, nunca depende de la red para
+// lo esencial) y, si se eligió PT o EN, dispara en paralelo un pedido de
+// traducción por cada título/letra/categoría — cada uno actualiza su propio
+// pedacito de la pantalla apenas responde, sin bloquear a los demás. Si el
+// servicio de traducción falla (sin red, o el endpoint no responde), ese
+// texto puntual se queda en español con un aviso chico, en vez de romper
+// toda la página.
 function render({ fecha, items, space_name }, anuncios, logoUrl) {
   app.innerHTML = `
     ${renderBanner(logoUrl)}
-    <h1>Cantos de la misa</h1>
+    ${renderLangSwitcher()}
+    <h1>${UI_TEXT[lang].titulo}</h1>
     <p class="parroquia">${escapeHtml(space_name || SPACE_LABELS_DE_ARRANQUE[space] || space)}</p>
     <p class="fecha">${formatFecha(fecha)}</p>
     ${items
       .map(
-        (item) => `
+        (item, i) => `
       <section class="cancion">
-        <h2 class="categoria">${escapeHtml(item.categoria)}</h2>
-        <h3 class="titulo">${escapeHtml(item.titulo_cancion)}</h3>
-        <p class="letra">${escapeHtml(item.letra_sin_acordes)}</p>
+        <h2 class="categoria" id="categoria-${i}">${escapeHtml(item.categoria)}</h2>
+        <h3 class="titulo" id="titulo-${i}">${escapeHtml(item.titulo_cancion)}</h3>
+        <p class="letra" id="letra-${i}">${escapeHtml(item.letra_sin_acordes)}</p>
       </section>`
       )
       .join('')}
     ${renderNovedades(anuncios)}
   `;
+
+  if (lang === 'es') return;
+
+  items.forEach((item, i) => {
+    traducirYActualizar(`categoria-${i}`, categoriaLabel(item.categoria));
+    traducirYActualizar(`titulo-${i}`, translateText(item.titulo_cancion, lang));
+    traducirYActualizar(`letra-${i}`, translateText(item.letra_sin_acordes, lang));
+  });
+}
+
+async function traducirYActualizar(elementId, translationPromise) {
+  const langAlPedir = lang; // por si se cambia de idioma mientras esto está en vuelo
+  try {
+    const texto = await translationPromise;
+    if (lang !== langAlPedir) return; // ya no aplica, se pidió otro idioma mientras tanto
+    const el = document.getElementById(elementId);
+    if (el) el.textContent = texto;
+  } catch {
+    if (lang !== langAlPedir) return;
+    const el = document.getElementById(elementId);
+    if (el && !el.dataset.avisoSinTraducir) {
+      el.dataset.avisoSinTraducir = '1';
+      el.insertAdjacentHTML('beforebegin', `<p class="letra-aviso">${UI_TEXT[lang].avisoError}</p>`);
+    }
+  }
 }
 
 function renderNovedades(anuncios) {

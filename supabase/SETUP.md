@@ -311,3 +311,47 @@ agregar.
 
 Si estás instalando todo de cero con `schema.sql`, no hace falta nada
 extra: ya está incluido ahí.
+
+## 17. Traducción automática de la lista publicada (portugués/inglés, para turistas)
+
+Agrega un selector ES/PT/EN en la lista pública (la del QR): al tocar PT o
+EN, `pagina-publica/app.js` le pide la traducción a Google Translate (el
+mismo servicio gratuito que usan los navegadores) directo desde el
+navegador del visitante — nadie del equipo tiene que cargar ni pegar nada a
+mano. No requiere ninguna tabla, columna ni migración nueva en Supabase:
+es puro frontend, ya viene andando apenas se actualiza `pagina-publica`.
+
+Un detalle honesto: es un endpoint gratuito no oficial de Google (sin API
+key), el mismo que usan muchas extensiones de traducción — funciona bien en
+la práctica, pero al no ser una API con contrato firme, si algún día Google
+lo restringe, la traducción dejaría de funcionar (la página se queda
+mostrando español, no se rompe del todo).
+
+## 18. Grabaciones de audio (cómo canta cada grupo cada canción)
+
+Un botón "🎙️ Grabar" en el visor de la canción graba con el micrófono y
+guarda el audio, organizado por parroquia y por Grupo (ver punto de "Grupo"
+más arriba). Se puede escuchar cómo canta la MISMA canción cada
+parroquia/grupo desde "📚 Compartidas" → ícono 🎧. Volver a grabar la misma
+canción con el mismo grupo reemplaza la grabación anterior (no se
+acumulan archivos sueltos).
+
+**Paso 1 — crear el bucket de Storage** (una sola vez, a mano):
+
+1. Menú lateral → **Storage** → **New bucket**.
+2. Nombre: `grabaciones` (tal cual, en minúscula).
+3. Tildá **Public bucket**.
+4. **Create bucket**.
+
+**Paso 2 — correr la migración:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-grabaciones.sql`](./migracion-grabaciones.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta la
+migración — ya está incluida ahí (igual creá el bucket a mano como en el
+paso 1, eso no lo puede hacer un script SQL).
+
+⚠️ Importante el orden acá también: creá el bucket y corré la migración
+ANTES de actualizar el código de la app — el botón "Grabar" intenta subir a
+la tabla/bucket apenas se toca.

@@ -235,6 +235,94 @@ create policy "equipo autorizado reemplaza su logo en storage"
     )
   );
 
+-- --- song_recordings: audio de cómo canta cada grupo cada canción --------
+-- El archivo en sí vive en Supabase Storage (bucket "grabaciones", creado a
+-- mano desde el dashboard igual que "logos" — ver supabase/SETUP.md); acá
+-- se guarda la referencia. `id` se arma como "espacio|grupo|uuid_canción":
+-- volver a grabar la MISMA canción con el MISMO grupo pisa la grabación
+-- anterior en vez de acumular archivos sueltos (no hace falta lógica de
+-- "borrar duplicados", el upsert por esa clave ya lo resuelve solo).
+create table if not exists song_recordings (
+  id text primary key,
+  space text not null,
+  space_name text, -- "Nombre — Localidad, Provincia", para mostrar de dónde es ("AUDIO DE MERCED") en Compartidas
+  group_name text not null, -- grupo del dispositivo que grabó (ej. "SÁBADO 19HS"), ver storage/settings.js
+  song_uuid text not null,
+  song_title text not null, -- copiado de la canción al momento de grabar, para no depender de un join
+  storage_path text not null,
+  recorded_by text,
+  updated_at timestamptz not null default now()
+);
+
+alter table song_recordings enable row level security;
+
+-- Lectura abierta a cualquiera del equipo logueado, de cualquier parroquia:
+-- a diferencia de las canciones (que son privadas salvo que se compartan a
+-- propósito), el sentido de esto es justamente poder escuchar cómo canta
+-- cada grupo/parroquia la misma canción — no hay nada que mantener privado.
+create policy "equipo logueado escucha todas las grabaciones"
+  on song_recordings
+  for select
+  to authenticated
+  using (true);
+
+create policy "equipo autorizado sube grabaciones de su parroquia"
+  on song_recordings
+  for insert
+  to authenticated
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or song_recordings.space = any(tm.spaces))
+    )
+  );
+
+create policy "equipo autorizado reemplaza o borra sus grabaciones"
+  on song_recordings
+  for all
+  to authenticated
+  using (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or song_recordings.space = any(tm.spaces))
+    )
+  );
+
+-- --- Storage: bucket "grabaciones" -----------------------------------
+-- Igual que "logos": creá el bucket a mano una sola vez (Dashboard →
+-- Storage → New bucket → nombre "grabaciones" → tildar "Public bucket").
+-- Cada archivo se guarda como "{parroquia}/{grupo}/{uuid_canción}.webm" —
+-- la carpeta (primer segmento) es lo que se usa acá para saber de qué
+-- parroquia es y chequear el permiso.
+
+create policy "equipo autorizado sube grabaciones a storage"
+  on storage.objects
+  for insert
+  to authenticated
+  with check (
+    bucket_id = 'grabaciones'
+    and exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or (storage.foldername(name))[1] = any(tm.spaces))
+    )
+  );
+
+create policy "equipo autorizado reemplaza sus grabaciones en storage"
+  on storage.objects
+  for update
+  to authenticated
+  using (
+    bucket_id = 'grabaciones'
+    and exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or (storage.foldername(name))[1] = any(tm.spaces))
+    )
+  );
+
 -- --- custom_labels: carpetas agregadas y tiempos/temas litúrgicos ------
 -- A diferencia de todo lo demás, esto NO es por parroquia — las carpetas y
 -- los tiempos litúrgicos se comparten entre todas (ver storage/settings.js),

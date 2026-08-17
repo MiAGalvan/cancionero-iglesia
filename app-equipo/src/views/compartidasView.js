@@ -11,6 +11,7 @@ import { saveSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
 import { getCurrentSpaceKey, getChordNotation } from '../storage/settings.js';
 import { parseChordPro, renderSong } from '../viewer/songViewer.js';
+import { getRecordingsForSong } from '../storage/recordings.js';
 
 export async function renderCompartidasView(container) {
   const space = getCurrentSpaceKey();
@@ -104,10 +105,40 @@ export async function renderCompartidasView(container) {
             <span class="song-artist">${admin ? 'De' : 'Compartida por'} ${escapeHtml(song.space_name || song.space)}</span>
           </span>
           <button type="button" class="btn btn-icon" data-preview="${escapeAttr(song.uuid)}" title="Ver letra y acordes">👁</button>
+          <button type="button" class="btn btn-icon" data-audios="${escapeAttr(song.uuid)}" title="Escuchar cómo la canta cada grupo">🎧</button>
           <button type="button" class="btn btn-accent" data-copy="${escapeAttr(song.uuid)}">Copiar a mi cancionero</button>
         </div>
         <div class="compartida-preview" id="preview-${escapeAttr(song.uuid)}" hidden></div>
+        <div class="compartida-audios" id="audios-${escapeAttr(song.uuid)}" hidden></div>
       </li>`;
+  }
+
+  async function toggleAudios(uuid, button) {
+    const audiosEl = listEl.querySelector(`#audios-${CSS.escape(uuid)}`);
+    if (!audiosEl) return;
+    const opening = audiosEl.hidden;
+    if (opening) {
+      audiosEl.innerHTML = '<p class="compartida-audios-loading">Buscando grabaciones...</p>';
+      audiosEl.hidden = false;
+      button.disabled = true;
+      const recordings = await getRecordingsForSong(uuid);
+      button.disabled = false;
+      audiosEl.innerHTML = recordings.length
+        ? recordings
+            .map(
+              (rec) => `
+          <div class="compartida-audio">
+            <p class="compartida-audio-label">🎧 Audio de ${escapeHtml(rec.spaceName || '')} — ${escapeHtml(
+                rec.groupName
+              )}</p>
+            <audio controls src="${escapeAttr(rec.url)}"></audio>
+          </div>`
+            )
+            .join('')
+        : '<p class="compartida-audios-loading">Todavía nadie grabó esta canción.</p>';
+    } else {
+      audiosEl.hidden = true;
+    }
   }
 
   function togglePreview(uuid, button) {
@@ -149,6 +180,12 @@ export async function renderCompartidasView(container) {
     const previewUuid = event.target.dataset.preview;
     if (previewUuid) {
       togglePreview(previewUuid, event.target);
+      return;
+    }
+
+    const audiosUuid = event.target.dataset.audios;
+    if (audiosUuid) {
+      toggleAudios(audiosUuid, event.target);
       return;
     }
 

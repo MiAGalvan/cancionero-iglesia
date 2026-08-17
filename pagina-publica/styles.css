@@ -45,6 +45,37 @@ body {
   margin: 0 auto;
 }
 
+.lang-switcher {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.lang-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lang-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+.letra-aviso {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
 h1 {
   font-size: 1.6rem;
   margin: 0 0 4px;
