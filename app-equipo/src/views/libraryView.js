@@ -78,34 +78,69 @@ async function renderFoldersView(container) {
   }
 
   container.innerHTML = `
-    <div class="topbar">
+    <div class="topbar library-topbar">
       <div class="header-title-row">
-        <img id="space-logo" class="space-logo-icon" alt="" hidden />
+        <select id="space-switcher" title="Parroquia o capilla con la que estás trabajando ahora">
+          ${renderSpaceOptions(visibleSpaces)}
+        </select>
+      </div>
+      <div class="header-title-row library-title-row">
         <h1 id="header-title">${escapeHtml(getHeaderTitle())}</h1>
         <button class="btn btn-icon" id="edit-title-btn" title="Cambiar título">✏️</button>
         <button class="btn btn-icon" id="theme-toggle-btn" title="Cambiar entre pantalla clara y oscura">${
           getEffectiveTheme() === 'dark' ? '☀️' : '🌙'
         }</button>
       </div>
-      <div class="form-actions">
-        <select id="space-switcher" title="Parroquia o capilla con la que estás trabajando ahora">
-          ${renderSpaceOptions(visibleSpaces)}
-        </select>
-        <a class="btn btn-icon" href="#/espacios" title="Agregar o editar parroquias y capillas">⚙️</a>
-        <button class="btn btn-icon" id="device-group-btn" title="Qué grupo/coro usa este dispositivo (para saber quién publicó o editó cada cosa)">
-          🎤 ${escapeHtml(getDeviceGroup() || 'Grupo')}
-        </button>
-        <span id="auth-status"></span>
-        <button class="btn btn-icon" id="sync-btn" title="Sincronizar cancionero con el resto del equipo">🔄</button>
-        <a class="btn" href="#/lista-publicada" title="Ver la lista publicada, sin login">👀 Ver publicada</a>
-        <a class="btn" href="#/proyeccion" title="Pantalla grande para HDMI/proyector">🖥 Proyección</a>
-        <a class="btn" href="#/novedades" title="Avisos, eventos y lecturas para la página pública">📣 Novedades</a>
-        <a class="btn" href="#/compartidas" title="Canciones que otras parroquias compartieron">📚 Compartidas</a>
-        <a class="btn" href="#/afinador" title="Afinador de guitarra con el micrófono">🎸 Afinador</a>
-        <a class="btn" href="#/misa/nueva" title="Armar lista de misa">📋 Lista de misa</a>
-        <button class="btn" id="new-folder-btn">+ Nueva carpeta</button>
-        <a class="btn btn-accent" href="#/song/new">+ Nueva canción</a>
-      </div>
+    </div>
+    <div class="parish-banner" id="space-banner" hidden>
+      <img id="space-logo" alt="" />
+    </div>
+    <div class="quick-actions-grid">
+      <button class="quick-tile" id="device-group-btn" title="Qué grupo/coro usa este dispositivo (para saber quién publicó o editó cada cosa)">
+        <span class="quick-tile-icon">🎤</span>
+        <span class="quick-tile-label">${escapeHtml(getDeviceGroup() || 'Grupo')}</span>
+      </button>
+      <span id="auth-status"></span>
+      <button class="quick-tile" id="sync-btn" title="Sincronizar cancionero con el resto del equipo">
+        <span class="quick-tile-icon">🔄</span>
+        <span class="quick-tile-label">Sincronizar</span>
+      </button>
+      <a class="quick-tile hide-on-mobile-nav" href="#/lista-publicada" title="Ver la lista publicada, sin login">
+        <span class="quick-tile-icon">👀</span>
+        <span class="quick-tile-label">Ver publicada</span>
+      </a>
+      <a class="quick-tile" href="#/proyeccion" title="Pantalla grande para HDMI/proyector">
+        <span class="quick-tile-icon">🖥</span>
+        <span class="quick-tile-label">Proyección</span>
+      </a>
+      <a class="quick-tile" href="#/novedades" title="Avisos, eventos y lecturas para la página pública">
+        <span class="quick-tile-icon">📣</span>
+        <span class="quick-tile-label">Novedades</span>
+      </a>
+      <a class="quick-tile hide-on-mobile-nav" href="#/compartidas" title="Canciones que otras parroquias compartieron">
+        <span class="quick-tile-icon">📚</span>
+        <span class="quick-tile-label">Compartidas</span>
+      </a>
+      <a class="quick-tile" href="#/afinador" title="Afinador de guitarra con el micrófono">
+        <span class="quick-tile-icon">🎸</span>
+        <span class="quick-tile-label">Afinador</span>
+      </a>
+      <a class="quick-tile hide-on-mobile-nav" href="#/misa/nueva" title="Armar lista de misa">
+        <span class="quick-tile-icon">📋</span>
+        <span class="quick-tile-label">Lista de misa</span>
+      </a>
+      <a class="quick-tile" href="#/espacios" title="Agregar o editar parroquias y capillas">
+        <span class="quick-tile-icon">⚙️</span>
+        <span class="quick-tile-label">Parroquias</span>
+      </a>
+      <button class="quick-tile" id="new-folder-btn">
+        <span class="quick-tile-icon">📁</span>
+        <span class="quick-tile-label">Nueva carpeta</span>
+      </button>
+      <a class="quick-tile quick-tile-accent hide-on-mobile-nav" href="#/song/new">
+        <span class="quick-tile-icon">➕</span>
+        <span class="quick-tile-label">Nueva canción</span>
+      </a>
     </div>
     <div class="warning-box sync-status" id="sync-status" hidden></div>
     <div class="library-search">
@@ -115,14 +150,15 @@ async function renderFoldersView(container) {
   `;
 
   // Se pide aparte (no bloquea el resto de la pantalla): si no hay logo
-  // cargado para esta parroquia, o no hay conexión, el título se queda
-  // igual que siempre, sin el ícono.
+  // cargado para esta parroquia, o no hay conexión, el banner se queda
+  // oculto, sin afectar el resto de la pantalla.
   getSpaceLogoUrl(getCurrentSpaceKey()).then((logoUrl) => {
     if (!logoUrl) return;
+    const bannerEl = container.querySelector('#space-banner');
     const logoEl = container.querySelector('#space-logo');
-    if (!logoEl) return;
+    if (!bannerEl || !logoEl) return;
     logoEl.src = logoUrl;
-    logoEl.hidden = false;
+    bannerEl.hidden = false;
   });
 
   container.querySelector('#space-switcher').addEventListener('change', (event) => {
@@ -151,7 +187,7 @@ async function renderFoldersView(container) {
     );
     if (nuevoGrupo === null) return; // canceló
     setDeviceGroup(nuevoGrupo);
-    container.querySelector('#device-group-btn').textContent = `🎤 ${getDeviceGroup() || 'Grupo'}`;
+    container.querySelector('#device-group-btn .quick-tile-label').textContent = getDeviceGroup() || 'Grupo';
   });
 
   container.querySelector('#new-folder-btn').addEventListener('click', () => {
@@ -171,9 +207,11 @@ async function renderFoldersView(container) {
   async function renderAuthStatus() {
     const session = await getSession();
     if (session) {
-      authStatusEl.innerHTML = `<button class="btn" id="logout-btn" title="${escapeAttr(
-        session.user.email
-      )}">👤 Salir</button>`;
+      authStatusEl.innerHTML = `
+        <button class="quick-tile" id="logout-btn" title="${escapeAttr(session.user.email)}">
+          <span class="quick-tile-icon">👤</span>
+          <span class="quick-tile-label">Salir</span>
+        </button>`;
       authStatusEl.querySelector('#logout-btn').addEventListener('click', async () => {
         if (confirm(`¿Cerrar sesión de ${session.user.email}?`)) {
           await signOut();
@@ -181,7 +219,11 @@ async function renderFoldersView(container) {
         }
       });
     } else {
-      authStatusEl.innerHTML = `<a class="btn" href="#/login?returnTo=${encodeURIComponent('/library')}">Ingresar</a>`;
+      authStatusEl.innerHTML = `
+        <a class="quick-tile quick-tile-accent" href="#/login?returnTo=${encodeURIComponent('/library')}">
+          <span class="quick-tile-icon">👤</span>
+          <span class="quick-tile-label">Ingresar</span>
+        </a>`;
     }
   }
   renderAuthStatus();

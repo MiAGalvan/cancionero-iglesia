@@ -149,6 +149,76 @@ a {
 }
 
 /* --- Biblioteca --- */
+/* La barra superior de la biblioteca es distinta a la de las demás
+   pantallas: en vez de una sola fila (volver + título + acciones), son dos
+   filas apiladas (parroquia arriba, título abajo) — por eso pisa el
+   display:flex por defecto de .topbar. */
+.library-topbar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.library-title-row {
+  justify-content: center;
+}
+
+#space-switcher {
+  width: 100%;
+}
+
+/* Los accesos secundarios (todo menos "Cancionero" en sí) como una grilla
+   de cuadrados centrada, tipo pantalla de inicio de una app — en vez de la
+   fila de botones de siempre, que en un celular quedaba larga y había que
+   scrollear de costado para verla entera. */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 10px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 4px 16px 16px;
+}
+
+.quick-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  aspect-ratio: 1 / 1;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  padding: 8px 4px;
+  font-family: inherit;
+}
+
+.quick-tile:active {
+  background: var(--border);
+}
+
+.quick-tile-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.quick-tile-label {
+  font-size: 0.75rem;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.quick-tile-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
 .library-search {
   padding: 12px 16px;
 }
@@ -1535,6 +1605,13 @@ a {
   .bottom-nav-icon {
     font-size: 1.3rem;
     line-height: 1;
+  }
+
+  /* Estos 4 cuadrados de la biblioteca (Ver publicada, Compartidas, Lista de
+     misa, Nueva canción) quedarían duplicados con la barra inferior, que ya
+     los tiene siempre a mano — se ocultan acá para no repetir accesos. */
+  .hide-on-mobile-nav {
+    display: none;
   }
 }
 
