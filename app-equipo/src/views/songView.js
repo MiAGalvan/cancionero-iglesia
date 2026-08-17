@@ -21,21 +21,25 @@ import { createAudioRecorder } from '../recorder/audioRecorder.js';
 import { uploadSongRecording } from '../storage/recordings.js';
 import { isSupabaseConfigured } from '../storage/supabaseClient.js';
 
-export async function renderSongView(container, { id }) {
+export async function renderSongView(container, { id, returnTo }) {
   const song = await getSong(Number(id));
+  const backHref = returnTo || '#/library';
+  const backLabel = returnTo ? '← Volver' : '← Biblioteca';
   if (!song) {
-    container.innerHTML = `<div class="empty-state">No se encontró la canción. <a href="#/library">Volver</a></div>`;
+    container.innerHTML = `<div class="empty-state">No se encontró la canción. <a href="${backHref}">Volver</a></div>`;
     return;
   }
 
+  const returnToQuery = returnTo ? `?returnTo=${encodeURIComponent(returnTo.replace(/^#/, ''))}` : '';
+
   container.innerHTML = `
     <div class="topbar">
-      <a class="btn" href="#/library">← Biblioteca</a>
+      <a class="btn" href="${backHref}">${backLabel}</a>
       <h2>${escapeHtml(song.title)}</h2>
       <div class="form-actions">
         <button class="btn btn-icon" id="sidebar-toggle" title="Mostrar/ocultar controles">☰</button>
         <button class="btn btn-icon" id="fullscreen-toggle" title="Pantalla completa">⛶</button>
-        <a class="btn" href="#/song/${song.id}/edit">Editar</a>
+        <a class="btn" href="#/song/${song.id}/edit${returnToQuery}">Editar</a>
         <button class="btn btn-danger" id="delete-btn">Eliminar</button>
       </div>
     </div>
@@ -340,7 +344,7 @@ export async function renderSongView(container, { id }) {
       // la biblioteca puede llegar primero y, como todavía no ve el
       // borrado en la nube, "resucita" la canción que acabamos de borrar.
       if (deleted) await propagateDelete(deleted);
-      window.location.hash = '#/library';
+      window.location.hash = backHref;
       syncNow();
     }
   });

@@ -110,7 +110,9 @@ export async function renderListaPublicadaView(container) {
           .map((item, i) => {
             const local = localMatches[i];
             const tituloHtml = local
-              ? `<a href="#/song/${local.id}">${escapeHtml(item.titulo_cancion)} 🎸</a>`
+              ? `<a href="#/song/${local.id}?returnTo=${encodeURIComponent('/lista-publicada')}">${escapeHtml(
+                  item.titulo_cancion
+                )} 🎸</a>`
               : escapeHtml(item.titulo_cancion);
             return `
           <section class="publicada-cancion">

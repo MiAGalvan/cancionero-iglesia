@@ -34,9 +34,11 @@ function router() {
   } else if (parts[0] === 'song' && parts[1] === 'new') {
     renderNewSongView(app, { presetCategory: parts[2] });
   } else if (parts[0] === 'song' && parts[2] === 'edit') {
-    renderNewSongView(app, { editId: parts[1] });
+    const returnTo = params.get('returnTo');
+    renderNewSongView(app, { editId: parts[1], returnTo: returnTo ? `#${returnTo}` : undefined });
   } else if (parts[0] === 'song' && parts[1]) {
-    renderSongView(app, { id: parts[1] });
+    const returnTo = params.get('returnTo');
+    renderSongView(app, { id: parts[1], returnTo: returnTo ? `#${returnTo}` : undefined });
   } else if (parts[0] === 'misa' && parts[1] === 'nueva') {
     renderMisaListView(app, {});
   } else if (parts[0] === 'misa' && parts[1]) {

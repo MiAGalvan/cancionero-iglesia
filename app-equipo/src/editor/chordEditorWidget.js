@@ -44,11 +44,18 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
       </div>
     `;
 
-    container.querySelector('#go-chords-btn').addEventListener('click', () => {
-      const text = container.querySelector('#plain-lyrics-input').value;
-      const newLines = preserveChords(buildEditorLines(text), state.editorLines);
-      state.editorLines = newLines;
+    // Sincroniza en cada tecla, no solo al tocar "Poner acordes →": así, si
+    // alguien corrige un error de tipeo acá y va derecho al botón general
+    // "Guardar" (sin pasar por la pantalla de acordes), la corrección igual
+    // queda en el ChordPro que se guarda. Antes se perdía en silencio.
+    container.querySelector('#plain-lyrics-input').addEventListener('input', (event) => {
+      const text = event.target.value;
+      state.editorLines = preserveChords(buildEditorLines(text), state.editorLines);
       state.plainLyricsText = text;
+      notifyChange();
+    });
+
+    container.querySelector('#go-chords-btn').addEventListener('click', () => {
       state.phase = 'chords';
       render();
       notifyChange();

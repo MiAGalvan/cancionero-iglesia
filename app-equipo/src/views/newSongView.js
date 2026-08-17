@@ -21,7 +21,7 @@ import { getSession } from '../storage/auth.js';
 import { getAllCategories, getAllTags, addCustomTag, getCurrentSpaceKey, getDeviceGroup } from '../storage/settings.js';
 import { pushCustomTag } from '../storage/labelsSync.js';
 
-export async function renderNewSongView(container, { editId, presetCategory } = {}) {
+export async function renderNewSongView(container, { editId, presetCategory, returnTo } = {}) {
   const existing = editId ? await getSong(Number(editId)) : null;
   const selectedCategories = existing ? existing.categories : presetCategory ? [presetCategory] : [];
   const categoryOptions = getAllCategories();
@@ -31,10 +31,15 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
   // acordes); una canción nueva lo más común es traerla pegada de una web.
   let mode = existing ? 'write' : 'paste';
 
+  // Si se entró a editar desde otro lugar que no es la biblioteca (ej. "Ver
+  // publicada"), se vuelve ahí mismo al cancelar o guardar, en vez de
+  // siempre terminar en la vista simple de la canción.
+  const returnToQuery = returnTo ? `?returnTo=${encodeURIComponent(returnTo.replace(/^#/, ''))}` : '';
+
   container.innerHTML = `
     <div class="topbar">
       <h2>${existing ? 'Editar canción' : 'Nueva canción'}</h2>
-      <a class="btn" href="${existing ? `#/song/${existing.id}` : '#/library'}">Cancelar</a>
+      <a class="btn" href="${existing ? `#/song/${existing.id}${returnToQuery}` : '#/library'}">Cancelar</a>
     </div>
     <div class="form-view">
       <label>
@@ -250,7 +255,7 @@ export async function renderNewSongView(container, { editId, presetCategory } = 
           space: getCurrentSpaceKey(),
         });
 
-    window.location.hash = `#/song/${saved.id}`;
+    window.location.hash = `#/song/${saved.id}${returnToQuery}`;
     // En segundo plano, sin bloquear la navegación: si hay sesión y
     // conexión, esto ya sube la canción para que aparezca en los demás
     // dispositivos del equipo. Si no, no hace nada — se sube la próxima
