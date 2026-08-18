@@ -1613,6 +1613,15 @@ a {
   .hide-on-mobile-nav {
     display: none;
   }
+
+  /* auto-fill con minmax(90px,1fr) a veces mete una columna de más que no
+     llega a entrar del todo en un celular real (queda cortada al costado,
+     visto en pantalla real) — 3 columnas fijas es más chico pero siempre
+     entra bien, sea cual sea el ancho exacto del teléfono. */
+  .quick-actions-grid {
+    grid-template-columns: repeat(3, 1fr);
+    padding: 4px 12px 12px;
+  }
 }
 
 /* --- Foto -> texto (OCR) --- */
