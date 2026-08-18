@@ -52,22 +52,58 @@ export async function renderQrView(container) {
         <canvas id="qr-canvas"></canvas>
       </div>
       <p class="qr-url" id="qr-url"></p>
+      <div class="form-actions">
+        <button type="button" class="btn btn-accent" id="share-btn">📤 Compartir el link</button>
+        <span class="qr-share-status" id="share-status" hidden></span>
+      </div>
+      <p class="chord-editor-hint">
+        Por si alguien no puede escanear el QR (cámara rota, poca luz, etc.):
+        mandale este link directo por WhatsApp, mail o como prefieras — abre
+        la misma lista.
+      </p>
     </div>
   `;
 
   const canvas = container.querySelector('#qr-canvas');
   const urlEl = container.querySelector('#qr-url');
   const tabButtons = container.querySelectorAll('[data-space-tab]');
+  const shareBtn = container.querySelector('#share-btn');
+  const shareStatusEl = container.querySelector('#share-status');
+  let currentUrl = '';
 
   function render() {
     tabButtons.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.spaceTab === selectedSpace);
     });
-    const url = `${PUBLIC_URL}?space=${encodeURIComponent(selectedSpace)}`;
-    urlEl.textContent = url;
-    QRCode.toCanvas(canvas, url, { width: 320, margin: 2 }, (err) => {
+    const spaceLabel = spaces.find((space) => space.key === selectedSpace)?.label || '';
+    currentUrl = `${PUBLIC_URL}?space=${encodeURIComponent(selectedSpace)}`;
+    urlEl.textContent = currentUrl;
+    shareStatusEl.hidden = true;
+    QRCode.toCanvas(canvas, currentUrl, { width: 320, margin: 2 }, (err) => {
       if (err) console.error('No se pudo generar el QR:', err);
     });
+
+    shareBtn.onclick = async () => {
+      // El navegador ofrece su propio menú (WhatsApp, mail, etc.) si está
+      // disponible — típico en celular. En PC, donde no existe, copiamos el
+      // link al portapapeles en vez de fallar mudo.
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: `Cantos de la misa — ${spaceLabel}`, url: currentUrl });
+        } catch {
+          // El usuario canceló el menú de compartir, o falló: no hace falta avisar nada.
+        }
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(currentUrl);
+        shareStatusEl.hidden = false;
+        shareStatusEl.textContent = '✓ Link copiado';
+      } catch {
+        shareStatusEl.hidden = false;
+        shareStatusEl.textContent = 'No se pudo copiar. Copialo a mano de arriba.';
+      }
+    };
   }
 
   tabButtons.forEach((btn) => {

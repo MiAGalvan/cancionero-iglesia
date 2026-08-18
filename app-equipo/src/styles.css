@@ -1066,6 +1066,11 @@ a {
   word-break: break-all;
 }
 
+.qr-share-status {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
 .publicada-por {
   color: var(--text-dim);
   font-size: 0.82rem;
