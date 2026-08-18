@@ -143,7 +143,7 @@ export async function renderNewSongView(container, { editId, presetCategory, ret
         <div class="ocr-field">
           <label>
             📷 O convertí una foto de un papel (necesita internet la primera vez que se usa)
-            <input type="file" accept="image/*" capture="environment" id="photo-input" />
+            <input type="file" accept="image/*" id="photo-input" />
           </label>
           <div class="form-actions">
             <button type="button" class="btn" id="ocr-btn" disabled>Reconocer texto de la foto</button>
