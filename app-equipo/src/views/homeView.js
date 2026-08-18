@@ -76,7 +76,7 @@ export async function renderHomeView(container) {
         }</button>
       </div>
     </div>
-    <div class="parish-banner" id="space-banner" hidden>
+    <div class="home-banner" id="space-banner" hidden>
       <img id="space-logo" alt="" />
     </div>
     <div class="quick-actions-grid">
