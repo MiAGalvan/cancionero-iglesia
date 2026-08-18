@@ -10,12 +10,67 @@ import { getVisibleSpaces } from '../storage/auth.js';
 
 const REFRESH_MS = 45000;
 
+// Antes esto se armaba a mano en PowerPoint: una diapositiva por pedazo de
+// canción (título + 2 estrofas más o menos), para poder avanzar pantalla
+// por pantalla sin scrollear en vivo intentando llevar el ritmo del canto.
+// Acá se hace lo mismo solo: cada bloque de la letra (separado por una
+// línea en blanco) se va sumando a la página actual hasta pasarse de este
+// límite, y ahí arranca una página nueva.
+const MAX_LINES_PER_PAGE = 8;
+
+function splitIntoPages(letra) {
+  const blocks = (letra || '')
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+  if (blocks.length === 0) return [letra || ''];
+
+  const pages = [];
+  let current = [];
+  let currentLines = 0;
+
+  for (const block of blocks) {
+    const blockLines = block.split('\n').length;
+    if (current.length > 0 && currentLines + blockLines > MAX_LINES_PER_PAGE) {
+      pages.push(current.join('\n\n'));
+      current = [];
+      currentLines = 0;
+    }
+    current.push(block);
+    currentLines += blockLines;
+  }
+  if (current.length > 0) pages.push(current.join('\n\n'));
+  return pages;
+}
+
+// De la lista de canciones publicadas a la lista real de pantallas a
+// mostrar: una canción larga ocupa varias páginas seguidas, cada una con el
+// mismo título (+ "parte 2/3"...) para que se note que sigue siendo la
+// misma canción, no una nueva.
+function buildPages(items) {
+  const pages = [];
+  for (const item of items) {
+    const partes = splitIntoPages(item.letra_sin_acordes);
+    partes.forEach((letra, i) => {
+      pages.push({
+        categoria: item.categoria,
+        titulo_cancion: item.titulo_cancion,
+        letra,
+        parte: partes.length > 1 ? i + 1 : null,
+        totalPartes: partes.length > 1 ? partes.length : null,
+      });
+    });
+  }
+  return pages;
+}
+
 export async function renderProyeccionView(container) {
   const spaces = await getVisibleSpaces();
   const state = {
     phase: 'setup',
     space: spaces.some((space) => space.key === getCurrentSpaceKey()) ? getCurrentSpaceKey() : spaces[0].key,
     items: [],
+    pages: [],
     index: 0,
   };
   let refreshTimer = null;
@@ -96,24 +151,27 @@ export async function renderProyeccionView(container) {
       .limit(1);
     if (error || !data || data.length === 0 || !data[0].items.length) return false;
     state.items = data[0].items;
+    state.pages = buildPages(state.items);
     return true;
   }
 
   function renderShowing() {
-    const item = state.items[state.index];
+    const page = state.pages[state.index];
     container.innerHTML = `
       <div class="proyeccion-screen">
         <button type="button" class="proyeccion-exit" id="exit-btn" title="Salir">✕</button>
-        <div class="proyeccion-categoria">${escapeHtml(item.categoria)}</div>
-        <div class="proyeccion-titulo">${escapeHtml(item.titulo_cancion)}</div>
-        <div class="proyeccion-letra">${escapeHtml(item.letra_sin_acordes)}</div>
+        <div class="proyeccion-categoria">${escapeHtml(page.categoria)}</div>
+        <div class="proyeccion-titulo">${escapeHtml(page.titulo_cancion)}${
+      page.parte ? ` <span class="proyeccion-parte">· parte ${page.parte}/${page.totalPartes}</span>` : ''
+    }</div>
+        <div class="proyeccion-letra">${escapeHtml(page.letra)}</div>
         <div class="proyeccion-nav">
           <button type="button" class="proyeccion-nav-btn" id="prev-btn" ${
             state.index === 0 ? 'disabled' : ''
           }>‹</button>
-          <span class="proyeccion-contador">${state.index + 1} / ${state.items.length}</span>
+          <span class="proyeccion-contador">${state.index + 1} / ${state.pages.length}</span>
           <button type="button" class="proyeccion-nav-btn" id="next-btn" ${
-            state.index === state.items.length - 1 ? 'disabled' : ''
+            state.index === state.pages.length - 1 ? 'disabled' : ''
           }>›</button>
         </div>
       </div>
@@ -125,7 +183,7 @@ export async function renderProyeccionView(container) {
   }
 
   function goTo(newIndex) {
-    if (newIndex < 0 || newIndex >= state.items.length) return;
+    if (newIndex < 0 || newIndex >= state.pages.length) return;
     state.index = newIndex;
     renderShowing();
   }
@@ -153,11 +211,18 @@ export async function renderProyeccionView(container) {
   // si no, volvemos a la primera.
   refreshTimer = setInterval(async () => {
     if (state.phase !== 'showing') return;
-    const categoriaActual = state.items[state.index]?.categoria;
+    const categoriaActual = state.pages[state.index]?.categoria;
+    const parteActual = state.pages[state.index]?.parte;
     const ok = await loadItems();
     if (!ok) return;
-    const sameIndex = state.items.findIndex((item) => item.categoria === categoriaActual);
-    state.index = sameIndex >= 0 ? sameIndex : 0;
+    // Mismo criterio de antes (quedarse en la misma categoría si sigue
+    // existiendo), ahora además tratando de mantener la misma parte de dentro
+    // de esa canción, por si el refresco llega a mitad de una canción larga.
+    const sameIndex = state.pages.findIndex(
+      (page) => page.categoria === categoriaActual && (page.parte || null) === (parteActual || null)
+    );
+    const fallbackIndex = state.pages.findIndex((page) => page.categoria === categoriaActual);
+    state.index = sameIndex >= 0 ? sameIndex : fallbackIndex >= 0 ? fallbackIndex : 0;
     renderShowing();
   }, REFRESH_MS);
 }

@@ -1408,6 +1408,12 @@ a {
   font-weight: 700;
 }
 
+.proyeccion-parte {
+  font-size: 1.4rem;
+  font-weight: 400;
+  color: #9fbdb6;
+}
+
 .proyeccion-letra {
   font-size: clamp(2rem, 5vw, 4rem);
   line-height: 1.5;
