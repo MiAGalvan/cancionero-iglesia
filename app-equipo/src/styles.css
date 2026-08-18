@@ -198,6 +198,47 @@ a {
   padding: 4px 16px 16px;
 }
 
+/* En pantallas más grandes (tablet/PC) los cuadrados quedaban chicos y
+   apretados contra la izquierda, con mucho lugar vacío alrededor — acá
+   crecen en dos escalones a medida que hay más ancho disponible, en vez de
+   quedarse siempre del mismo tamaño de celular. */
+@media (min-width: 900px) {
+  .quick-actions-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 16px;
+    max-width: 960px;
+    padding: 8px 24px 24px;
+  }
+
+  .quick-tile {
+    border-radius: 18px;
+    gap: 10px;
+  }
+
+  .quick-tile-icon {
+    font-size: 2.1rem;
+  }
+
+  .quick-tile-label {
+    font-size: 0.95rem;
+  }
+}
+
+@media (min-width: 1300px) {
+  .quick-actions-grid {
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    max-width: 1200px;
+  }
+
+  .quick-tile-icon {
+    font-size: 2.5rem;
+  }
+
+  .quick-tile-label {
+    font-size: 1.05rem;
+  }
+}
+
 .quick-tile {
   display: flex;
   flex-direction: column;
