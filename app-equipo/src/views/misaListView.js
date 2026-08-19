@@ -3,8 +3,9 @@
 // haya agregado) — o dejarla vacía si ese día no aplica, ej. no siempre hay
 // "Entrada de la Palabra". Se guarda en IndexedDB, 100% offline; publicarla
 // a la nube es un paso aparte (ver publicarView.js).
-import { getSongsByCategory, getMisa, saveMisa, getAllMisas } from '../storage/db.js';
+import { getSongsByCategory, getMisa, saveMisa, getAllMisas, getSongByUuid } from '../storage/db.js';
 import { getAllCategories, getAllTags, getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
+import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 
 // Sin filtro, o si la canción no tiene ninguna etiqueta puesta ("sirve para
 // cualquier época"), siempre se muestra — el filtro solo ESCONDE canciones
@@ -53,6 +54,19 @@ export async function renderMisaListView(container, { fecha } = {}) {
         </select>
       </label>
 
+      <div class="form-actions">
+        <button type="button" class="btn" id="import-published-btn" ${isSupabaseConfigured ? '' : 'disabled'}>
+          ⬇️ Traer la última publicada
+        </button>
+      </div>
+      <p class="chord-editor-hint">
+        Útil para un cambio rápido en el momento: trae las canciones tal
+        cual quedaron en la última lista publicada, para que solo tengas
+        que cambiar la que hace falta y volver a publicar, sin elegir todo
+        de nuevo.
+      </p>
+      <div id="import-status" class="warning-box" hidden></div>
+
       <div class="misa-categories" id="misa-categories-wrap"></div>
 
       <div class="form-actions">
@@ -99,6 +113,41 @@ export async function renderMisaListView(container, { fecha } = {}) {
   const fechaInput = container.querySelector('#fecha-input');
   fechaInput.addEventListener('change', () => {
     window.location.hash = `#/misa/${fechaInput.value}`;
+  });
+
+  const importStatusEl = container.querySelector('#import-status');
+
+  container.querySelector('#import-published-btn').addEventListener('click', async () => {
+    importStatusEl.hidden = true;
+    const { data, error } = await supabase
+      .from('lista_actual')
+      .select('items')
+      .eq('space', space)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      importStatusEl.textContent = error
+        ? 'No se pudo traer la lista publicada (revisá la conexión).'
+        : 'Todavía no se publicó ninguna lista para esta parroquia.';
+      importStatusEl.hidden = false;
+      return;
+    }
+
+    // Cada canción publicada viaja con su uuid — acá se busca esa misma
+    // canción en el cancionero de ESTE dispositivo para poder seleccionarla
+    // en el desplegable (que trabaja con el id local, no con el uuid). Si
+    // no se encuentra (ej. este dispositivo todavía no sincronizó esa
+    // canción), esa categoría queda sin seleccionar en vez de romper el
+    // resto de la importación.
+    const newSelections = {};
+    for (const item of data[0].items) {
+      const local = item.song_uuid ? await getSongByUuid(item.song_uuid) : null;
+      newSelections[item.categoria] = local ? local.id : null;
+    }
+    renderCategories(newSelections);
+    importStatusEl.textContent = '✓ Se trajeron las canciones de la última lista publicada. Cambiá lo que haga falta y volvé a publicar.';
+    importStatusEl.hidden = false;
   });
 
   container.querySelector('#save-btn').addEventListener('click', async () => {
