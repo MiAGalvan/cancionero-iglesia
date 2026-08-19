@@ -254,7 +254,7 @@ function render({ fecha, items }, anuncios, logoUrl) {
       </section>`
       )
       .join('')}
-    ${renderNovedades(anuncios)}
+    ${renderNovedades(separarLecturas(anuncios).otrosAvisos)}
     ${renderEnteratePromo()}
   `;
 
@@ -342,8 +342,8 @@ function renderInicio() {
         ${renderBadge()}
       </a>
     </div>
-    ${renderRedesCompacto()}
     ${renderNovedades(separarLecturas(ultimosAnuncios).otrosAvisos)}
+    ${renderRedesCompacto()}
   `;
 }
 
@@ -436,9 +436,20 @@ const ORDEN_LECTURAS = new Map([
   ['EVANGELIO', 3],
 ]);
 
+// Ordenadas de más larga a más corta para que, si el título empieza con
+// una y además contiene otra como substring (no debería pasar con estas
+// 4, pero por las dudas), gane la coincidencia más específica.
+const ORDEN_LECTURAS_CLAVES = [...ORDEN_LECTURAS.keys()].sort((a, b) => b.length - a.length);
+
+// No exige el título exacto: alcanza con que EMPIECE con uno de los
+// nombres conocidos (ej. "Evangelio (Mt 20,1-16)" o "Salmo 22" también
+// cuentan) — así una referencia bíblica pegada al título no hace que la
+// lectura se trate como un aviso común y se filtre a la pantalla
+// principal en vez de quedar solo en Lecturas.
 function ordenLectura(titulo) {
   const normalizado = normalizarTitulo(titulo);
-  return ORDEN_LECTURAS.has(normalizado) ? ORDEN_LECTURAS.get(normalizado) : null;
+  const clave = ORDEN_LECTURAS_CLAVES.find((k) => normalizado.startsWith(k));
+  return clave === undefined ? null : ORDEN_LECTURAS.get(clave);
 }
 
 // Separa lo cargado en Novedades en dos grupos: las 4 lecturas litúrgicas
