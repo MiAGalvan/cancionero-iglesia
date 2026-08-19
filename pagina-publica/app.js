@@ -336,6 +336,7 @@ function renderInicio() {
         ${renderBadge()}
       </a>
     </div>
+    ${renderNovedades(separarLecturas(ultimosAnuncios).otrosAvisos)}
   `;
 }
 
@@ -375,15 +376,24 @@ function ordenLectura(titulo) {
   return ORDEN_LECTURAS.has(normalizado) ? ORDEN_LECTURAS.get(normalizado) : null;
 }
 
-function renderLecturas() {
+// Separa lo cargado en Novedades en dos grupos: las 4 lecturas litúrgicas
+// (en su orden fijo) y todo lo demás (avisos/eventos reales) — lo usan
+// tanto la pantalla de Lecturas como la de Inicio, para no repetir la
+// misma lógica dos veces.
+function separarLecturas(anuncios) {
   const lecturas = [];
   const otrosAvisos = [];
-  for (const anuncio of ultimosAnuncios) {
+  for (const anuncio of anuncios) {
     const orden = ordenLectura(anuncio.titulo);
     if (orden === null) otrosAvisos.push(anuncio);
     else lecturas.push({ ...anuncio, orden });
   }
   lecturas.sort((a, b) => a.orden - b.orden);
+  return { lecturas, otrosAvisos };
+}
+
+function renderLecturas() {
+  const { lecturas, otrosAvisos } = separarLecturas(ultimosAnuncios);
 
   app.innerHTML = `
     <div class="lecturas-topbar">

@@ -6,12 +6,20 @@
 // cargado) funciona sin login, porque la tabla es de lectura pública.
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSession } from '../storage/auth.js';
-import { getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
+import { getCurrentSpaceKey, getSpaceLabel, getSpace, updateSpace } from '../storage/settings.js';
+import { pushSpace } from '../storage/spacesSync.js';
+
+// Estos 4 títulos, EXACTOS, son los que reconoce la página pública para
+// mostrarlos siempre en el orden de la misa en "Lecturas" (ver
+// pagina-publica/app.js) — los botones de acá evitan que alguien los tipee
+// mal a mano.
+const LECTURAS_TITULOS = ['1ª Lectura', 'Salmo', '2ª Lectura', 'Evangelio'];
 
 export async function renderNovedadesView(container) {
   const space = getCurrentSpaceKey();
   const session = await getSession();
   const loggedIn = Boolean(session);
+  const espacio = getSpace(space);
 
   container.innerHTML = `
     <div class="topbar">
@@ -22,8 +30,7 @@ export async function renderNovedadesView(container) {
     <div class="form-view">
       <p class="chord-editor-hint">
         Avisos, eventos o las lecturas del día, para que la gente los vea en
-        la página del QR junto con los cantos — ej. "VIACRUCIS VIERNES 15
-        HS" o "Lecturas del domingo" con la cita completa.
+        la página del QR junto con los cantos.
       </p>
       ${
         !isSupabaseConfigured
@@ -36,6 +43,33 @@ export async function renderNovedadesView(container) {
           : ''
       }
       <div id="novedad-status" class="warning-box" hidden></div>
+
+      <div class="categories-field">
+        <span class="categories-label">📅 Próxima misa y dirección (se ve en "¿Vas a misa hoy?")</span>
+        <label>
+          Próxima misa (día y hora, tal cual la querés ver)
+          <input type="text" id="next-mass-input" ${loggedIn ? '' : 'disabled'}
+            value="${escapeAttr(espacio?.nextMass || '')}" placeholder="Ej. Miércoles 19 de agosto, 19:00 hs" />
+        </label>
+        <label>
+          Dirección
+          <input type="text" id="address-input" ${loggedIn ? '' : 'disabled'}
+            value="${escapeAttr(espacio?.address || '')}" placeholder="Ej. Av San Martín 936, Ushuaia" />
+        </label>
+        <div class="form-actions">
+          <button type="button" class="btn btn-accent" id="save-mass-btn" ${loggedIn ? '' : 'disabled'}>Guardar</button>
+        </div>
+      </div>
+
+      <div class="categories-field">
+        <span class="categories-label">🙏 Lecturas de hoy</span>
+        <div class="form-actions">
+          ${LECTURAS_TITULOS.map(
+            (titulo) => `<button type="button" class="btn" data-lectura="${escapeAttr(titulo)}" ${loggedIn ? '' : 'disabled'}>${escapeHtml(titulo)}</button>`
+          ).join('')}
+        </div>
+      </div>
+
       <div id="novedad-form-wrap"></div>
       <div class="form-actions">
         <button type="button" class="btn btn-accent" id="add-btn" ${loggedIn ? '' : 'disabled'}>
@@ -49,6 +83,32 @@ export async function renderNovedadesView(container) {
   const listEl = container.querySelector('#novedades-list');
   const statusEl = container.querySelector('#novedad-status');
   const formWrap = container.querySelector('#novedad-form-wrap');
+  let cachedAnuncios = [];
+
+  container.querySelector('#save-mass-btn')?.addEventListener('click', () => {
+    const nextMass = container.querySelector('#next-mass-input').value;
+    const address = container.querySelector('#address-input').value;
+    const updated = updateSpace(space, {
+      label: espacio.label,
+      locality: espacio.locality,
+      province: espacio.province,
+      address,
+      nextMass,
+    });
+    if (updated) {
+      pushSpace(updated); // en segundo plano, no bloquea la pantalla
+      statusEl.hidden = false;
+      statusEl.textContent = '✓ Guardado.';
+    }
+  });
+
+  container.querySelectorAll('[data-lectura]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const titulo = btn.dataset.lectura;
+      const existing = cachedAnuncios.find((a) => a.titulo === titulo);
+      openForm({ id: existing?.id, titulo, cuerpo: existing?.cuerpo || '' });
+    });
+  });
 
   function showError(err) {
     statusEl.textContent =
@@ -69,11 +129,12 @@ export async function renderNovedadesView(container) {
       listEl.innerHTML = `<li class="empty-state">No se pudo cargar (revisá la conexión).</li>`;
       return;
     }
-    if (!data || data.length === 0) {
+    cachedAnuncios = data || [];
+    if (cachedAnuncios.length === 0) {
       listEl.innerHTML = `<li class="empty-state">Todavía no hay novedades cargadas para esta parroquia.</li>`;
       return;
     }
-    listEl.innerHTML = data.map(novedadItemHtml).join('');
+    listEl.innerHTML = cachedAnuncios.map(novedadItemHtml).join('');
   }
 
   function novedadItemHtml(novedad) {
@@ -123,7 +184,7 @@ export async function renderNovedadesView(container) {
       if (!titulo) return;
 
       const payload = { space, titulo, cuerpo, updated_at: new Date().toISOString() };
-      const { error } = existing
+      const { error } = existing?.id
         ? await supabase.from('anuncios').update(payload).eq('id', existing.id)
         : await supabase.from('anuncios').insert(payload);
 
