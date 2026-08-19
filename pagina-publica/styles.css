@@ -277,6 +277,33 @@ h1 {
   line-height: 1;
 }
 
+.inicio-menu-item span:nth-child(2) {
+  flex: 1;
+}
+
+/* Aviso chico de si la lista publicada es de hoy (en vivo), quedó cargada
+   para una fecha futura, o es la de una misa anterior (sin badge, es lo
+   normal). Mismo aviso en la tarjeta de arriba y en los dos accesos. */
+.estado-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.badge-en-vivo {
+  background: rgba(182, 71, 60, 0.15);
+  color: var(--error);
+}
+
+.badge-proximamente {
+  background: rgba(47, 138, 122, 0.15);
+  color: var(--accent);
+}
+
 /* --- Pantalla de Lecturas --- */
 .lecturas-topbar {
   display: flex;

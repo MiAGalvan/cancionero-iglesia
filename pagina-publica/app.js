@@ -278,6 +278,30 @@ async function traducirYActualizar(elementId, translationPromise) {
   }
 }
 
+// Compara la fecha de la lista PUBLICADA contra hoy: mientras dura una
+// misa, esa lista no cambia (es la misma desde que arrancó hasta que
+// termina) — así que sirve como pista de si lo que se va a ver es de hoy
+// ("en vivo"), quedó cargado de antes para una fecha futura, o es de una
+// misa anterior (nada especial que avisar ahí, es el caso normal).
+function hoyIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function estadoLista() {
+  const fecha = ultimaData?.fecha;
+  if (!fecha) return null;
+  const hoy = hoyIso();
+  if (fecha === hoy) return { label: '🔴 En vivo hoy', clase: 'badge-en-vivo' };
+  if (fecha > hoy) return { label: '🕓 Próximamente', clase: 'badge-proximamente' };
+  return null;
+}
+
+function renderBadge() {
+  const estado = estadoLista();
+  return estado ? `<span class="estado-badge ${estado.clase}">${estado.label}</span>` : '';
+}
+
 // --- Pantalla de Inicio: "¿Vas a misa hoy?" ------------------------------
 function renderInicio() {
   const lugar = [ultimoEspacio?.locality, ultimoEspacio?.province].filter(Boolean).join(', ');
@@ -289,7 +313,7 @@ function renderInicio() {
     <h1 class="inicio-parroquia">${escapeHtml(nombreParroquia())}</h1>
     ${lugar ? `<p class="parroquia">${escapeHtml(lugar)}</p>` : ''}
     <div class="vas-a-misa-card">
-      <h2 class="vas-a-misa-titulo">¿Vas a misa hoy?</h2>
+      <h2 class="vas-a-misa-titulo">¿Vas a misa hoy? ${renderBadge()}</h2>
       ${
         proximaMisa || direccion
           ? `
@@ -304,10 +328,12 @@ function renderInicio() {
       <a class="inicio-menu-item" href="${hrefTo('')}">
         <span class="inicio-menu-icon">🎵</span>
         <span>Mira las canciones que vamos a hacer</span>
+        ${renderBadge()}
       </a>
       <a class="inicio-menu-item" href="${hrefTo('lecturas')}">
         <span class="inicio-menu-icon">📖</span>
         <span>Mira las lecturas</span>
+        ${renderBadge()}
       </a>
     </div>
   `;
