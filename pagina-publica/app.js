@@ -380,11 +380,36 @@ function renderInicio() {
 // pantalla propia (#/redes) pensada para compartirse directo (bio de
 // Instagram, WhatsApp) sin pasar primero por la lista de cantos. Una
 // parroquia que no cargó ninguna red simplemente no muestra nada acá.
+//
+// Los íconos son SVG propios (no emoji): en varios celus Android el emoji
+// de cámara/libro se ve gris y sin color, poco reconocible — un ícono
+// dibujado a mano con el color de cada marca se ve igual en cualquier
+// dispositivo.
 const REDES_CONFIG = [
-  { key: 'instagram', icon: '📷', label: 'Instagram' },
-  { key: 'facebook', icon: '📘', label: 'Facebook' },
-  { key: 'youtube', icon: '▶️', label: 'YouTube' },
-  { key: 'whatsapp', icon: '💬', label: 'WhatsApp' },
+  {
+    key: 'instagram',
+    label: 'Instagram',
+    clase: 'redes-bg-instagram',
+    svg: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5.5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="#fff" stroke="none"/></svg>',
+  },
+  {
+    key: 'facebook',
+    label: 'Facebook',
+    clase: 'redes-bg-facebook',
+    svg: '<svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M15.1 8.6h-1.9V7.4c0-.5.3-.7.6-.7h1.2V4.1l-1.7 0c-1.9 0-2.8 1.4-2.8 2.9v1.6H9v2.5h1.5V20h2.7v-8.9h1.6l.3-2.5z"/></svg>',
+  },
+  {
+    key: 'youtube',
+    label: 'YouTube',
+    clase: 'redes-bg-youtube',
+    svg: '<svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M9.5 8.3v7.4l6.4-3.7-6.4-3.7z"/></svg>',
+  },
+  {
+    key: 'whatsapp',
+    label: 'WhatsApp',
+    clase: 'redes-bg-whatsapp',
+    svg: '<svg viewBox="0 0 24 24" width="20" height="20" fill="#fff"><path d="M17 14.2c-.3-.1-1.6-.8-1.9-.9-.3-.1-.5-.1-.6.1-.2.3-.7.9-.9 1.1-.1.2-.3.2-.6.1-.8-.4-1.6-.8-2.3-1.5-.6-.6-1-1.2-1.4-1.9-.1-.3 0-.4.1-.6.1-.1.3-.3.4-.5.1-.1.2-.3.2-.4.1-.2 0-.3 0-.4-.1-.1-.6-1.4-.8-1.9-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9 1-.9 2.3s1 2.6 1.1 2.8c.1.2 2 3 4.7 4.2.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.6-.6 1.8-1.3.2-.6.2-1.2.2-1.3-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.5 15.2L2 22l4.9-1.3A10 10 0 1 0 12 2zm0 18.2a8.1 8.1 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.1 8.1 0 1 1 12 20.2z"/></svg>',
+  },
 ];
 
 function redesDisponibles() {
@@ -401,7 +426,7 @@ function renderRedesCompacto() {
         ${redes
           .map(
             (red) =>
-              `<a class="redes-compacto-link" href="${escapeHtml(ultimoEspacio[red.key])}" target="_blank" rel="noopener" title="${escapeHtml(red.label)}">${red.icon}</a>`
+              `<a class="redes-compacto-link ${red.clase}" href="${escapeHtml(ultimoEspacio[red.key])}" target="_blank" rel="noopener" title="${escapeHtml(red.label)}">${red.svg}</a>`
           )
           .join('')}
       </div>
@@ -424,7 +449,7 @@ function renderRedes() {
           .map(
             (red) => `
         <a class="inicio-menu-item" href="${escapeHtml(ultimoEspacio[red.key])}" target="_blank" rel="noopener">
-          <span class="inicio-menu-icon">${red.icon}</span>
+          <span class="redes-icon-menu ${red.clase}">${red.svg}</span>
           <span>${escapeHtml(red.label)}</span>
         </a>`
           )

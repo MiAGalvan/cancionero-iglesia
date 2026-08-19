@@ -336,10 +336,38 @@ h1 {
   width: 48px;
   height: 48px;
   border-radius: 999px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  font-size: 1.4rem;
   text-decoration: none;
+}
+
+/* Ícono de red social dentro de un ítem de menú (pantalla #/redes) — mismo
+   círculo de color, tamaño acorde a los demás íconos del menú. */
+.redes-icon-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+/* Colores de marca de cada red, para que el ícono se reconozca de un
+   vistazo sin depender del emoji del sistema operativo (en varios Android
+   se ven grises y sin color). */
+.redes-bg-instagram {
+  background: radial-gradient(circle at 30% 110%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285aeb 90%);
+}
+
+.redes-bg-facebook {
+  background: #1877f2;
+}
+
+.redes-bg-youtube {
+  background: #ff0000;
+}
+
+.redes-bg-whatsapp {
+  background: #25d366;
 }
 
 /* --- Pantalla de Lecturas --- */
