@@ -373,6 +373,8 @@ create table if not exists spaces (
   facebook text not null default '',
   youtube text not null default '',
   whatsapp text not null default '', -- ej. link de wa.me a un grupo o número de contacto
+  horario_misas jsonb not null default '[]', -- [{dia: 0-6 (0=domingo, como Date.getDay()), hora: 'HH:MM'}], se repite cada semana
+  capillas jsonb not null default '[]', -- [{id, nombre, direccion, horario}], informativas, sin cancionero propio
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );

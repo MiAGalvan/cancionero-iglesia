@@ -148,7 +148,7 @@ async function cargarYMostrar() {
     supabase.from('espacio_logos').select('logo_url').eq('space', space).maybeSingle(),
     supabase
       .from('spaces')
-      .select('label, locality, province, address, next_mass, instagram, facebook, youtube, whatsapp')
+      .select('label, locality, province, address, next_mass, instagram, facebook, youtube, whatsapp, horario_misas, capillas')
       .eq('key', space)
       .maybeSingle(),
   ]);
@@ -184,6 +184,8 @@ function renderTodo() {
     renderLecturas();
   } else if (route === 'redes') {
     renderRedes();
+  } else if (route === 'capillas') {
+    renderCapillas();
   } else if (!ultimaData) {
     app.innerHTML = `
       ${renderBanner(ultimoLogoUrl)}
@@ -337,11 +339,44 @@ function formatFechaLarga(fecha) {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
+// Mismos números que Date.getDay() (0 = domingo). El equipo carga un
+// horario semanal que se repite (ver novedadesView.js); acá se calcula
+// cuál es la próxima ocurrencia a partir de la hora actual, para no
+// depender de que alguien lo actualice a mano cada semana. Si todavía no
+// hay ningún horario cargado, se usa el texto libre de siempre
+// (`next_mass`) como respaldo.
+const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+function proximaMisaDesdeHorario(horarios) {
+  if (!Array.isArray(horarios) || horarios.length === 0) return null;
+  const ahora = new Date();
+  const hoyDia = ahora.getDay();
+  const hoyMin = ahora.getHours() * 60 + ahora.getMinutes();
+
+  let mejor = null;
+  for (const h of horarios) {
+    if (typeof h?.dia !== 'number' || !h?.hora) continue;
+    const [hh, mm] = h.hora.split(':').map(Number);
+    const minutos = hh * 60 + (mm || 0);
+    let offsetDias = (h.dia - hoyDia + 7) % 7;
+    // Si es hoy pero la hora ya pasó, no cuenta como "próxima" — la de hoy
+    // ya sucedió, la siguiente ocurrencia es dentro de una semana.
+    if (offsetDias === 0 && minutos <= hoyMin) offsetDias = 7;
+    const clave = offsetDias * 1440 + minutos;
+    if (!mejor || clave < mejor.clave) mejor = { dia: h.dia, hora: h.hora, offsetDias, clave };
+  }
+  if (!mejor) return null;
+
+  const etiquetaDia = mejor.offsetDias === 0 ? 'Hoy' : mejor.offsetDias === 1 ? 'Mañana' : DIAS_SEMANA[mejor.dia];
+  return `${etiquetaDia}, ${mejor.hora} hs`;
+}
+
 // --- Pantalla de Inicio: "¿Vas a misa hoy?" ------------------------------
 function renderInicio() {
   const lugar = [ultimoEspacio?.locality, ultimoEspacio?.province].filter(Boolean).join(', ');
-  const proximaMisa = ultimoEspacio?.next_mass || '';
+  const proximaMisa = proximaMisaDesdeHorario(ultimoEspacio?.horario_misas) || ultimoEspacio?.next_mass || '';
   const direccion = ultimoEspacio?.address || '';
+  const hayCapillas = (ultimoEspacio?.capillas || []).length > 0;
 
   app.innerHTML = `
     ${renderBanner(ultimoLogoUrl)}
@@ -370,9 +405,42 @@ function renderInicio() {
         <span>Mira las lecturas</span>
         ${renderBadgeLecturas()}
       </a>
+      ${
+        hayCapillas
+          ? `<a class="inicio-menu-item" href="${hrefTo('capillas')}">
+        <span class="inicio-menu-icon">⛪</span>
+        <span>Mira otras capillas y horarios</span>
+      </a>`
+          : ''
+      }
     </div>
     ${renderNovedades(separarLecturas(ultimosAnuncios).otrosAvisos)}
     ${renderRedesCompacto()}
+  `;
+}
+
+// --- Pantalla de otras capillas (informativa, sin cancionero propio) -----
+function renderCapillas() {
+  const capillas = ultimoEspacio?.capillas || [];
+  app.innerHTML = `
+    <div class="lecturas-topbar">
+      <a class="btn-volver" href="${hrefTo('inicio')}">← Volver</a>
+      <h1 class="lecturas-titulo">Otras capillas y horarios</h1>
+    </div>
+    ${
+      capillas.length === 0
+        ? `<p class="empty">Todavía no cargaron otras capillas para ${escapeHtml(nombreParroquia())}.</p>`
+        : capillas
+            .map(
+              (c) => `
+        <section class="cancion">
+          <h2 class="categoria">${escapeHtml(c.nombre)}</h2>
+          ${c.horario ? `<p class="proxima-misa-hora">${escapeHtml(c.horario)}</p>` : ''}
+          ${c.direccion ? `<p class="proxima-misa-direccion">📍 ${escapeHtml(c.direccion)}</p>` : ''}
+        </section>`
+            )
+            .join('')
+    }
   `;
 }
 

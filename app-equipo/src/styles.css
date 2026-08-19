@@ -1029,6 +1029,18 @@ a {
   font-size: 1rem;
 }
 
+/* Fila de horario semanal (Novedades): día + hora, reusa el mismo look de
+   fila que "Lista de misa" en vez de definir un estilo nuevo. */
+.misa-category-row input[type='time'] {
+  flex-shrink: 0;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 1rem;
+}
+
 /* --- Publicar --- */
 .publicar-preview {
   list-style: none;

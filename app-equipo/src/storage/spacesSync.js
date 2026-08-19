@@ -28,6 +28,8 @@ export async function pushSpace(space) {
       facebook: space.facebook || '',
       youtube: space.youtube || '',
       whatsapp: space.whatsapp || '',
+      horario_misas: space.horarioMisas || [],
+      capillas: space.capillas || [],
       updated_at: space.updatedAt || new Date().toISOString(),
       deleted_at: null,
     },
@@ -100,6 +102,8 @@ export async function syncSpacesNow() {
           facebook: remote.facebook || '',
           youtube: remote.youtube || '',
           whatsapp: remote.whatsapp || '',
+          horarioMisas: remote.horario_misas || [],
+          capillas: remote.capillas || [],
           updatedAt: remote.updated_at,
         });
       }

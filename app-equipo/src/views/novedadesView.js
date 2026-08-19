@@ -15,6 +15,10 @@ import { pushSpace } from '../storage/spacesSync.js';
 // mal a mano.
 const LECTURAS_TITULOS = ['1ª Lectura', 'Salmo', '2ª Lectura', 'Evangelio'];
 
+// Mismo orden que Date.getDay() (0 = domingo), para que "día" se pueda
+// guardar como número y usarse tal cual del lado de la página pública.
+const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
 export async function renderNovedadesView(container) {
   const space = getCurrentSpaceKey();
   const session = await getSession();
@@ -56,6 +60,22 @@ export async function renderNovedadesView(container) {
           <input type="text" id="address-input" ${loggedIn ? '' : 'disabled'}
             value="${escapeAttr(espacio?.address || '')}" placeholder="Ej. Av San Martín 936, Ushuaia" />
         </label>
+      </div>
+
+      <div class="categories-field">
+        <span class="categories-label">🗓️ Horario semanal (opcional, se repite todas las semanas — si cargás esto, la página pública calcula sola la próxima misa y ya no usa el texto de arriba)</span>
+        <div id="horario-rows"></div>
+        <div class="form-actions">
+          <button type="button" class="btn" id="add-horario-row-btn" ${loggedIn ? '' : 'disabled'}>+ Agregar horario</button>
+        </div>
+      </div>
+
+      <div class="categories-field">
+        <span class="categories-label">⛪ Otras capillas de esta parroquia (solo informativo: nombre, dirección y horario — sin cancionero propio)</span>
+        <ul class="song-list" id="capillas-list"></ul>
+        <div class="form-actions">
+          <button type="button" class="btn" id="add-capilla-btn" ${loggedIn ? '' : 'disabled'}>+ Agregar capilla</button>
+        </div>
       </div>
 
       <div class="categories-field">
@@ -109,28 +129,164 @@ export async function renderNovedadesView(container) {
   const formWrap = container.querySelector('#novedad-form-wrap');
   let cachedAnuncios = [];
 
-  container.querySelector('#save-mass-btn')?.addEventListener('click', () => {
-    const nextMass = container.querySelector('#next-mass-input').value;
-    const address = container.querySelector('#address-input').value;
-    const instagram = container.querySelector('#instagram-input').value;
-    const facebook = container.querySelector('#facebook-input').value;
-    const youtube = container.querySelector('#youtube-input').value;
-    const whatsapp = container.querySelector('#whatsapp-input').value;
+  // Cada acción de guardado (próxima misa/redes/horario, o capillas) lee el
+  // espacio FRESCO de localStorage en vez de la constante `espacio` de más
+  // arriba (que quedó congelada en como estaba al abrir la pantalla) — así,
+  // si ya se guardó algo en esta misma visita, un guardado posterior no lo
+  // pisa con datos viejos.
+  function guardarCambiosEspacio(cambios) {
+    const actual = getSpace(space) || espacio;
     const updated = updateSpace(space, {
-      label: espacio.label,
-      locality: espacio.locality,
-      province: espacio.province,
-      address,
-      nextMass,
-      instagram,
-      facebook,
-      youtube,
-      whatsapp,
+      label: actual.label,
+      locality: actual.locality,
+      province: actual.province,
+      address: actual.address,
+      nextMass: actual.nextMass,
+      instagram: actual.instagram,
+      facebook: actual.facebook,
+      youtube: actual.youtube,
+      whatsapp: actual.whatsapp,
+      horarioMisas: actual.horarioMisas || [],
+      capillas: actual.capillas || [],
+      ...cambios,
+    });
+    if (updated) pushSpace(updated); // en segundo plano, no bloquea la pantalla
+    return updated;
+  }
+
+  // --- Horario semanal (se repite cada semana) ---
+  let horarioMisas = Array.isArray(espacio?.horarioMisas) ? [...espacio.horarioMisas] : [];
+  const horarioRowsEl = container.querySelector('#horario-rows');
+
+  function horarioRowHtml(row, i) {
+    return `
+      <div class="misa-category-row" data-idx="${i}">
+        <select class="horario-dia-select" data-idx="${i}" ${loggedIn ? '' : 'disabled'}>
+          ${DIAS_SEMANA.map((d, di) => `<option value="${di}" ${row.dia === di ? 'selected' : ''}>${d}</option>`).join('')}
+        </select>
+        <input type="time" class="horario-hora-input" data-idx="${i}" value="${escapeAttr(row.hora || '11:00')}" ${loggedIn ? '' : 'disabled'} />
+        <button type="button" class="btn btn-danger btn-icon" data-del-horario="${i}" ${loggedIn ? '' : 'disabled'}>✕</button>
+      </div>
+    `;
+  }
+
+  function renderHorarioRows() {
+    horarioRowsEl.innerHTML =
+      horarioMisas.length === 0
+        ? `<p class="song-artist">Sin horario semanal cargado — se usa el texto de "Próxima misa" de arriba.</p>`
+        : horarioMisas.map(horarioRowHtml).join('');
+  }
+
+  // Los <select>/<input> de cada fila se editan directo en el DOM (no en el
+  // array) — esto vuelca esos cambios al array antes de agregar/borrar una
+  // fila o guardar, para no perderlos.
+  function sincronizarHorarioDesdeDom() {
+    horarioRowsEl.querySelectorAll('.misa-category-row').forEach((rowEl) => {
+      const idx = Number(rowEl.dataset.idx);
+      const dia = Number(rowEl.querySelector('.horario-dia-select').value);
+      const hora = rowEl.querySelector('.horario-hora-input').value || '11:00';
+      horarioMisas[idx] = { dia, hora };
+    });
+  }
+
+  renderHorarioRows();
+
+  container.querySelector('#add-horario-row-btn').addEventListener('click', () => {
+    sincronizarHorarioDesdeDom();
+    horarioMisas.push({ dia: 0, hora: '11:00' });
+    renderHorarioRows();
+  });
+
+  horarioRowsEl.addEventListener('click', (event) => {
+    const idx = event.target.dataset.delHorario;
+    if (idx === undefined) return;
+    sincronizarHorarioDesdeDom();
+    horarioMisas.splice(Number(idx), 1);
+    renderHorarioRows();
+  });
+
+  container.querySelector('#save-mass-btn')?.addEventListener('click', () => {
+    sincronizarHorarioDesdeDom();
+    const updated = guardarCambiosEspacio({
+      address: container.querySelector('#address-input').value,
+      nextMass: container.querySelector('#next-mass-input').value,
+      instagram: container.querySelector('#instagram-input').value,
+      facebook: container.querySelector('#facebook-input').value,
+      youtube: container.querySelector('#youtube-input').value,
+      whatsapp: container.querySelector('#whatsapp-input').value,
+      horarioMisas,
     });
     if (updated) {
-      pushSpace(updated); // en segundo plano, no bloquea la pantalla
       statusEl.hidden = false;
       statusEl.textContent = '✓ Guardado.';
+    }
+  });
+
+  // --- Otras capillas (informativo: nombre, dirección, horario en texto) ---
+  let capillas = Array.isArray(espacio?.capillas) ? [...espacio.capillas] : [];
+  const capillasListEl = container.querySelector('#capillas-list');
+
+  function capillaId() {
+    return `capilla-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  }
+
+  function renderCapillas() {
+    if (capillas.length === 0) {
+      capillasListEl.innerHTML = `<li class="empty-state">Todavía no agregaste ninguna capilla.</li>`;
+      return;
+    }
+    capillasListEl.innerHTML = capillas
+      .map(
+        (c) => `
+      <li class="song-item" data-id="${c.id}">
+        <span>
+          <strong>${escapeHtml(c.nombre)}</strong>
+          <span class="song-artist">${escapeHtml([c.horario, c.direccion].filter(Boolean).join(' — '))}</span>
+        </span>
+        ${
+          loggedIn
+            ? `<button type="button" class="btn btn-icon" data-edit-capilla="${c.id}" title="Editar">✏️</button>
+               <button type="button" class="btn btn-danger btn-icon" data-del-capilla="${c.id}" title="Eliminar">✕</button>`
+            : ''
+        }
+      </li>`
+      )
+      .join('');
+  }
+
+  renderCapillas();
+
+  container.querySelector('#add-capilla-btn').addEventListener('click', () => {
+    const nombre = prompt('Nombre de la capilla');
+    if (nombre === null || !nombre.trim()) return;
+    const direccion = prompt('Dirección', '') || '';
+    const horario = prompt('Horario (ej. Domingos 11:00 hs)', '') || '';
+    capillas = [...capillas, { id: capillaId(), nombre: nombre.trim(), direccion, horario }];
+    const updated = guardarCambiosEspacio({ capillas });
+    if (updated) renderCapillas();
+  });
+
+  capillasListEl.addEventListener('click', (event) => {
+    const editId = event.target.dataset.editCapilla;
+    const delId = event.target.dataset.delCapilla;
+
+    if (editId) {
+      const c = capillas.find((x) => x.id === editId);
+      if (!c) return;
+      const nombre = prompt('Nombre de la capilla', c.nombre);
+      if (nombre === null || !nombre.trim()) return;
+      const direccion = prompt('Dirección', c.direccion || '');
+      if (direccion === null) return;
+      const horario = prompt('Horario (ej. Domingos 11:00 hs)', c.horario || '');
+      if (horario === null) return;
+      capillas = capillas.map((x) => (x.id === editId ? { ...x, nombre: nombre.trim(), direccion, horario } : x));
+      const updated = guardarCambiosEspacio({ capillas });
+      if (updated) renderCapillas();
+    } else if (delId) {
+      if (!confirm('¿Eliminar esta capilla?')) return;
+      capillas = capillas.filter((x) => x.id !== delId);
+      const updated = guardarCambiosEspacio({ capillas });
+      if (updated) renderCapillas();
     }
   });
 

@@ -115,6 +115,8 @@ export function addSpace({
   facebook = '',
   youtube = '',
   whatsapp = '',
+  horarioMisas = [],
+  capillas = [],
 }) {
   const trimmedLabel = label.trim();
   if (!trimmedLabel) return null;
@@ -139,18 +141,33 @@ export function addSpace({
     facebook: facebook.trim(),
     youtube: youtube.trim(),
     whatsapp: whatsapp.trim(),
+    horarioMisas,
+    capillas,
     updatedAt: new Date().toISOString(),
   };
   saveSpaces([...spaces, newSpace]);
   return newSpace;
 }
 
-// Cambia nombre/localidad/provincia/dirección/próxima misa/redes sociales de
-// una parroquia ya creada. La key no se toca, así que las canciones/listas
-// que ya tenía siguen encontrándola sin ningún problema.
+// Cambia nombre/localidad/provincia/dirección/próxima misa/redes
+// sociales/horario semanal/capillas de una parroquia ya creada. La key no
+// se toca, así que las canciones/listas que ya tenía siguen encontrándola
+// sin ningún problema.
 export function updateSpace(
   key,
-  { label, locality = '', province = '', address = '', nextMass = '', instagram = '', facebook = '', youtube = '', whatsapp = '' }
+  {
+    label,
+    locality = '',
+    province = '',
+    address = '',
+    nextMass = '',
+    instagram = '',
+    facebook = '',
+    youtube = '',
+    whatsapp = '',
+    horarioMisas = [],
+    capillas = [],
+  }
 ) {
   const trimmedLabel = label.trim();
   if (!trimmedLabel) return null;
@@ -170,6 +187,8 @@ export function updateSpace(
         facebook: facebook.trim(),
         youtube: youtube.trim(),
         whatsapp: whatsapp.trim(),
+        horarioMisas,
+        capillas,
         updatedAt,
       };
       return updatedSpace;

@@ -145,8 +145,9 @@ export async function renderEspaciosView(container) {
         space.nextMass || ''
       );
       if (nextMass === null) return;
-      // Instagram/Facebook/YouTube/WhatsApp no se preguntan acá (se editan
-      // desde "Novedades") — se pasan tal cual estaban para no borrarlos.
+      // Instagram/Facebook/YouTube/WhatsApp/horario semanal/capillas no se
+      // preguntan acá (se editan desde "Novedades") — se pasan tal cual
+      // estaban para no borrarlos.
       const updated = updateSpace(editKey, {
         label,
         locality,
@@ -157,6 +158,8 @@ export async function renderEspaciosView(container) {
         facebook: space.facebook,
         youtube: space.youtube,
         whatsapp: space.whatsapp,
+        horarioMisas: space.horarioMisas,
+        capillas: space.capillas,
       });
       render();
       if (updated) pushSpace(updated);

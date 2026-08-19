@@ -439,3 +439,39 @@ el link "Mira las lecturas" en Inicio como el título de la pantalla de
 Lecturas muestran **🕓 Próximamente** junto con la fecha, para que quede
 claro que todavía no es el día. Es el mismo aviso que ya usa la lista de
 canciones publicada.
+
+## 22. Horario semanal recurrente y otras capillas
+
+Hasta ahora "próxima misa" era un texto libre que había que ir
+actualizando a mano. Ahora se puede cargar, en cambio, un horario que se
+repite todas las semanas (ej. "domingos 11:00 hs", "miércoles 19:00 hs")
+y la página pública calcula sola cuál es la próxima, sin que nadie tenga
+que volver a tocarlo — sigue funcionando aunque pasen semanas sin entrar
+a la app.
+
+También se pueden agregar otras capillas que pertenecen a la misma
+parroquia (ej. Merced tiene misa en una capilla los miércoles) — son
+solo informativas: nombre, dirección y horario en texto libre, sin
+cancionero ni QR propio. Aparecen en una pantalla aparte para no
+confundirlas con la misa principal.
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-horarios-capillas.sql`](./migracion-horarios-capillas.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta nada
+extra: ya está incluido ahí.
+
+**Cargar el horario semanal:** desde la app, **📣 Novedades** → sección
+"🗓️ Horario semanal" → **+ Agregar horario** por cada día que hay misa,
+elegís el día y la hora → **Guardar**. Si no cargás ningún horario acá,
+la página pública sigue usando el texto libre de "Próxima misa" de
+siempre.
+
+**Agregar una capilla:** en la misma pantalla, sección "⛪ Otras
+capillas" → **+ Agregar capilla** → nombre, dirección y horario (texto
+libre, ej. "Miércoles 19:00 hs"). Se puede editar o eliminar después
+desde la lista. En la página pública aparecen en "Mira otras capillas y
+horarios", un link que solo se muestra en Inicio si hay al menos una
+capilla cargada.
