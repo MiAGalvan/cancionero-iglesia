@@ -56,6 +56,30 @@ export async function renderNovedadesView(container) {
           <input type="text" id="address-input" ${loggedIn ? '' : 'disabled'}
             value="${escapeAttr(espacio?.address || '')}" placeholder="Ej. Av San Martín 936, Ushuaia" />
         </label>
+      </div>
+
+      <div class="categories-field">
+        <span class="categories-label">🔗 Redes sociales (se ve al fondo de "Inicio", y tiene su propio link para compartir)</span>
+        <label>
+          Instagram
+          <input type="url" id="instagram-input" ${loggedIn ? '' : 'disabled'}
+            value="${escapeAttr(espacio?.instagram || '')}" placeholder="Ej. https://instagram.com/tuparroquia" />
+        </label>
+        <label>
+          Facebook
+          <input type="url" id="facebook-input" ${loggedIn ? '' : 'disabled'}
+            value="${escapeAttr(espacio?.facebook || '')}" placeholder="Ej. https://facebook.com/tuparroquia" />
+        </label>
+        <label>
+          YouTube
+          <input type="url" id="youtube-input" ${loggedIn ? '' : 'disabled'}
+            value="${escapeAttr(espacio?.youtube || '')}" placeholder="Ej. https://youtube.com/@tuparroquia" />
+        </label>
+        <label>
+          WhatsApp
+          <input type="url" id="whatsapp-input" ${loggedIn ? '' : 'disabled'}
+            value="${escapeAttr(espacio?.whatsapp || '')}" placeholder="Ej. https://wa.me/5490000000000" />
+        </label>
         <div class="form-actions">
           <button type="button" class="btn btn-accent" id="save-mass-btn" ${loggedIn ? '' : 'disabled'}>Guardar</button>
         </div>
@@ -88,12 +112,20 @@ export async function renderNovedadesView(container) {
   container.querySelector('#save-mass-btn')?.addEventListener('click', () => {
     const nextMass = container.querySelector('#next-mass-input').value;
     const address = container.querySelector('#address-input').value;
+    const instagram = container.querySelector('#instagram-input').value;
+    const facebook = container.querySelector('#facebook-input').value;
+    const youtube = container.querySelector('#youtube-input').value;
+    const whatsapp = container.querySelector('#whatsapp-input').value;
     const updated = updateSpace(space, {
       label: espacio.label,
       locality: espacio.locality,
       province: espacio.province,
       address,
       nextMass,
+      instagram,
+      facebook,
+      youtube,
+      whatsapp,
     });
     if (updated) {
       pushSpace(updated); // en segundo plano, no bloquea la pantalla

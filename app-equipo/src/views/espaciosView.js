@@ -116,6 +116,9 @@ export async function renderEspaciosView(container) {
     const address = prompt('Dirección (se muestra en la página pública)', '') || '';
     const nextMass = prompt('Próxima misa (día y hora, tal cual la querés ver — ej. "Miércoles 19 de agosto, 19:00 hs")', '') || '';
     const created = addSpace({ label, locality, province, address, nextMass });
+    // Instagram/Facebook/YouTube/WhatsApp se cargan después desde
+    // "Novedades" (tiene su propio formulario, sin tanto prompt() seguido)
+    // — acá no se pregunta para no alargar más el alta.
     if (created) {
       render();
       pushSpace(created); // en segundo plano, no bloquea la pantalla
@@ -142,7 +145,19 @@ export async function renderEspaciosView(container) {
         space.nextMass || ''
       );
       if (nextMass === null) return;
-      const updated = updateSpace(editKey, { label, locality, province, address, nextMass });
+      // Instagram/Facebook/YouTube/WhatsApp no se preguntan acá (se editan
+      // desde "Novedades") — se pasan tal cual estaban para no borrarlos.
+      const updated = updateSpace(editKey, {
+        label,
+        locality,
+        province,
+        address,
+        nextMass,
+        instagram: space.instagram,
+        facebook: space.facebook,
+        youtube: space.youtube,
+        whatsapp: space.whatsapp,
+      });
       render();
       if (updated) pushSpace(updated);
     } else if (deleteKey) {

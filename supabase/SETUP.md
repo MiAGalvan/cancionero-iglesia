@@ -381,8 +381,30 @@ respetar ningún formato especial).
 **Cargar las lecturas del día:** en **📣 Novedades**, cargá un aviso por
 cada lectura, con el título EXACTO (mayúscula o minúscula da igual):
 `1ª Lectura` (o `1ra Lectura`), `Salmo`, `2ª Lectura` (o `2da Lectura`) y
-`Evangelio` — el texto de cada lectura va en el cuerpo. La pantalla de
-Lecturas las reconoce por ese título y las muestra siempre en ese orden,
-sin importar en qué orden se hayan cargado; cualquier otro aviso que
-cargues ahí (un evento real) se sigue viendo como siempre, debajo de las
-canciones en Canciones, y también aparece al final de Lecturas.
+`Evangelio` — el texto de cada lectura va en el cuerpo, sin agregarle nada
+más al título (ej. la referencia bíblica), porque si no deja de coincidir
+con el título exacto y se muestra como un aviso común en vez de como
+lectura. Desde la versión más reciente, en **📣 Novedades** hay 4 botones
+(uno por lectura) que abren el formulario ya con el título correcto
+cargado, para no tener que tipearlo a mano.
+
+## 20. Redes sociales de cada parroquia
+
+Un renglón "📱 Seguinos en redes" al fondo de **Inicio**, más una pantalla
+propia (`#/redes`) pensada para compartir directo (bio de Instagram,
+WhatsApp) sin pasar primero por la lista de cantos — por ejemplo
+`https://tu-pagina.vercel.app/?space=merced#/redes`.
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-redes-sociales.sql`](./migracion-redes-sociales.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta nada
+extra: ya está incluido ahí.
+
+**Cargar los links:** desde la app, **📣 Novedades** → sección "🔗 Redes
+sociales" → pegá el link completo de cada red que tenga esa parroquia
+(Instagram, Facebook, YouTube, WhatsApp — dejá vacía la que no use) →
+**Guardar**. La que no tenga link cargado directamente no se muestra, ni
+en Inicio ni en la pantalla de redes.

@@ -369,6 +369,10 @@ create table if not exists spaces (
   province text not null default '',
   address text not null default '', -- dirección, para mostrar en la página pública ("¿Vas a misa hoy?")
   next_mass text not null default '', -- texto libre tal cual lo quiere ver la gente, ej. "Miércoles 19 de agosto, 19:00 hs"
+  instagram text not null default '',
+  facebook text not null default '',
+  youtube text not null default '',
+  whatsapp text not null default '', -- ej. link de wa.me a un grupo o número de contacto
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );

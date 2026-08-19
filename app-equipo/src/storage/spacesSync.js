@@ -24,6 +24,10 @@ export async function pushSpace(space) {
       province: space.province || '',
       address: space.address || '',
       next_mass: space.nextMass || '',
+      instagram: space.instagram || '',
+      facebook: space.facebook || '',
+      youtube: space.youtube || '',
+      whatsapp: space.whatsapp || '',
       updated_at: space.updatedAt || new Date().toISOString(),
       deleted_at: null,
     },
@@ -92,6 +96,10 @@ export async function syncSpacesNow() {
           province: remote.province || '',
           address: remote.address || '',
           nextMass: remote.next_mass || '',
+          instagram: remote.instagram || '',
+          facebook: remote.facebook || '',
+          youtube: remote.youtube || '',
+          whatsapp: remote.whatsapp || '',
           updatedAt: remote.updated_at,
         });
       }

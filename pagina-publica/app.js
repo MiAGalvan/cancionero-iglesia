@@ -146,7 +146,11 @@ async function cargarYMostrar() {
     // grave, la página igual muestra los cantos.
     supabase.from('anuncios').select('titulo, cuerpo').eq('space', space).order('updated_at', { ascending: false }),
     supabase.from('espacio_logos').select('logo_url').eq('space', space).maybeSingle(),
-    supabase.from('spaces').select('label, locality, province, address, next_mass').eq('key', space).maybeSingle(),
+    supabase
+      .from('spaces')
+      .select('label, locality, province, address, next_mass, instagram, facebook, youtube, whatsapp')
+      .eq('key', space)
+      .maybeSingle(),
   ]);
 
   const { data, error } = listaResult;
@@ -178,6 +182,8 @@ function renderTodo() {
     renderInicio();
   } else if (route === 'lecturas') {
     renderLecturas();
+  } else if (route === 'redes') {
+    renderRedes();
   } else if (!ultimaData) {
     app.innerHTML = `
       ${renderBanner(ultimoLogoUrl)}
@@ -336,7 +342,66 @@ function renderInicio() {
         ${renderBadge()}
       </a>
     </div>
+    ${renderRedesCompacto()}
     ${renderNovedades(separarLecturas(ultimosAnuncios).otrosAvisos)}
+  `;
+}
+
+// --- Redes sociales: renglón compacto al fondo de Inicio, más una
+// pantalla propia (#/redes) pensada para compartirse directo (bio de
+// Instagram, WhatsApp) sin pasar primero por la lista de cantos. Una
+// parroquia que no cargó ninguna red simplemente no muestra nada acá.
+const REDES_CONFIG = [
+  { key: 'instagram', icon: '📷', label: 'Instagram' },
+  { key: 'facebook', icon: '📘', label: 'Facebook' },
+  { key: 'youtube', icon: '▶️', label: 'YouTube' },
+  { key: 'whatsapp', icon: '💬', label: 'WhatsApp' },
+];
+
+function redesDisponibles() {
+  return REDES_CONFIG.filter((red) => ultimoEspacio?.[red.key]);
+}
+
+function renderRedesCompacto() {
+  const redes = redesDisponibles();
+  if (redes.length === 0) return '';
+  return `
+    <div class="redes-compacto">
+      <a class="redes-compacto-titulo" href="${hrefTo('redes')}">📱 Seguinos en redes</a>
+      <div class="redes-compacto-links">
+        ${redes
+          .map(
+            (red) =>
+              `<a class="redes-compacto-link" href="${escapeHtml(ultimoEspacio[red.key])}" target="_blank" rel="noopener" title="${escapeHtml(red.label)}">${red.icon}</a>`
+          )
+          .join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderRedes() {
+  const redes = redesDisponibles();
+  app.innerHTML = `
+    <div class="lecturas-topbar">
+      <a class="btn-volver" href="${hrefTo('inicio')}">← Volver</a>
+      <h1 class="lecturas-titulo">Seguinos en redes</h1>
+    </div>
+    ${
+      redes.length === 0
+        ? `<p class="empty">Todavía no cargaron redes sociales para ${escapeHtml(nombreParroquia())}.</p>`
+        : `<div class="inicio-menu">
+        ${redes
+          .map(
+            (red) => `
+        <a class="inicio-menu-item" href="${escapeHtml(ultimoEspacio[red.key])}" target="_blank" rel="noopener">
+          <span class="inicio-menu-icon">${red.icon}</span>
+          <span>${escapeHtml(red.label)}</span>
+        </a>`
+          )
+          .join('')}
+      </div>`
+    }
   `;
 }
 

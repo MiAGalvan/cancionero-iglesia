@@ -304,6 +304,44 @@ h1 {
   color: var(--accent);
 }
 
+/* --- Renglón "Seguinos en redes" al fondo de Inicio --- */
+.redes-compacto {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 2px solid var(--border);
+  text-align: center;
+}
+
+.redes-compacto-titulo {
+  display: block;
+  margin: 0 0 12px;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.redes-compacto-links {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+}
+
+.redes-compacto-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-size: 1.4rem;
+  text-decoration: none;
+}
+
 /* --- Pantalla de Lecturas --- */
 .lecturas-topbar {
   display: flex;

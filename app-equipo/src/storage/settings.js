@@ -105,7 +105,17 @@ function slugify(text) {
 // key ya generada) o null si no se pudo (nombre vacío). La key se genera
 // una sola vez, acá, y después no cambia más aunque se edite el nombre —
 // es lo que queda guardado en las canciones y listas de esa parroquia.
-export function addSpace({ label, locality = '', province = '', address = '', nextMass = '' }) {
+export function addSpace({
+  label,
+  locality = '',
+  province = '',
+  address = '',
+  nextMass = '',
+  instagram = '',
+  facebook = '',
+  youtube = '',
+  whatsapp = '',
+}) {
   const trimmedLabel = label.trim();
   if (!trimmedLabel) return null;
 
@@ -125,16 +135,23 @@ export function addSpace({ label, locality = '', province = '', address = '', ne
     province: province.trim(),
     address: address.trim(),
     nextMass: nextMass.trim(),
+    instagram: instagram.trim(),
+    facebook: facebook.trim(),
+    youtube: youtube.trim(),
+    whatsapp: whatsapp.trim(),
     updatedAt: new Date().toISOString(),
   };
   saveSpaces([...spaces, newSpace]);
   return newSpace;
 }
 
-// Cambia nombre/localidad/provincia/dirección/próxima misa de una parroquia
-// ya creada. La key no se toca, así que las canciones/listas que ya tenía
-// siguen encontrándola sin ningún problema.
-export function updateSpace(key, { label, locality = '', province = '', address = '', nextMass = '' }) {
+// Cambia nombre/localidad/provincia/dirección/próxima misa/redes sociales de
+// una parroquia ya creada. La key no se toca, así que las canciones/listas
+// que ya tenía siguen encontrándola sin ningún problema.
+export function updateSpace(
+  key,
+  { label, locality = '', province = '', address = '', nextMass = '', instagram = '', facebook = '', youtube = '', whatsapp = '' }
+) {
   const trimmedLabel = label.trim();
   if (!trimmedLabel) return null;
   const updatedAt = new Date().toISOString();
@@ -149,6 +166,10 @@ export function updateSpace(key, { label, locality = '', province = '', address 
         province: province.trim(),
         address: address.trim(),
         nextMass: nextMass.trim(),
+        instagram: instagram.trim(),
+        facebook: facebook.trim(),
+        youtube: youtube.trim(),
+        whatsapp: whatsapp.trim(),
         updatedAt,
       };
       return updatedSpace;
