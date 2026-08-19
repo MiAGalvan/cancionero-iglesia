@@ -144,7 +144,7 @@ async function cargarYMostrar() {
     // Si la tabla `anuncios` (o `espacio_logos`/`spaces`, más abajo) todavía
     // no existe porque falta correr alguna migración, esto da error — no es
     // grave, la página igual muestra los cantos.
-    supabase.from('anuncios').select('titulo, cuerpo').eq('space', space).order('updated_at', { ascending: false }),
+    supabase.from('anuncios').select('titulo, cuerpo, fecha').eq('space', space).order('updated_at', { ascending: false }),
     supabase.from('espacio_logos').select('logo_url').eq('space', space).maybeSingle(),
     supabase
       .from('spaces')
@@ -294,8 +294,11 @@ function hoyIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function estadoLista() {
-  const fecha = ultimaData?.fecha;
+// Misma lógica de estado para cualquier fecha (lista de canciones o
+// lecturas): "en vivo" si es la de hoy, "próximamente" si quedó cargada
+// con anticipación para una fecha futura, sin nada especial que avisar si
+// ya pasó (es el caso normal, la última que se cargó).
+function estadoParaFecha(fecha) {
   if (!fecha) return null;
   const hoy = hoyIso();
   if (fecha === hoy) return { label: '🔴 En vivo hoy', clase: 'badge-en-vivo' };
@@ -303,9 +306,35 @@ function estadoLista() {
   return null;
 }
 
+function estadoLista() {
+  return estadoParaFecha(ultimaData?.fecha);
+}
+
 function renderBadge() {
   const estado = estadoLista();
   return estado ? `<span class="estado-badge ${estado.clase}">${estado.label}</span>` : '';
+}
+
+// La fecha de "las lecturas" toma la del primer registro encontrado: las 4
+// (1ª Lectura, Salmo, 2ª Lectura, Evangelio) se cargan juntas desde
+// Novedades con la misma fecha, así que alcanza con mirar una.
+function fechaLecturas() {
+  return separarLecturas(ultimosAnuncios).lecturas[0]?.fecha || null;
+}
+
+function renderBadgeLecturas() {
+  const estado = estadoParaFecha(fechaLecturas());
+  return estado ? `<span class="estado-badge ${estado.clase}">${estado.label}</span>` : '';
+}
+
+function formatFechaLarga(fecha) {
+  if (!fecha) return '';
+  const texto = new Date(`${fecha}T00:00:00`).toLocaleDateString('es-AR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
 // --- Pantalla de Inicio: "¿Vas a misa hoy?" ------------------------------
@@ -339,7 +368,7 @@ function renderInicio() {
       <a class="inicio-menu-item" href="${hrefTo('lecturas')}">
         <span class="inicio-menu-icon">📖</span>
         <span>Mira las lecturas</span>
-        ${renderBadge()}
+        ${renderBadgeLecturas()}
       </a>
     </div>
     ${renderNovedades(separarLecturas(ultimosAnuncios).otrosAvisos)}
@@ -470,12 +499,19 @@ function separarLecturas(anuncios) {
 
 function renderLecturas() {
   const { lecturas, otrosAvisos } = separarLecturas(ultimosAnuncios);
+  const fecha = lecturas[0]?.fecha || null;
+  const estado = estadoParaFecha(fecha);
 
   app.innerHTML = `
     <div class="lecturas-topbar">
       <a class="btn-volver" href="${hrefTo('inicio')}">← Volver</a>
-      <h1 class="lecturas-titulo">Lecturas de hoy</h1>
+      <h1 class="lecturas-titulo">${fecha ? 'Lecturas' : 'Lecturas de hoy'}</h1>
     </div>
+    ${
+      fecha
+        ? `<p class="fecha">${escapeHtml(formatFechaLarga(fecha))} ${estado ? `<span class="estado-badge ${estado.clase}">${estado.label}</span>` : ''}</p>`
+        : ''
+    }
     ${
       lecturas.length === 0
         ? `<p class="empty">Todavía no se cargaron las lecturas de hoy.</p>`

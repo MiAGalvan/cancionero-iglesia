@@ -408,3 +408,34 @@ sociales" → pegá el link completo de cada red que tenga esa parroquia
 (Instagram, Facebook, YouTube, WhatsApp — dejá vacía la que no use) →
 **Guardar**. La que no tenga link cargado directamente no se muestra, ni
 en Inicio ni en la pantalla de redes.
+
+## 21. Fecha de las lecturas (hoy vs. una misa programada)
+
+Si cargás las lecturas con anticipación (ej. el jueves cargás ya las del
+domingo que viene), la página pública necesita saber que esas lecturas
+son para el domingo y no para hoy — si no, "Mira las lecturas" y la
+pantalla de Lecturas iban a mostrarlas siempre como si fueran del día,
+sin ninguna aclaración.
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-fecha-lecturas.sql`](./migracion-fecha-lecturas.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta nada
+extra: ya está incluido ahí.
+
+**Cómo se usa:** en **📣 Novedades**, al tocar cualquiera de los 4
+botones de lectura (1ª Lectura, Salmo, 2ª Lectura, Evangelio) aparece,
+además del título, un campo de **fecha** — por defecto trae la de hoy,
+pero se puede cambiar a la fecha de la misa para la que es esa lectura
+(ej. el domingo próximo). Las 4 se cargan normalmente con la misma
+fecha. Un aviso común (no una lectura) no tiene este campo, no lo
+necesita.
+
+En la página pública, si la fecha de las lecturas es la de hoy no se
+avisa nada especial (es el caso normal); si es una fecha futura, tanto
+el link "Mira las lecturas" en Inicio como el título de la pantalla de
+Lecturas muestran **🕓 Próximamente** junto con la fecha, para que quede
+claro que todavía no es el día. Es el mismo aviso que ya usa la lista de
+canciones publicada.

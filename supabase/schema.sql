@@ -477,6 +477,7 @@ create table if not exists anuncios (
   space text not null,
   titulo text not null,
   cuerpo text not null default '',
+  fecha date, -- solo para las 4 lecturas del día (ver migracion-fecha-lecturas.sql); null en avisos/eventos comunes
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );

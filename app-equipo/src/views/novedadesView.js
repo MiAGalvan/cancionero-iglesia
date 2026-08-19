@@ -86,7 +86,7 @@ export async function renderNovedadesView(container) {
       </div>
 
       <div class="categories-field">
-        <span class="categories-label">🙏 Lecturas de hoy</span>
+        <span class="categories-label">🙏 Lecturas (de hoy o de una misa programada, con fecha)</span>
         <div class="form-actions">
           ${LECTURAS_TITULOS.map(
             (titulo) => `<button type="button" class="btn" data-lectura="${escapeAttr(titulo)}" ${loggedIn ? '' : 'disabled'}>${escapeHtml(titulo)}</button>`
@@ -138,7 +138,7 @@ export async function renderNovedadesView(container) {
     btn.addEventListener('click', () => {
       const titulo = btn.dataset.lectura;
       const existing = cachedAnuncios.find((a) => a.titulo === titulo);
-      openForm({ id: existing?.id, titulo, cuerpo: existing?.cuerpo || '' });
+      openForm({ id: existing?.id, titulo, cuerpo: existing?.cuerpo || '', fecha: existing?.fecha || hoyIso() });
     });
   });
 
@@ -153,7 +153,7 @@ export async function renderNovedadesView(container) {
   async function load() {
     const { data, error } = await supabase
       .from('anuncios')
-      .select('id, titulo, cuerpo, updated_at')
+      .select('id, titulo, cuerpo, fecha, updated_at')
       .eq('space', space)
       .order('updated_at', { ascending: false });
 
@@ -173,7 +173,11 @@ export async function renderNovedadesView(container) {
     return `
       <li class="song-item novedad-item" data-id="${novedad.id}">
         <span>
-          <strong>${escapeHtml(novedad.titulo)}</strong>
+          <strong>${escapeHtml(novedad.titulo)}</strong>${
+            novedad.fecha
+              ? ` <span class="category-tag">${escapeHtml(formatFechaCorta(novedad.fecha))}</span>`
+              : ''
+          }
           <span class="song-artist">${escapeHtml(novedad.cuerpo)}</span>
         </span>
         ${
@@ -191,12 +195,26 @@ export async function renderNovedadesView(container) {
 
   function openForm(existing) {
     statusEl.hidden = true;
+    // El campo de fecha solo aparece para las 4 lecturas (título exacto):
+    // un aviso común (ej. "Tallarineada") no necesita una fecha propia, la
+    // fecha ya suele ir en el texto. Para una lectura, en cambio, es lo que
+    // permite distinguir si es la de hoy o la de una misa programada (ej.
+    // el domingo próximo) cargada con anticipación.
+    const esLectura = LECTURAS_TITULOS.includes(existing?.titulo);
     formWrap.innerHTML = `
       <form id="novedad-form" class="novedad-form">
         <label>
           Título
           <input type="text" id="novedad-titulo" maxlength="120" required value="${escapeAttr(existing?.titulo || '')}" placeholder="Ej. VIACRUCIS VIERNES 15 HS" />
         </label>
+        ${
+          esLectura
+            ? `<label>
+                Fecha de esta lectura (para saber si es de hoy o de una misa programada)
+                <input type="date" id="novedad-fecha" value="${escapeAttr(existing?.fecha || hoyIso())}" />
+              </label>`
+            : ''
+        }
         <label>
           Detalle
           <textarea id="novedad-cuerpo" rows="4" placeholder="Ej. En las inmediaciones de la capilla. Se ruega puntualidad.">${escapeHtml(existing?.cuerpo || '')}</textarea>
@@ -216,6 +234,9 @@ export async function renderNovedadesView(container) {
       if (!titulo) return;
 
       const payload = { space, titulo, cuerpo, updated_at: new Date().toISOString() };
+      const fechaInput = formWrap.querySelector('#novedad-fecha');
+      if (fechaInput) payload.fecha = fechaInput.value || null;
+
       const { error } = existing?.id
         ? await supabase.from('anuncios').update(payload).eq('id', existing.id)
         : await supabase.from('anuncios').insert(payload);
@@ -236,7 +257,7 @@ export async function renderNovedadesView(container) {
     const deleteId = event.target.dataset.delete;
 
     if (editId) {
-      const { data } = await supabase.from('anuncios').select('id, titulo, cuerpo').eq('id', editId).single();
+      const { data } = await supabase.from('anuncios').select('id, titulo, cuerpo, fecha').eq('id', editId).single();
       if (data) openForm(data);
     } else if (deleteId) {
       if (!confirm('¿Eliminar esta novedad?')) return;
@@ -250,6 +271,18 @@ export async function renderNovedadesView(container) {
   });
 
   await load();
+}
+
+// Fecha local (no UTC) en formato YYYY-MM-DD, para que coincida con lo que
+// espera un <input type="date"> y con cómo la página pública compara "hoy".
+function hoyIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function formatFechaCorta(fecha) {
+  const [, m, d] = fecha.split('-');
+  return `${d}/${m}`;
 }
 
 function escapeHtml(text) {
