@@ -146,11 +146,13 @@ async function cargarYMostrar() {
     // grave, la página igual muestra los cantos.
     supabase.from('anuncios').select('titulo, cuerpo, fecha').eq('space', space).order('updated_at', { ascending: false }),
     supabase.from('espacio_logos').select('logo_url').eq('space', space).maybeSingle(),
-    supabase
-      .from('spaces')
-      .select('label, locality, province, address, next_mass, instagram, facebook, youtube, whatsapp, horario_misas, capillas')
-      .eq('key', space)
-      .maybeSingle(),
+    // "*" en vez de nombrar cada columna a propósito: si en el futuro se
+    // agrega otro campo nuevo a `spaces` y todavía no se corrió la
+    // migración en este proyecto, esa columna simplemente no viene en la
+    // fila (queda undefined, se trata como vacía) en vez de tirar abajo
+    // TODA la consulta — ya pasó una vez que una columna faltante hizo
+    // desaparecer datos que ya andaban bien (dirección, próxima misa).
+    supabase.from('spaces').select('*').eq('key', space).maybeSingle(),
   ]);
 
   const { data, error } = listaResult;
