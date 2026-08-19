@@ -2,6 +2,12 @@
 // GitHub Pages. Trae supabase-js desde un CDN (esm.sh) en vez de instalarlo
 // con npm, para no necesitar ningún paso de compilación.
 //
+// Tres pantallas, con un router mínimo por hash (#/, #/inicio, #/lecturas):
+// el QR sigue apuntando siempre a "" (Canciones, la letra publicada) para
+// no romper ningún QR ya impreso — desde ahí, un botón al final lleva a
+// "Inicio" (parroquia, próxima misa, dirección), que a su vez lleva a
+// "Lecturas".
+//
 // ⚠️ COMPLETAR (ver /supabase/SETUP.md paso 3): pegar acá la URL y la anon
 // key de tu proyecto Supabase. La anon key no es secreta — solo puede leer
 // (RLS lo garantiza del lado del servidor), nunca escribir.
@@ -28,6 +34,16 @@ const SPACE_LABELS_DE_ARRANQUE = {
 const space = new URLSearchParams(window.location.search).get('space') || 'merced';
 
 const app = document.getElementById('app');
+
+// --- Router mínimo: "" = Canciones (entrada del QR), "inicio", "lecturas" -
+function currentRoute() {
+  return (window.location.hash || '').replace(/^#\/?/, '');
+}
+
+// Conserva el ?space= al navegar entre pantallas de esta misma página.
+function hrefTo(route) {
+  return `?space=${encodeURIComponent(space)}${route ? `#/${route}` : ''}`;
+}
 
 // Traducción automática para turistas: nadie del equipo tiene que cargar
 // nada a mano. Al tocar PT o EN, se le pide la traducción a Google
@@ -106,10 +122,11 @@ const isConfigured = !SUPABASE_URL.includes('TU-PROYECTO') && !SUPABASE_ANON_KEY
 const supabase = isConfigured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 // Se guarda lo último que se trajo de Supabase para poder cambiar de idioma
-// (re-renderizar) sin tener que pedirlo de nuevo a la red.
+// o de pantalla (re-renderizar) sin tener que pedirlo de nuevo a la red.
 let ultimaData = null;
 let ultimosAnuncios = [];
 let ultimoLogoUrl = null;
+let ultimoEspacio = null;
 
 async function cargarYMostrar() {
   if (!isConfigured) {
@@ -117,23 +134,25 @@ async function cargarYMostrar() {
     return;
   }
 
-  const [listaResult, anunciosResult, logoResult] = await Promise.all([
+  const [listaResult, anunciosResult, logoResult, espacioResult] = await Promise.all([
     supabase
       .from('lista_actual')
       .select('fecha, items, space_name')
       .eq('space', space)
       .order('updated_at', { ascending: false })
       .limit(1),
-    // Si la tabla `anuncios` (o `espacio_logos`, más abajo) todavía no
-    // existe porque falta correr la migración, esto da error — no es
+    // Si la tabla `anuncios` (o `espacio_logos`/`spaces`, más abajo) todavía
+    // no existe porque falta correr alguna migración, esto da error — no es
     // grave, la página igual muestra los cantos.
     supabase.from('anuncios').select('titulo, cuerpo').eq('space', space).order('updated_at', { ascending: false }),
     supabase.from('espacio_logos').select('logo_url').eq('space', space).maybeSingle(),
+    supabase.from('spaces').select('label, locality, province, address, next_mass').eq('key', space).maybeSingle(),
   ]);
 
   const { data, error } = listaResult;
   const anuncios = anunciosResult.error ? [] : anunciosResult.data;
   const logoUrl = logoResult.error ? null : logoResult.data?.logo_url || null;
+  const espacio = espacioResult.error ? null : espacioResult.data;
 
   if (error) {
     app.innerHTML = `<p class="error">No se pudo cargar la lista. Revisá tu conexión.</p>`;
@@ -144,22 +163,28 @@ async function cargarYMostrar() {
   ultimaData = data && data.length > 0 ? data[0] : null;
   ultimosAnuncios = anuncios;
   ultimoLogoUrl = logoUrl;
+  ultimoEspacio = espacio;
   renderTodo();
 }
 
 // A diferencia de cargarYMostrar (que pide datos nuevos), esto solo vuelve
 // a pintar la pantalla con lo último que ya se trajo — se usa al tocar un
-// botón de idioma, para que sea instantáneo y no dependa de pedir de nuevo
-// la lista de cantos (la traducción en sí sí necesita red, ver render()).
+// botón de idioma o al cambiar de pantalla, para que sea instantáneo y no
+// dependa de pedir de nuevo la lista de cantos.
 function renderTodo() {
-  if (!ultimaData) {
+  const route = currentRoute();
+
+  if (route === 'inicio') {
+    renderInicio();
+  } else if (route === 'lecturas') {
+    renderLecturas();
+  } else if (!ultimaData) {
     app.innerHTML = `
       ${renderBanner(ultimoLogoUrl)}
       ${renderLangSwitcher()}
-      <p class="empty">Todavía no se publicó ninguna lista para ${escapeHtml(
-        SPACE_LABELS_DE_ARRANQUE[space] || space
-      )}.</p>
+      <p class="empty">Todavía no se publicó ninguna lista para ${escapeHtml(nombreParroquia())}.</p>
       ${renderNovedades(ultimosAnuncios)}
+      ${renderEnteratePromo()}
     `;
   } else {
     render(ultimaData, ultimosAnuncios, ultimoLogoUrl);
@@ -174,11 +199,27 @@ function renderTodo() {
   });
 }
 
+function nombreParroquia() {
+  return ultimoEspacio?.label || ultimaData?.space_name || SPACE_LABELS_DE_ARRANQUE[space] || space;
+}
+
 function renderBanner(logoUrl) {
   if (!logoUrl) return '';
   return `
     <div class="parish-banner">
       <img src="${escapeHtml(logoUrl)}" alt="" />
+    </div>
+  `;
+}
+
+// Al final de la lista de cantos, un empujoncito hacia la pantalla de
+// Inicio — así alguien que escanea el QR por primera vez (y solo quería ver
+// la letra en el momento) se entera de que existe algo más para volver a
+// visitar después, sin que eso le tape lo que vino a buscar.
+function renderEnteratePromo() {
+  return `
+    <div class="entrate-promo">
+      <a class="entrate-btn" href="${hrefTo('inicio')}">🔔 Enterate de lo próximo</a>
     </div>
   `;
 }
@@ -190,12 +231,12 @@ function renderBanner(logoUrl) {
 // servicio de traducción falla (sin red, o el endpoint no responde), ese
 // texto puntual se queda en español con un aviso chico, en vez de romper
 // toda la página.
-function render({ fecha, items, space_name }, anuncios, logoUrl) {
+function render({ fecha, items }, anuncios, logoUrl) {
   app.innerHTML = `
     ${renderBanner(logoUrl)}
     ${renderLangSwitcher()}
     <h1>${UI_TEXT[lang].titulo}</h1>
-    <p class="parroquia">${escapeHtml(space_name || SPACE_LABELS_DE_ARRANQUE[space] || space)}</p>
+    <p class="parroquia">${escapeHtml(nombreParroquia())}</p>
     <p class="fecha">${formatFecha(fecha)}</p>
     ${items
       .map(
@@ -208,6 +249,7 @@ function render({ fecha, items, space_name }, anuncios, logoUrl) {
       )
       .join('')}
     ${renderNovedades(anuncios)}
+    ${renderEnteratePromo()}
   `;
 
   if (lang === 'es') return;
@@ -234,6 +276,109 @@ async function traducirYActualizar(elementId, translationPromise) {
       el.insertAdjacentHTML('beforebegin', `<p class="letra-aviso">${UI_TEXT[lang].avisoError}</p>`);
     }
   }
+}
+
+// --- Pantalla de Inicio: "¿Vas a misa hoy?" ------------------------------
+function renderInicio() {
+  const lugar = [ultimoEspacio?.locality, ultimoEspacio?.province].filter(Boolean).join(', ');
+  const proximaMisa = ultimoEspacio?.next_mass || '';
+  const direccion = ultimoEspacio?.address || '';
+
+  app.innerHTML = `
+    ${renderBanner(ultimoLogoUrl)}
+    <h1 class="inicio-parroquia">${escapeHtml(nombreParroquia())}</h1>
+    ${lugar ? `<p class="parroquia">${escapeHtml(lugar)}</p>` : ''}
+    <div class="vas-a-misa-card">
+      <h2 class="vas-a-misa-titulo">¿Vas a misa hoy?</h2>
+      ${
+        proximaMisa || direccion
+          ? `
+        <p class="proxima-misa-label">Próxima misa</p>
+        ${proximaMisa ? `<p class="proxima-misa-hora">${escapeHtml(proximaMisa)}</p>` : ''}
+        ${direccion ? `<p class="proxima-misa-direccion">📍 ${escapeHtml(direccion)}</p>` : ''}
+      `
+          : `<p class="proxima-misa-hora">Todavía no cargaron el horario — probá más tarde.</p>`
+      }
+    </div>
+    <div class="inicio-menu">
+      <a class="inicio-menu-item" href="${hrefTo('')}">
+        <span class="inicio-menu-icon">🎵</span>
+        <span>Mira las canciones que vamos a hacer</span>
+      </a>
+      <a class="inicio-menu-item" href="${hrefTo('lecturas')}">
+        <span class="inicio-menu-icon">📖</span>
+        <span>Mira las lecturas</span>
+      </a>
+    </div>
+  `;
+}
+
+// --- Pantalla de Lecturas -------------------------------------------------
+// Reusa la misma tabla de Novedades: el equipo carga la 1ª Lectura, el
+// Salmo, la 2ª Lectura y el Evangelio como si fueran avisos más (título +
+// texto) — acá se reconocen esos 4 títulos puntuales y se muestran siempre
+// en el orden de la misa, sin importar el orden en que se hayan cargado;
+// cualquier otro aviso (un evento real, por ejemplo) se agrupa aparte, debajo.
+const COMBINING_MARKS_LECTURAS = new RegExp(`[${String.fromCharCode(0x0300)}-${String.fromCharCode(0x036f)}]`, 'g');
+
+function normalizarTitulo(texto) {
+  return (texto || '')
+    .normalize('NFD')
+    .replace(COMBINING_MARKS_LECTURAS, '')
+    .trim()
+    .toUpperCase();
+}
+
+// Varias formas posibles de tipear cada lectura (con "ª", con "RA"/"DA", o
+// el nombre completo) apuntan todas a la misma posición en el orden de la
+// misa — así no importa cuál haya usado el equipo al cargarla.
+const ORDEN_LECTURAS = new Map([
+  ['1ª LECTURA', 0],
+  ['1RA LECTURA', 0],
+  ['PRIMERA LECTURA', 0],
+  ['SALMO', 1],
+  ['SALMO RESPONSORIAL', 1],
+  ['2ª LECTURA', 2],
+  ['2DA LECTURA', 2],
+  ['SEGUNDA LECTURA', 2],
+  ['EVANGELIO', 3],
+]);
+
+function ordenLectura(titulo) {
+  const normalizado = normalizarTitulo(titulo);
+  return ORDEN_LECTURAS.has(normalizado) ? ORDEN_LECTURAS.get(normalizado) : null;
+}
+
+function renderLecturas() {
+  const lecturas = [];
+  const otrosAvisos = [];
+  for (const anuncio of ultimosAnuncios) {
+    const orden = ordenLectura(anuncio.titulo);
+    if (orden === null) otrosAvisos.push(anuncio);
+    else lecturas.push({ ...anuncio, orden });
+  }
+  lecturas.sort((a, b) => a.orden - b.orden);
+
+  app.innerHTML = `
+    <div class="lecturas-topbar">
+      <a class="btn-volver" href="${hrefTo('inicio')}">← Volver</a>
+      <h1 class="lecturas-titulo">Lecturas de hoy</h1>
+    </div>
+    ${
+      lecturas.length === 0
+        ? `<p class="empty">Todavía no se cargaron las lecturas de hoy.</p>`
+        : lecturas
+            .map(
+              (lectura) => `
+        <section class="cancion">
+          <h2 class="categoria">${escapeHtml(lectura.titulo)}</h2>
+          <p class="letra">${escapeHtml(lectura.cuerpo)}</p>
+        </section>`
+            )
+            .join('')
+    }
+    ${renderNovedades(otrosAvisos)}
+  `;
 }
 
 function renderNovedades(anuncios) {
@@ -264,6 +409,8 @@ function escapeHtml(text) {
   div.textContent = text ?? '';
   return div.innerHTML;
 }
+
+window.addEventListener('hashchange', renderTodo);
 
 cargarYMostrar();
 setInterval(cargarYMostrar, REFRESH_MS);

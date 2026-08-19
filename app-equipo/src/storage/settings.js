@@ -105,7 +105,7 @@ function slugify(text) {
 // key ya generada) o null si no se pudo (nombre vacío). La key se genera
 // una sola vez, acá, y después no cambia más aunque se edite el nombre —
 // es lo que queda guardado en las canciones y listas de esa parroquia.
-export function addSpace({ label, locality = '', province = '' }) {
+export function addSpace({ label, locality = '', province = '', address = '', nextMass = '' }) {
   const trimmedLabel = label.trim();
   if (!trimmedLabel) return null;
 
@@ -123,16 +123,18 @@ export function addSpace({ label, locality = '', province = '' }) {
     label: trimmedLabel,
     locality: locality.trim(),
     province: province.trim(),
+    address: address.trim(),
+    nextMass: nextMass.trim(),
     updatedAt: new Date().toISOString(),
   };
   saveSpaces([...spaces, newSpace]);
   return newSpace;
 }
 
-// Cambia nombre/localidad/provincia de una parroquia ya creada. La key no
-// se toca, así que las canciones/listas que ya tenía siguen encontrándola
-// sin ningún problema.
-export function updateSpace(key, { label, locality = '', province = '' }) {
+// Cambia nombre/localidad/provincia/dirección/próxima misa de una parroquia
+// ya creada. La key no se toca, así que las canciones/listas que ya tenía
+// siguen encontrándola sin ningún problema.
+export function updateSpace(key, { label, locality = '', province = '', address = '', nextMass = '' }) {
   const trimmedLabel = label.trim();
   if (!trimmedLabel) return null;
   const updatedAt = new Date().toISOString();
@@ -140,7 +142,15 @@ export function updateSpace(key, { label, locality = '', province = '' }) {
   saveSpaces(
     getSpaces().map((space) => {
       if (space.key !== key) return space;
-      updatedSpace = { ...space, label: trimmedLabel, locality: locality.trim(), province: province.trim(), updatedAt };
+      updatedSpace = {
+        ...space,
+        label: trimmedLabel,
+        locality: locality.trim(),
+        province: province.trim(),
+        address: address.trim(),
+        nextMass: nextMass.trim(),
+        updatedAt,
+      };
       return updatedSpace;
     })
   );

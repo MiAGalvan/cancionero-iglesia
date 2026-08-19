@@ -22,6 +22,8 @@ export async function pushSpace(space) {
       label: space.label,
       locality: space.locality || '',
       province: space.province || '',
+      address: space.address || '',
+      next_mass: space.nextMass || '',
       updated_at: space.updatedAt || new Date().toISOString(),
       deleted_at: null,
     },
@@ -88,6 +90,8 @@ export async function syncSpacesNow() {
           label: remote.label,
           locality: remote.locality || '',
           province: remote.province || '',
+          address: remote.address || '',
+          nextMass: remote.next_mass || '',
           updatedAt: remote.updated_at,
         });
       }

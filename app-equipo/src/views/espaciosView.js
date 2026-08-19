@@ -113,7 +113,9 @@ export async function renderEspaciosView(container) {
     if (label === null || !label.trim()) return;
     const locality = prompt('Localidad (ciudad/pueblo)', '') || '';
     const province = prompt('Provincia', '') || '';
-    const created = addSpace({ label, locality, province });
+    const address = prompt('Dirección (se muestra en la página pública)', '') || '';
+    const nextMass = prompt('Próxima misa (día y hora, tal cual la querés ver — ej. "Miércoles 19 de agosto, 19:00 hs")', '') || '';
+    const created = addSpace({ label, locality, province, address, nextMass });
     if (created) {
       render();
       pushSpace(created); // en segundo plano, no bloquea la pantalla
@@ -133,7 +135,14 @@ export async function renderEspaciosView(container) {
       if (locality === null) return;
       const province = prompt('Provincia', space.province || '');
       if (province === null) return;
-      const updated = updateSpace(editKey, { label, locality, province });
+      const address = prompt('Dirección (se muestra en la página pública)', space.address || '');
+      if (address === null) return;
+      const nextMass = prompt(
+        'Próxima misa (día y hora, tal cual la querés ver — ej. "Miércoles 19 de agosto, 19:00 hs")',
+        space.nextMass || ''
+      );
+      if (nextMass === null) return;
+      const updated = updateSpace(editKey, { label, locality, province, address, nextMass });
       render();
       if (updated) pushSpace(updated);
     } else if (deleteKey) {

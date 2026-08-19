@@ -367,6 +367,8 @@ create table if not exists spaces (
   label text not null,
   locality text not null default '',
   province text not null default '',
+  address text not null default '', -- dirección, para mostrar en la página pública ("¿Vas a misa hoy?")
+  next_mass text not null default '', -- texto libre tal cual lo quiere ver la gente, ej. "Miércoles 19 de agosto, 19:00 hs"
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );

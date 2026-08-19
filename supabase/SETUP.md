@@ -355,3 +355,34 @@ paso 1, eso no lo puede hacer un script SQL).
 ⚠️ Importante el orden acá también: creá el bucket y corré la migración
 ANTES de actualizar el código de la app — el botón "Grabar" intenta subir a
 la tabla/bucket apenas se toca.
+
+## 19. Página pública como "app": Inicio, próxima misa y Lecturas
+
+La página del QR pasa a tener 3 pantallas en vez de una: el QR sigue yendo
+directo a **Canciones** (como siempre, no se rompe ningún QR ya impreso),
+pero al final aparece un botón **"🔔 Enterate de lo próximo"** que lleva a
+**Inicio** (nombre de la parroquia, "¿Vas a misa hoy?" con la próxima misa
+y la dirección) y de ahí a **Lecturas**.
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-proxima-misa.sql`](./migracion-proxima-misa.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta nada
+extra: ya está incluido ahí.
+
+**Cargar la próxima misa y la dirección:** desde la app, **⚙️ Parroquias y
+capillas** → ✏️ (editar) → te va a preguntar, además de lo de siempre,
+la dirección y la próxima misa (escribila tal cual la querés ver, por
+ejemplo `Miércoles 19 de agosto, 19:00 hs` — es texto libre, no hay que
+respetar ningún formato especial).
+
+**Cargar las lecturas del día:** en **📣 Novedades**, cargá un aviso por
+cada lectura, con el título EXACTO (mayúscula o minúscula da igual):
+`1ª Lectura` (o `1ra Lectura`), `Salmo`, `2ª Lectura` (o `2da Lectura`) y
+`Evangelio` — el texto de cada lectura va en el cuerpo. La pantalla de
+Lecturas las reconoce por ese título y las muestra siempre en ese orden,
+sin importar en qué orden se hayan cargado; cualquier otro aviso que
+cargues ahí (un evento real) se sigue viendo como siempre, debajo de las
+canciones en Canciones, y también aparece al final de Lecturas.

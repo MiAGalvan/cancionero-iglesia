@@ -6,9 +6,11 @@
    prefers-color-scheme. */
 :root {
   --bg: #f2faf8;
+  --bg-elevated: #ffffff;
   --text: #163330;
   --text-dim: #5c7d78;
   --accent: #2f8a7a;
+  --accent-contrast: #ffffff;
   --border: #d3e8e3;
   --error: #b6473c;
 }
@@ -16,9 +18,11 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0f2220;
+    --bg-elevated: #17322e;
     --text: #eaf6f2;
     --text-dim: #9fbdb6;
     --accent: #7fd8c4;
+    --accent-contrast: #0c211d;
     --border: #274944;
     --error: #e2897f;
   }
@@ -186,4 +190,110 @@ h1 {
 
 .error {
   color: var(--error);
+}
+
+/* --- "Enterate de lo próximo" (al final de Canciones) --- */
+.entrate-promo {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 2px solid var(--border);
+}
+
+.entrate-btn {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding: 14px 24px;
+  border-radius: 999px;
+}
+
+/* --- Pantalla de Inicio: "¿Vas a misa hoy?" --- */
+.inicio-parroquia {
+  margin-top: 8px;
+}
+
+.vas-a-misa-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px 20px;
+  margin: 28px 0;
+  text-align: center;
+}
+
+.vas-a-misa-titulo {
+  margin: 0 0 16px;
+  font-size: 1.3rem;
+}
+
+.proxima-misa-label {
+  margin: 0 0 4px;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.proxima-misa-hora {
+  margin: 0 0 8px;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.proxima-misa-direccion {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 1rem;
+}
+
+.inicio-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.inicio-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 20px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.inicio-menu-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+/* --- Pantalla de Lecturas --- */
+.lecturas-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.btn-volver {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lecturas-titulo {
+  margin: 0;
+  flex: 1;
+  text-align: center;
 }
