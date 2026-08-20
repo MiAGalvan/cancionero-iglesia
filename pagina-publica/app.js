@@ -173,6 +173,31 @@ async function cargarYMostrar() {
   renderTodo();
 }
 
+// Una vez que alguien entró a "Inicio" desde este celular (tocando "🔔
+// Enterate de lo próximo"), se guarda acá — así, la próxima vez que abra
+// el mismo link (o vuelva a escanear el QR), lo mandamos directo a Inicio
+// en vez de hacerlo pasar de nuevo por toda la lista de canciones para
+// llegar ahí. Por parroquia, porque un mismo celular puede seguir más de
+// una.
+const VISITO_INICIO_KEY = `cancionero-iglesia:visito-inicio:${space}`;
+
+function marcarVisitoInicio() {
+  try {
+    localStorage.setItem(VISITO_INICIO_KEY, '1');
+  } catch {
+    // localStorage bloqueado (modo privado, etc.) — no es grave, simplemente
+    // no se recuerda para la próxima visita.
+  }
+}
+
+function yaVisitoInicio() {
+  try {
+    return localStorage.getItem(VISITO_INICIO_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 // A diferencia de cargarYMostrar (que pide datos nuevos), esto solo vuelve
 // a pintar la pantalla con lo último que ya se trajo — se usa al tocar un
 // botón de idioma o al cambiar de pantalla, para que sea instantáneo y no
@@ -180,7 +205,18 @@ async function cargarYMostrar() {
 function renderTodo() {
   const route = currentRoute();
 
+  if (route === '' && yaVisitoInicio()) {
+    // No usamos location.hash = ... para no agregar una entrada nueva al
+    // historial (el botón "atrás" del celular llevaría de vuelta acá,
+    // volviendo a rebotar a Inicio) — reemplazamos la URL actual en su
+    // lugar.
+    history.replaceState(null, '', hrefTo('inicio'));
+    renderInicio();
+    return;
+  }
+
   if (route === 'inicio') {
+    marcarVisitoInicio();
     renderInicio();
   } else if (route === 'lecturas') {
     renderLecturas();
@@ -349,6 +385,11 @@ function formatFechaLarga(fecha) {
 // (`next_mass`) como respaldo.
 const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
+// Devuelve { texto, esHoy } de la próxima ocurrencia, o null si no hay
+// ningún horario cargado. `esHoy` es lo que permite que la tarjeta diga
+// "¿Vas a misa hoy?" cuando corresponde y "Próxima misa" cuando la
+// siguiente es en otro día — sin horario cargado (texto libre de
+// respaldo) no hay forma de saberlo, así que ese caso queda afuera.
 function proximaMisaDesdeHorario(horarios) {
   if (!Array.isArray(horarios) || horarios.length === 0) return null;
   const ahora = new Date();
@@ -370,22 +411,32 @@ function proximaMisaDesdeHorario(horarios) {
   if (!mejor) return null;
 
   const etiquetaDia = mejor.offsetDias === 0 ? 'Hoy' : mejor.offsetDias === 1 ? 'Mañana' : DIAS_SEMANA[mejor.dia];
-  return `${etiquetaDia}, ${mejor.hora} hs`;
+  return { texto: `${etiquetaDia}, ${mejor.hora} hs`, esHoy: mejor.offsetDias === 0 };
 }
 
 // --- Pantalla de Inicio: "¿Vas a misa hoy?" ------------------------------
 function renderInicio() {
   const lugar = [ultimoEspacio?.locality, ultimoEspacio?.province].filter(Boolean).join(', ');
-  const proximaMisa = proximaMisaDesdeHorario(ultimoEspacio?.horario_misas) || ultimoEspacio?.next_mass || '';
+  const infoMisa = proximaMisaDesdeHorario(ultimoEspacio?.horario_misas);
+  const proximaMisa = infoMisa?.texto || ultimoEspacio?.next_mass || '';
   const direccion = ultimoEspacio?.address || '';
   const hayCapillas = (ultimoEspacio?.capillas || []).length > 0;
+
+  // Sin horario semanal cargado (solo texto libre de respaldo) no hay
+  // forma de saber si esa próxima misa es hoy o en otro día, así que se
+  // deja el título de siempre en vez de arriesgar a decir "hoy" cuando no
+  // corresponde.
+  const tituloMisa = infoMisa ? (infoMisa.esHoy ? '¿Vas a misa hoy?' : 'Próxima misa') : '¿Vas a misa hoy?';
+  const badgeMisa = infoMisa
+    ? `<span class="estado-badge ${infoMisa.esHoy ? 'badge-en-vivo' : 'badge-proximamente'}">${infoMisa.esHoy ? '🔴 Hoy' : '🕓 Próximamente'}</span>`
+    : '';
 
   app.innerHTML = `
     ${renderBanner(ultimoLogoUrl)}
     <h1 class="inicio-parroquia">${escapeHtml(nombreParroquia())}</h1>
     ${lugar ? `<p class="parroquia">${escapeHtml(lugar)}</p>` : ''}
     <div class="vas-a-misa-card">
-      <h2 class="vas-a-misa-titulo">¿Vas a misa hoy? ${renderBadge()}</h2>
+      <h2 class="vas-a-misa-titulo">${tituloMisa} ${badgeMisa}</h2>
       ${
         proximaMisa || direccion
           ? `
@@ -397,7 +448,7 @@ function renderInicio() {
       }
     </div>
     <div class="inicio-menu">
-      <a class="inicio-menu-item" href="${hrefTo('')}">
+      <a class="inicio-menu-item" href="${hrefTo('canciones')}">
         <span class="inicio-menu-icon">🎵</span>
         <span>Mira las canciones que vamos a hacer</span>
         ${renderBadge()}
