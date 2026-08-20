@@ -410,7 +410,12 @@ function proximaMisaDesdeHorario(horarios) {
   }
   if (!mejor) return null;
 
-  const etiquetaDia = mejor.offsetDias === 0 ? 'Hoy' : mejor.offsetDias === 1 ? 'Mañana' : DIAS_SEMANA[mejor.dia];
+  // La fecha exacta (no solo el nombre del día) evita la ambigüedad de "el
+  // domingo" — sin eso, no queda claro si es este domingo o el que viene.
+  const fechaMisa = new Date(ahora);
+  fechaMisa.setDate(fechaMisa.getDate() + mejor.offsetDias);
+  const diaMes = fechaMisa.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' });
+  const etiquetaDia = mejor.offsetDias === 0 ? 'Hoy' : `${DIAS_SEMANA[mejor.dia]} ${diaMes}`;
   return { texto: `${etiquetaDia}, ${mejor.hora} hs`, esHoy: mejor.offsetDias === 0 };
 }
 
