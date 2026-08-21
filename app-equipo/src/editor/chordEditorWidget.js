@@ -11,6 +11,7 @@ import {
   editorLinesToChordPro,
   normalizeTypedChord,
   clampChordOffset,
+  preserveChords,
 } from './chordProBuilder.js';
 
 export function renderChordEditor(container, { initialChordpro, onChordProChange }) {
@@ -28,6 +29,19 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
   function render() {
     if (state.phase === 'lyrics') renderLyricsPhase();
     else renderChordsPhase();
+  }
+
+  // Poner (o correr) un acorde reconstruye toda la lista de líneas con
+  // innerHTML — en una canción larga, si se estaba con el scroll bajado
+  // para poner un acorde en el estribillo, eso volvía a subir la pantalla
+  // al principio cada vez, obligando a bajar de nuevo para el siguiente
+  // acorde. Guardamos y restauramos el scroll del panel para que la
+  // pantalla se quede donde estaba.
+  function rerenderPreservingScroll() {
+    const scrollEl = container.closest('.form-view') || document.scrollingElement;
+    const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
+    render();
+    if (scrollEl) scrollEl.scrollTop = scrollTop;
   }
 
   function renderLyricsPhase() {
@@ -97,7 +111,7 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
             } else {
               delete line.chords[wordStart];
             }
-            render();
+            rerenderPreservingScroll();
             notifyChange();
           },
           onNudge(direction) {
@@ -105,7 +119,7 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
             if (!current) return;
             const newOffset = clampChordOffset(current.offset + direction, word.text.length);
             line.chords[wordStart] = { ...current, offset: newOffset };
-            render();
+            rerenderPreservingScroll();
             notifyChange();
           },
         });
@@ -121,7 +135,7 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
           onSubmit(newChord) {
             if (newChord) line.chords[chordIndex] = newChord;
             else line.chords.splice(chordIndex, 1);
-            render();
+            rerenderPreservingScroll();
             notifyChange();
           },
         });
@@ -135,7 +149,7 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
         openChordPopover(el, {}, {
           onSubmit(newChord) {
             if (newChord) line.chords.push(newChord);
-            render();
+            rerenderPreservingScroll();
             notifyChange();
           },
         });
@@ -197,19 +211,6 @@ function renderWordSlot(line, lineIndex, word) {
         <span class="chord-editor-chord">${escapeHtml(entry.chord)}</span>
         <span class="chord-editor-text">${escapeHtml(after)}</span>
       </span></span>`;
-}
-
-// Al volver a "Editar letra" y tocar "Poner acordes →" de nuevo, las líneas
-// que no cambiaron de texto mantienen los acordes que ya tenían puestos;
-// solo se pierden los de la línea que efectivamente se reescribió.
-function preserveChords(newLines, oldLines) {
-  return newLines.map((line, i) => {
-    const old = oldLines[i];
-    if (!old || old.type !== line.type) return line;
-    if (line.type === 'instrumental') return { ...line, chords: [...old.chords] };
-    if (old.text === line.text) return { ...line, chords: { ...old.chords } };
-    return line;
-  });
 }
 
 function linesToPlainText(lines) {

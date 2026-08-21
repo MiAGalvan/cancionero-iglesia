@@ -7,6 +7,7 @@ import {
   editorLinesToChordPro,
   normalizeTypedChord,
   clampChordOffset,
+  preserveChords,
 } from './chordProBuilder.js';
 
 let failures = 0;
@@ -115,6 +116,50 @@ assertEqual(normalizeTypedChord('   '), '', 'normalizeTypedChord vacío = sacar 
 assertEqual(normalizeTypedChord('am'), 'Am', 'normalizeTypedChord pone en mayúscula la nota anglosajona tipeada en minúscula');
 assertEqual(normalizeTypedChord('e7'), 'E7', 'normalizeTypedChord: "e7" -> "E7"');
 assertEqual(normalizeTypedChord('am/c'), 'Am/C', 'normalizeTypedChord pone en mayúscula también la nota del bajo');
+
+// --- preserveChords: sacar una línea en blanco de más no debe perder los
+// acordes de las líneas que vienen después (el bug reportado: "edité letra
+// para sacar un interlineado de más y se borraron los acordes") ---
+const conAcordesYBlanco = chordProToEditorLines('[Am]Perdón oh Dios\n\n\n[E7]te pido con humildad');
+const sacandoUnaLineaEnBlanco = buildEditorLines('Perdón oh Dios\n\nte pido con humildad');
+const resultadoSinBlanco = preserveChords(sacandoUnaLineaEnBlanco, conAcordesYBlanco);
+assertEqual(
+  resultadoSinBlanco[2].chords[0],
+  { chord: 'E7', offset: 0 },
+  'preserveChords: sacar una línea en blanco de más no pierde el acorde de la línea siguiente'
+);
+
+// --- preserveChords: agregar una línea en blanco de más tampoco debe
+// perder los acordes de lo que viene después ---
+const conUnBlanco = chordProToEditorLines('[Am]Perdón oh Dios\n\n[E7]te pido con humildad');
+const agregandoUnaLineaEnBlanco = buildEditorLines('Perdón oh Dios\n\n\nte pido con humildad');
+const resultadoConBlancoDeMas = preserveChords(agregandoUnaLineaEnBlanco, conUnBlanco);
+assertEqual(
+  resultadoConBlancoDeMas[3].chords[0],
+  { chord: 'E7', offset: 0 },
+  'preserveChords: agregar una línea en blanco de más no pierde el acorde de la línea siguiente'
+);
+
+// --- preserveChords: editar el texto de una línea sí pierde el acorde de
+// ESA línea puntual (es lo esperable, ya no hay forma de saber dónde iba),
+// pero no toca a las demás ---
+const conDosLineas = chordProToEditorLines('[Am]Perdón oh Dios\n[E7]te pido con humildad');
+const editandoLaPrimera = buildEditorLines('Perdón oh Dios y Padre\nte pido con humildad');
+const resultadoEditado = preserveChords(editandoLaPrimera, conDosLineas);
+assertEqual(resultadoEditado[0].chords, {}, 'preserveChords: la línea reescrita pierde su acorde (no hay forma de saber dónde iba)');
+assertEqual(
+  resultadoEditado[1].chords[0],
+  { chord: 'E7', offset: 0 },
+  'preserveChords: la línea que no cambió mantiene su acorde aunque otra arriba se haya reescrito'
+);
+
+// --- preserveChords: un estribillo repetido (misma letra dos veces) no
+// mezcla los acordes entre ambas apariciones al no cambiar nada ---
+const conEstribilloRepetido = chordProToEditorLines('[C]Aleluya\n[G]Gloria\n[C]Aleluya');
+const mismoTextoSinCambios = buildEditorLines('Aleluya\nGloria\nAleluya');
+const resultadoEstribillo = preserveChords(mismoTextoSinCambios, conEstribilloRepetido);
+assertEqual(resultadoEstribillo[0].chords[0], { chord: 'C', offset: 0 }, 'preserveChords: primera aparición del estribillo repetido mantiene su acorde');
+assertEqual(resultadoEstribillo[2].chords[0], { chord: 'C', offset: 0 }, 'preserveChords: segunda aparición del estribillo repetido también mantiene su acorde');
 
 if (failures === 0) {
   console.log('\nTodos los tests pasaron');

@@ -156,6 +156,56 @@ export function editorLinesToChordPro(editorLines) {
     .join('\n');
 }
 
+// Al volver a "Editar letra" (o al tipear ahí, ver chordEditorWidget.js) el
+// texto se vuelve a partir en líneas desde cero. Antes esta función
+// comparaba la lista nueva contra la vieja LÍNEA A LÍNEA por posición
+// (índice 0 contra índice 0, índice 1 contra índice 1...) — así que sacar o
+// agregar una sola línea en el medio (ej. quitar un interlineado de más)
+// corría el índice de todo lo que venía después, y como ya no coincidían
+// línea a línea, se perdían TODOS los acordes de ahí en adelante, aunque
+// esas líneas no hubieran cambiado ni una letra.
+//
+// Ahora se empareja por CONTENIDO en vez de por posición: cada línea vieja
+// queda disponible para cualquier línea nueva con el mismo texto (se elige
+// la más cercana en posición, por si el mismo verso se repite más de una
+// vez en la canción, ej. un estribillo). Una línea instrumental (en
+// blanco) no tiene texto para comparar, así que se empareja por cercanía
+// de posición entre todas las instrumentales disponibles.
+export function preserveChords(newLines, oldLines) {
+  const disponiblesPorTexto = new Map();
+  const disponiblesInstrumental = [];
+  oldLines.forEach((old, index) => {
+    if (old.type === 'instrumental') {
+      disponiblesInstrumental.push({ index, chords: old.chords });
+      return;
+    }
+    if (!disponiblesPorTexto.has(old.text)) disponiblesPorTexto.set(old.text, []);
+    disponiblesPorTexto.get(old.text).push({ index, chords: old.chords });
+  });
+
+  function sacarMasCercano(candidatos, posicion) {
+    let mejor = 0;
+    for (let i = 1; i < candidatos.length; i++) {
+      if (Math.abs(candidatos[i].index - posicion) < Math.abs(candidatos[mejor].index - posicion)) {
+        mejor = i;
+      }
+    }
+    return candidatos.splice(mejor, 1)[0];
+  }
+
+  return newLines.map((line, i) => {
+    if (line.type === 'instrumental') {
+      if (disponiblesInstrumental.length === 0) return line;
+      const elegido = sacarMasCercano(disponiblesInstrumental, i);
+      return { ...line, chords: [...elegido.chords] };
+    }
+    const candidatos = disponiblesPorTexto.get(line.text);
+    if (!candidatos || candidatos.length === 0) return line;
+    const elegido = sacarMasCercano(candidatos, i);
+    return { ...line, chords: { ...elegido.chords } };
+  });
+}
+
 // Normaliza lo que tipeó el usuario en el popover de un acorde (espacios,
 // mayúsculas de notas latinas, y la nota en notación anglosajona por si la
 // escribió en minúscula, ej "am" -> "Am") antes de guardarlo. Devuelve ''
