@@ -482,27 +482,44 @@ function formatFechaLarga(fecha) {
 // (`next_mass`) como respaldo.
 const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-// Devuelve { texto, esHoy } de la próxima ocurrencia, o null si no hay
-// ningún horario cargado. `esHoy` es lo que permite que la tarjeta diga
-// "¿Vas a misa hoy?" cuando corresponde y "Próxima misa" cuando la
-// siguiente es en otro día — sin horario cargado (texto libre de
-// respaldo) no hay forma de saberlo, así que ese caso queda afuera.
+// Devuelve { texto, estado } a partir del horario semanal, o null si
+// todavía no se cargó ninguno (ahí se usa el texto libre de respaldo,
+// donde no hay forma de saber nada de esto). `estado` es uno de:
+//   'en-vivo'  → hay misa hoy y su horario ya llegó — igual que con las
+//                lecturas, "en vivo" se define por FECHA (hoy), no por
+//                una ventana de horas exacta, porque no sabemos cuánto
+//                dura cada misa; se muestra así el resto del día.
+//   'hoy'      → hay misa hoy pero más tarde, todavía no llegó la hora.
+//   'futuro'   → la próxima ocurrencia es otro día.
 function proximaMisaDesdeHorario(horarios) {
   if (!Array.isArray(horarios) || horarios.length === 0) return null;
   const ahora = new Date();
   const hoyDia = ahora.getDay();
   const hoyMin = ahora.getHours() * 60 + ahora.getMinutes();
 
+  const conMinutos = (h) => {
+    const [hh, mm] = h.hora.split(':').map(Number);
+    return hh * 60 + (mm || 0);
+  };
+
+  const deHoy = horarios.filter((h) => typeof h?.dia === 'number' && h.dia === hoyDia && h?.hora);
+  if (deHoy.length > 0) {
+    const yaEmpezaron = deHoy.filter((h) => conMinutos(h) <= hoyMin);
+    if (yaEmpezaron.length > 0) {
+      // Si hubiera más de una hoy, la que ya empezó más tarde es la vigente.
+      const ultima = yaEmpezaron.reduce((a, b) => (conMinutos(b) > conMinutos(a) ? b : a));
+      return { texto: `Hoy, ${ultima.hora} hs`, estado: 'en-vivo' };
+    }
+    const proxima = deHoy.reduce((a, b) => (conMinutos(b) < conMinutos(a) ? b : a));
+    return { texto: `Hoy, ${proxima.hora} hs`, estado: 'hoy' };
+  }
+
+  // Ninguna hoy: buscar la próxima ocurrencia en los próximos días.
   let mejor = null;
   for (const h of horarios) {
     if (typeof h?.dia !== 'number' || !h?.hora) continue;
-    const [hh, mm] = h.hora.split(':').map(Number);
-    const minutos = hh * 60 + (mm || 0);
-    let offsetDias = (h.dia - hoyDia + 7) % 7;
-    // Si es hoy pero la hora ya pasó, no cuenta como "próxima" — la de hoy
-    // ya sucedió, la siguiente ocurrencia es dentro de una semana.
-    if (offsetDias === 0 && minutos <= hoyMin) offsetDias = 7;
-    const clave = offsetDias * 1440 + minutos;
+    const offsetDias = (h.dia - hoyDia + 7) % 7 || 7; // "hoy" ya se descartó arriba
+    const clave = offsetDias * 1440 + conMinutos(h);
     if (!mejor || clave < mejor.clave) mejor = { dia: h.dia, hora: h.hora, offsetDias, clave };
   }
   if (!mejor) return null;
@@ -512,8 +529,8 @@ function proximaMisaDesdeHorario(horarios) {
   const fechaMisa = new Date(ahora);
   fechaMisa.setDate(fechaMisa.getDate() + mejor.offsetDias);
   const diaMes = fechaMisa.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' });
-  const etiquetaDia = mejor.offsetDias === 0 ? 'Hoy' : `${DIAS_SEMANA[mejor.dia]} ${diaMes}`;
-  return { texto: `${etiquetaDia}, ${mejor.hora} hs`, esHoy: mejor.offsetDias === 0 };
+  const etiquetaDia = mejor.offsetDias === 1 ? 'Mañana' : `${DIAS_SEMANA[mejor.dia]} ${diaMes}`;
+  return { texto: `${etiquetaDia}, ${mejor.hora} hs`, estado: 'futuro' };
 }
 
 // --- Pantalla de Inicio: "¿Vas a misa hoy?" ------------------------------
@@ -525,13 +542,16 @@ function renderInicio() {
   const hayCapillas = (ultimoEspacio?.capillas || []).length > 0;
 
   // Sin horario semanal cargado (solo texto libre de respaldo) no hay
-  // forma de saber si esa próxima misa es hoy o en otro día, así que se
-  // deja el título de siempre en vez de arriesgar a decir "hoy" cuando no
-  // corresponde.
-  const tituloMisa = infoMisa ? (infoMisa.esHoy ? '¿Vas a misa hoy?' : 'Próxima misa') : '¿Vas a misa hoy?';
-  const badgeMisa = infoMisa
-    ? `<span class="estado-badge ${infoMisa.esHoy ? 'badge-en-vivo' : 'badge-proximamente'}">${infoMisa.esHoy ? '🔴 Hoy' : '🕓 Próximamente'}</span>`
-    : '';
+  // forma de saber nada de esto, así que se deja el título de siempre en
+  // vez de arriesgar a decir "hoy" o "en vivo" cuando no corresponde.
+  const tituloMisa = infoMisa?.estado === 'futuro' ? 'Próxima misa' : '¿Vas a misa hoy?';
+  const BADGES_MISA = {
+    'en-vivo': { clase: 'badge-en-vivo', label: '🔴 En vivo hoy' },
+    hoy: { clase: 'badge-proximamente', label: '🕓 Hoy' },
+    futuro: { clase: 'badge-proximamente', label: '🕓 Próximamente' },
+  };
+  const badgeInfoMisa = infoMisa ? BADGES_MISA[infoMisa.estado] : null;
+  const badgeMisa = badgeInfoMisa ? `<span class="estado-badge ${badgeInfoMisa.clase}">${badgeInfoMisa.label}</span>` : '';
 
   app.innerHTML = `
     ${renderBanner(ultimoLogoUrl)}
@@ -542,7 +562,7 @@ function renderInicio() {
       ${
         proximaMisa || direccion
           ? `
-        <p class="proxima-misa-label">Próxima misa</p>
+        <p class="proxima-misa-label">${infoMisa?.estado === 'en-vivo' ? 'Misa de hoy' : 'Próxima misa'}</p>
         ${proximaMisa ? `<p class="proxima-misa-hora">${escapeHtml(proximaMisa)}</p>` : ''}
         ${direccion ? `<p class="proxima-misa-direccion">📍 ${escapeHtml(direccion)}</p>` : ''}
       `
