@@ -39,6 +39,15 @@ html, body {
   height: 100%;
   margin: 0;
   overflow: hidden;
+  /* Sin esto, Chrome en Android puede agrandar el texto solo ("font
+     boosting") en columnas angostas para que se lea más fácil — pero el
+     layout ya calculado (anchos, gaps) queda pensado para el tamaño de
+     letra de la hoja de estilos, no para el agrandado. En layouts
+     apretados como el editor de acordes (muchas palabras chiquitas una al
+     lado de la otra) eso puede hacer que el texto termine solapándose,
+     sin que se vea igual en un navegador de escritorio. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -1123,7 +1132,7 @@ a {
 .chord-editor-lines {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1136,8 +1145,13 @@ a {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 4px 2px;
+  align-content: flex-start;
+  gap: 8px 6px;
   min-height: 2.6em;
+  /* Aísla el cálculo de layout de este renglón del resto — en algunos
+     Android Chrome, sin esto, un renglón con palabras envueltas en más de
+     una fila (flex-wrap) podía "sangrar" visualmente sobre el siguiente. */
+  contain: layout;
 }
 
 .chord-editor-word {
@@ -1159,10 +1173,12 @@ a {
   color: var(--accent);
   font-weight: 700;
   font-size: 0.95rem;
+  line-height: 1.3;
   min-height: 1.2em;
   padding: 0 2px;
   cursor: pointer;
   font-family: inherit;
+  white-space: nowrap;
 }
 
 .chord-editor-chord.empty {
@@ -1172,6 +1188,8 @@ a {
 
 .chord-editor-text {
   font-size: 1.05rem;
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .chord-editor-instrumental {
