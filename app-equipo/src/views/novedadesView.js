@@ -83,7 +83,7 @@ export async function renderNovedadesView(container) {
       </div>
 
       <div class="categories-field">
-        <span class="categories-label">🗓️ Horario semanal (opcional, se repite todas las semanas — si cargás esto, la página pública calcula sola la próxima misa y ya no usa el texto de arriba)</span>
+        <span class="categories-label">🗓️ Horario semanal (opcional, se repite todas las semanas — si cargás esto, la página pública calcula sola la próxima misa y ya no usa el texto de arriba). "Hasta" es opcional: si lo cargás, en cuanto termine pasa a mostrar la próxima misa en vez de seguir en vivo</span>
         <div id="horario-rows"></div>
         <div class="form-actions">
           <button type="button" class="btn" id="add-horario-row-btn" ${loggedIn ? '' : 'disabled'}>+ Agregar horario</button>
@@ -178,13 +178,24 @@ export async function renderNovedadesView(container) {
   let horarioMisas = Array.isArray(espacio?.horarioMisas) ? [...espacio.horarioMisas] : [];
   const horarioRowsEl = container.querySelector('#horario-rows');
 
+  // Una hora después del inicio, como valor de arranque razonable al
+  // agregar un horario nuevo — se puede cambiar a mano si la misa dura
+  // más o menos.
+  function sumarUnaHora(hora) {
+    const [hh, mm] = hora.split(':').map(Number);
+    const total = (hh * 60 + mm + 60) % (24 * 60);
+    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  }
+
   function horarioRowHtml(row, i) {
     return `
-      <div class="misa-category-row" data-idx="${i}">
+      <div class="misa-category-row horario-row-doble" data-idx="${i}">
         <select class="horario-dia-select" data-idx="${i}" ${loggedIn ? '' : 'disabled'}>
           ${DIAS_SEMANA.map((d, di) => `<option value="${di}" ${row.dia === di ? 'selected' : ''}>${d}</option>`).join('')}
         </select>
         <input type="time" class="horario-hora-input" data-idx="${i}" value="${escapeAttr(row.hora || '11:00')}" ${loggedIn ? '' : 'disabled'} />
+        <span class="horario-hasta">hasta</span>
+        <input type="time" class="horario-horafin-input" data-idx="${i}" value="${escapeAttr(row.horaFin || '')}" ${loggedIn ? '' : 'disabled'} />
         <button type="button" class="btn btn-danger btn-icon" data-del-horario="${i}" ${loggedIn ? '' : 'disabled'}>✕</button>
       </div>
     `;
@@ -205,7 +216,8 @@ export async function renderNovedadesView(container) {
       const idx = Number(rowEl.dataset.idx);
       const dia = Number(rowEl.querySelector('.horario-dia-select').value);
       const hora = rowEl.querySelector('.horario-hora-input').value || '11:00';
-      horarioMisas[idx] = { dia, hora };
+      const horaFin = rowEl.querySelector('.horario-horafin-input').value || null;
+      horarioMisas[idx] = { dia, hora, horaFin };
     });
   }
 
@@ -213,7 +225,7 @@ export async function renderNovedadesView(container) {
 
   container.querySelector('#add-horario-row-btn').addEventListener('click', () => {
     sincronizarHorarioDesdeDom();
-    horarioMisas.push({ dia: 0, hora: '11:00' });
+    horarioMisas.push({ dia: 0, hora: '11:00', horaFin: sumarUnaHora('11:00') });
     renderHorarioRows();
   });
 

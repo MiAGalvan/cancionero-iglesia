@@ -465,9 +465,14 @@ extra: ya está incluido ahí.
 
 **Cargar el horario semanal:** desde la app, **📣 Novedades** → sección
 "🗓️ Horario semanal" → **+ Agregar horario** por cada día que hay misa,
-elegís el día y la hora → **Guardar**. Si no cargás ningún horario acá,
-la página pública sigue usando el texto libre de "Próxima misa" de
-siempre.
+elegís el día, la hora de inicio y (opcional) la hora "hasta" → **Guardar**.
+Si no cargás ningún horario acá, la página pública sigue usando el texto
+libre de "Próxima misa" de siempre.
+
+El campo "hasta" es lo que hace que el aviso **"🔴 En vivo hoy"** sea
+preciso: sin cargarlo, se muestra en vivo el resto del día una vez que
+llega la hora de inicio; cargándolo, en cuanto llega esa hora de fin la
+página pasa directo a mostrar la próxima misa programada.
 
 **Agregar una capilla:** en la misma pantalla, sección "⛪ Otras
 capillas" → **+ Agregar capilla** → nombre, dirección y horario (texto

@@ -485,41 +485,56 @@ const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Vier
 // Devuelve { texto, estado } a partir del horario semanal, o null si
 // todavía no se cargó ninguno (ahí se usa el texto libre de respaldo,
 // donde no hay forma de saber nada de esto). `estado` es uno de:
-//   'en-vivo'  → hay misa hoy y su horario ya llegó — igual que con las
-//                lecturas, "en vivo" se define por FECHA (hoy), no por
-//                una ventana de horas exacta, porque no sabemos cuánto
-//                dura cada misa; se muestra así el resto del día.
-//   'hoy'      → hay misa hoy pero más tarde, todavía no llegó la hora.
-//   'futuro'   → la próxima ocurrencia es otro día.
+//   'en-vivo'  → hay una misa hoy en curso: ya empezó y, si se cargó
+//                "hasta" para esa fila, todavía no terminó. Sin "hasta"
+//                cargado, se considera en curso el resto del día (mismo
+//                criterio que ya usan las lecturas: por fecha, no por una
+//                ventana de horas exacta, porque no sabemos cuánto dura).
+//   'hoy'      → hay misa hoy pero más tarde, todavía no llegó la hora
+//                (o la de recién ya terminó y no hay otra más tarde hoy
+//                — nota: en ese caso cae a 'futuro', ver abajo).
+//   'futuro'   → la próxima ocurrencia es otro día (o más tarde hoy no
+//                queda ninguna, la que había ya terminó).
 function proximaMisaDesdeHorario(horarios) {
   if (!Array.isArray(horarios) || horarios.length === 0) return null;
   const ahora = new Date();
   const hoyDia = ahora.getDay();
   const hoyMin = ahora.getHours() * 60 + ahora.getMinutes();
 
-  const conMinutos = (h) => {
-    const [hh, mm] = h.hora.split(':').map(Number);
+  const aMinutos = (hora) => {
+    const [hh, mm] = hora.split(':').map(Number);
     return hh * 60 + (mm || 0);
   };
 
   const deHoy = horarios.filter((h) => typeof h?.dia === 'number' && h.dia === hoyDia && h?.hora);
-  if (deHoy.length > 0) {
-    const yaEmpezaron = deHoy.filter((h) => conMinutos(h) <= hoyMin);
-    if (yaEmpezaron.length > 0) {
-      // Si hubiera más de una hoy, la que ya empezó más tarde es la vigente.
-      const ultima = yaEmpezaron.reduce((a, b) => (conMinutos(b) > conMinutos(a) ? b : a));
-      return { texto: `Hoy, ${ultima.hora} hs`, estado: 'en-vivo' };
-    }
-    const proxima = deHoy.reduce((a, b) => (conMinutos(b) < conMinutos(a) ? b : a));
+
+  // ¿Alguna de hoy está en curso ahora mismo?
+  const enCurso = deHoy.find((h) => {
+    const inicio = aMinutos(h.hora);
+    if (inicio > hoyMin) return false;
+    if (!h.horaFin) return true; // sin hora de fin cargada: en curso el resto del día
+    return hoyMin < aMinutos(h.horaFin);
+  });
+  if (enCurso) {
+    return { texto: `Hoy, ${enCurso.hora} hs`, estado: 'en-vivo' };
+  }
+
+  // Ninguna en curso: la próxima de hoy que todavía no empezó (si la que
+  // ya pasó terminó y no queda otra hoy, se sigue de largo a buscar en
+  // los próximos días).
+  const pendientesHoy = deHoy.filter((h) => aMinutos(h.hora) > hoyMin);
+  if (pendientesHoy.length > 0) {
+    const proxima = pendientesHoy.reduce((a, b) => (aMinutos(b.hora) < aMinutos(a.hora) ? b : a));
     return { texto: `Hoy, ${proxima.hora} hs`, estado: 'hoy' };
   }
 
-  // Ninguna hoy: buscar la próxima ocurrencia en los próximos días.
+  // Ninguna hoy pendiente: buscar la próxima ocurrencia en los próximos días.
   let mejor = null;
   for (const h of horarios) {
     if (typeof h?.dia !== 'number' || !h?.hora) continue;
-    const offsetDias = (h.dia - hoyDia + 7) % 7 || 7; // "hoy" ya se descartó arriba
-    const clave = offsetDias * 1440 + conMinutos(h);
+    let offsetDias = (h.dia - hoyDia + 7) % 7;
+    if (offsetDias === 0) offsetDias = 7; // hoy ya se descartó arriba (o ya terminó)
+    const clave = offsetDias * 1440 + aMinutos(h.hora);
     if (!mejor || clave < mejor.clave) mejor = { dia: h.dia, hora: h.hora, offsetDias, clave };
   }
   if (!mejor) return null;
