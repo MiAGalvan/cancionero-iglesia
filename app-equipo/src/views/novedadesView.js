@@ -90,6 +90,7 @@ export async function renderNovedadesView(container) {
         <div id="horario-rows"></div>
         <div class="form-actions">
           <button type="button" class="btn" id="add-horario-row-btn" ${loggedIn ? '' : 'disabled'}>+ Agregar horario</button>
+          <button type="button" class="btn btn-accent" id="save-horario-btn" ${loggedIn ? '' : 'disabled'}>Guardar</button>
         </div>
       </div>
 
@@ -242,7 +243,11 @@ export async function renderNovedadesView(container) {
     renderHorarioRows();
   });
 
-  container.querySelector('#save-mass-btn')?.addEventListener('click', () => {
+  // Un solo guardado, con dos botones que lo disparan (uno pegado al
+  // horario, otro pegado a redes) — antes había un único botón bien lejos
+  // del horario (al fondo, junto a redes sociales), fácil de no ver
+  // después de cargar los horarios y creer que ya había quedado guardado.
+  function guardarDatosPublicos() {
     sincronizarHorarioDesdeDom();
     const updated = guardarCambiosEspacio({
       address: container.querySelector('#address-input').value,
@@ -257,7 +262,10 @@ export async function renderNovedadesView(container) {
       statusEl.hidden = false;
       statusEl.textContent = '✓ Guardado.';
     }
-  });
+  }
+
+  container.querySelector('#save-horario-btn')?.addEventListener('click', guardarDatosPublicos);
+  container.querySelector('#save-mass-btn')?.addEventListener('click', guardarDatosPublicos);
 
   // --- Otras capillas (informativo: nombre, dirección, horario en texto) ---
   let capillas = Array.isArray(espacio?.capillas) ? [...espacio.capillas] : [];
