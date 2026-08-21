@@ -9,11 +9,31 @@ import { getSession } from '../storage/auth.js';
 import { getCurrentSpaceKey, getSpaceLabel, getSpace, updateSpace } from '../storage/settings.js';
 import { pushSpace } from '../storage/spacesSync.js';
 
-// Estos 4 títulos, EXACTOS, son los que reconoce la página pública para
-// mostrarlos siempre en el orden de la misa en "Lecturas" (ver
-// pagina-publica/app.js) — los botones de acá evitan que alguien los tipee
-// mal a mano.
+// Estos 4 títulos son los que reconoce la página pública para mostrarlos
+// siempre en el orden de la misa en "Lecturas" (ver pagina-publica/app.js)
+// — los botones de acá evitan que alguien los tipee mal a mano.
 const LECTURAS_TITULOS = ['1ª Lectura', 'Salmo', '2ª Lectura', 'Evangelio'];
+
+// Mismo criterio flexible que usa la página pública para reconocer una
+// lectura (ver ordenLectura en pagina-publica/app.js): alcanza con que el
+// título EMPIECE con el nombre de la lectura, así una referencia bíblica
+// pegada después (ej. "Evangelio (Mt 20,1-16)", común en avisos cargados
+// a mano antes de que existieran estos botones) sigue reconociéndose. Sin
+// esto, esos avisos viejos nunca ofrecían el campo de fecha al editarlos
+// (por no coincidir char a char), así que su fecha quedaba siempre vacía.
+const COMBINING_MARKS_NOVEDADES = new RegExp(`[${String.fromCharCode(0x0300)}-${String.fromCharCode(0x036f)}]`, 'g');
+
+function normalizarTitulo(texto) {
+  return (texto || '').normalize('NFD').replace(COMBINING_MARKS_NOVEDADES, '').trim().toUpperCase();
+}
+
+function tituloCoincideConLectura(tituloGuardado, tituloBoton) {
+  return normalizarTitulo(tituloGuardado).startsWith(normalizarTitulo(tituloBoton));
+}
+
+function esTituloDeLectura(titulo) {
+  return LECTURAS_TITULOS.some((t) => tituloCoincideConLectura(titulo, t));
+}
 
 // Mismo orden que Date.getDay() (0 = domingo), para que "día" se pueda
 // guardar como número y usarse tal cual del lado de la página pública.
@@ -293,8 +313,17 @@ export async function renderNovedadesView(container) {
   container.querySelectorAll('[data-lectura]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const titulo = btn.dataset.lectura;
-      const existing = cachedAnuncios.find((a) => a.titulo === titulo);
-      openForm({ id: existing?.id, titulo, cuerpo: existing?.cuerpo || '', fecha: existing?.fecha || hoyIso() });
+      const existing = cachedAnuncios.find((a) => tituloCoincideConLectura(a.titulo, titulo));
+      // Si ya había una cargada (aunque con un título viejo, ej. con la
+      // referencia bíblica pegada), se reutiliza tal cual el título que ya
+      // tenía en vez de pisarlo con el genérico del botón — así no se
+      // pierde ese texto ya cargado.
+      openForm({
+        id: existing?.id,
+        titulo: existing?.titulo || titulo,
+        cuerpo: existing?.cuerpo || '',
+        fecha: existing?.fecha || hoyIso(),
+      });
     });
   });
 
@@ -351,12 +380,12 @@ export async function renderNovedadesView(container) {
 
   function openForm(existing) {
     statusEl.hidden = true;
-    // El campo de fecha solo aparece para las 4 lecturas (título exacto):
-    // un aviso común (ej. "Tallarineada") no necesita una fecha propia, la
-    // fecha ya suele ir en el texto. Para una lectura, en cambio, es lo que
-    // permite distinguir si es la de hoy o la de una misa programada (ej.
-    // el domingo próximo) cargada con anticipación.
-    const esLectura = LECTURAS_TITULOS.includes(existing?.titulo);
+    // El campo de fecha solo aparece para las 4 lecturas: un aviso común
+    // (ej. "Tallarineada") no necesita una fecha propia, la fecha ya suele
+    // ir en el texto. Para una lectura, en cambio, es lo que permite
+    // distinguir si es la de hoy o la de una misa programada (ej. el
+    // domingo próximo) cargada con anticipación.
+    const esLectura = esTituloDeLectura(existing?.titulo);
     formWrap.innerHTML = `
       <form id="novedad-form" class="novedad-form">
         <label>

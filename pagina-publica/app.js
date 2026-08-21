@@ -219,7 +219,7 @@ async function cargarYMostrar() {
     // Si la tabla `anuncios` (o `espacio_logos`/`spaces`, más abajo) todavía
     // no existe porque falta correr alguna migración, esto da error — no es
     // grave, la página igual muestra los cantos.
-    supabase.from('anuncios').select('titulo, cuerpo, fecha').eq('space', space).order('updated_at', { ascending: false }),
+    supabase.from('anuncios').select('titulo, cuerpo, fecha, updated_at').eq('space', space).order('updated_at', { ascending: false }),
     supabase.from('espacio_logos').select('logo_url').eq('space', space).maybeSingle(),
     // "*" en vez de nombrar cada columna a propósito: si en el futuro se
     // agrega otro campo nuevo a `spaces` y todavía no se corrió la
@@ -440,11 +440,23 @@ function renderBadge() {
   return estado ? `<span class="estado-badge ${estado.clase}">${estado.label}</span>` : '';
 }
 
-// La fecha de "las lecturas" toma la del primer registro encontrado: las 4
-// (1ª Lectura, Salmo, 2ª Lectura, Evangelio) se cargan juntas desde
-// Novedades con la misma fecha, así que alcanza con mirar una.
+// La fecha "representativa" de las 4 lecturas es la de la que se haya
+// tocado más recientemente (updated_at), no la primera en el orden de la
+// misa (1ª Lectura). Si el equipo actualiza solo el Evangelio para hoy y
+// deja las otras 3 con la fecha de la semana pasada (sin querer, o porque
+// todavía no las cargó), mirar siempre la 1ª Lectura mostraba la fecha
+// vieja y el aviso de "en vivo hoy" no aparecía aunque el Evangelio sí
+// estuviera al día.
+function fechaRepresentativaLecturas(lecturas) {
+  if (lecturas.length === 0) return null;
+  const masReciente = lecturas.reduce((mejor, l) =>
+    !mejor || (l.updated_at || '') > (mejor.updated_at || '') ? l : mejor
+  );
+  return masReciente.fecha || null;
+}
+
 function fechaLecturas() {
-  return separarLecturas(ultimosAnuncios).lecturas[0]?.fecha || null;
+  return fechaRepresentativaLecturas(separarLecturas(ultimosAnuncios).lecturas);
 }
 
 function renderBadgeLecturas() {
@@ -739,7 +751,7 @@ function separarLecturas(anuncios) {
 
 function renderLecturas() {
   const { lecturas, otrosAvisos } = separarLecturas(ultimosAnuncios);
-  const fecha = lecturas[0]?.fecha || null;
+  const fecha = fechaRepresentativaLecturas(lecturas);
   const estado = estadoParaFecha(fecha);
 
   app.innerHTML = `
