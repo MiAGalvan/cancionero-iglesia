@@ -35,6 +35,81 @@ const space = new URLSearchParams(window.location.search).get('space') || 'merce
 
 const app = document.getElementById('app');
 
+// --- Instalar como app: la mayoría de la gente no sabe que "Crear acceso
+// directo" (la opción genérica del navegador) existe, y ese acceso queda
+// con un ícono gris feo, sin nombre de la parroquia. Con un manifest +
+// service worker, Chrome ofrece instalarla como una app de verdad (ícono
+// propio, sin la barra de direcciones) y podemos disparar ese cartel
+// nosotros mismos con un botón, en vez de depender de que alguien
+// encuentre la opción escondida en el menú del navegador. En iPhone
+// (Safari) no existe ese cartel automático — ahí solo se puede mostrar
+// cómo hacerlo a mano (Compartir → Agregar a pantalla de inicio).
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// El manifest se arma en memoria (no es un archivo fijo) porque el nombre
+// y el link de "abrir" tienen que ser los de ESTA parroquia en particular
+// (?space=...) — si el manifest fuera un solo archivo fijo para todas,
+// instalar la página de Merced abriría la de San Cayetano la próxima vez.
+function instalarManifestDinamico() {
+  const manifest = {
+    name: `${nombreParroquia()} — Cantos y Novedades`,
+    short_name: 'Cancionero',
+    start_url: window.location.pathname + window.location.search,
+    scope: window.location.pathname,
+    display: 'standalone',
+    background_color: '#0f2220',
+    theme_color: '#2f8a7a',
+    icons: [
+      { src: new URL('icons/icon-192.png', window.location.href).href, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: new URL('icons/icon-512.png', window.location.href).href, sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
+  };
+  const blobUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/json' }));
+  let link = document.querySelector('link[rel="manifest"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'manifest';
+    document.head.appendChild(link);
+  }
+  link.href = blobUrl;
+}
+
+// Ya instalada (o abierta desde el ícono ya instalado) → nunca mostrar el
+// botón de instalar, no tiene sentido ofrecerlo de nuevo.
+function yaEstaInstalada() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+let promptDeInstalacion = null;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  promptDeInstalacion = event;
+  actualizarBotonInstalar();
+});
+
+window.addEventListener('appinstalled', () => {
+  promptDeInstalacion = null;
+  actualizarBotonInstalar();
+});
+
+function actualizarBotonInstalar() {
+  const btn = document.getElementById('install-btn');
+  const hintIOS = document.getElementById('install-ios-hint');
+  if (!btn && !hintIOS) return; // esta pantalla no tiene el bloque de instalar
+
+  if (yaEstaInstalada()) {
+    if (btn) btn.hidden = true;
+    if (hintIOS) hintIOS.hidden = true;
+    return;
+  }
+  if (btn) btn.hidden = !promptDeInstalacion;
+  if (hintIOS) hintIOS.hidden = !(esIOS && !promptDeInstalacion);
+}
+
 // --- Router mínimo: "" = Canciones (entrada del QR), "inicio", "lecturas" -
 function currentRoute() {
   return (window.location.hash || '').replace(/^#\/?/, '');
@@ -170,6 +245,7 @@ async function cargarYMostrar() {
   ultimosAnuncios = anuncios;
   ultimoLogoUrl = logoUrl;
   ultimoEspacio = espacio;
+  instalarManifestDinamico();
   renderTodo();
 }
 
@@ -243,6 +319,15 @@ function renderTodo() {
       renderTodo();
     });
   });
+
+  document.getElementById('install-btn')?.addEventListener('click', async () => {
+    if (!promptDeInstalacion) return;
+    promptDeInstalacion.prompt();
+    await promptDeInstalacion.userChoice;
+    promptDeInstalacion = null;
+    actualizarBotonInstalar();
+  });
+  actualizarBotonInstalar();
 }
 
 function nombreParroquia() {
@@ -472,6 +557,10 @@ function renderInicio() {
           : ''
       }
     </div>
+    <button type="button" id="install-btn" class="entrate-btn install-btn" hidden>📲 Instalar esta app en el celular</button>
+    <p id="install-ios-hint" class="install-ios-hint" hidden>
+      📲 Para instalarla: tocá <strong>Compartir</strong> (el ícono con la flecha, abajo del todo en Safari) y elegí <strong>"Agregar a inicio"</strong>.
+    </p>
     ${renderNovedades(separarLecturas(ultimosAnuncios).otrosAvisos)}
     ${renderRedesCompacto()}
   `;

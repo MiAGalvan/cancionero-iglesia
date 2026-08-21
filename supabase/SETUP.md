@@ -475,3 +475,21 @@ libre, ej. "Miércoles 19:00 hs"). Se puede editar o eliminar después
 desde la lista. En la página pública aparecen en "Mira otras capillas y
 horarios", un link que solo se muestra en Inicio si hay al menos una
 capilla cargada.
+
+## 23. Instalar la página pública como app (sin pasar por el menú del navegador)
+
+Antes, la única forma de tener un acceso directo era la opción genérica
+"Crear acceso directo" del navegador — muchas personas no la conocen, y
+queda con un ícono gris sin identidad. Ahora la pantalla de Inicio tiene
+su propio botón **"📲 Instalar esta app en el celular"**: en Android
+(Chrome) dispara directo el cartel nativo de instalación, con el ícono
+propio del cancionero (ver `pagina-publica/icons/`) y el nombre de esa
+parroquia en particular. En iPhone (Safari no permite disparar ese
+cartel desde código) el botón se reemplaza por un cartelito explicando
+cómo hacerlo a mano: Compartir → Agregar a inicio.
+
+No requiere ninguna migración ni configuración — es todo del lado de
+`pagina-publica` (`sw.js` nuevo, y un manifest que se arma solo en
+memoria con el nombre y el link de cada parroquia). Cada parroquia queda
+con su propio ícono en la pantalla de inicio del celular, y al tocarlo
+abre directo en esa parroquia — no hace falta volver a elegir nada.

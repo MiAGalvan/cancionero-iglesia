@@ -370,6 +370,28 @@ h1 {
   background: #25d366;
 }
 
+/* --- Instalar como app --- */
+.install-btn {
+  display: block;
+  width: fit-content;
+  margin: 20px auto 0;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.install-ios-hint {
+  max-width: 320px;
+  margin: 20px auto 0;
+  padding: 14px 18px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--text-dim);
+}
+
 /* --- Pantalla de Lecturas --- */
 .lecturas-topbar {
   display: flex;

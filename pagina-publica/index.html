@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cantos de hoy</title>
     <link rel="stylesheet" href="./styles.css" />
+    <!-- El manifest "de verdad" (con el nombre de cada parroquia y el link
+         exacto ?space=...) se arma en app.js una vez que se sabe de qué
+         parroquia es esta visita — ver instalarManifestDinamico(). El ícono
+         de iOS no lee el manifest, así que ese sí va estático acá. -->
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <meta name="theme-color" content="#2f8a7a" />
   </head>
   <body>
     <!-- Página de solo lectura: no hay ningún formulario ni botón de edición.
