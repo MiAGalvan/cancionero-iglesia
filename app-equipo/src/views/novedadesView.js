@@ -70,8 +70,11 @@ export async function renderNovedadesView(container) {
 
       <div class="categories-field">
         <span class="categories-label">📅 Próxima misa y dirección (se ve en "¿Vas a misa hoy?")</span>
+        <p id="proxima-misa-estado-hint" class="chord-editor-hint" ${(espacio?.horarioMisas || []).length === 0 ? 'hidden' : ''}>
+          ✓ Ya no hace falta escribir esto: como hay un horario semanal cargado más abajo, la página pública calcula sola la fecha correcta cada día y este texto no se muestra.
+        </p>
         <label>
-          Próxima misa (día y hora, tal cual la querés ver)
+          Próxima misa (día y hora, tal cual la querés ver — solo se usa si no hay ningún horario semanal cargado abajo)
           <input type="text" id="next-mass-input" ${loggedIn ? '' : 'disabled'}
             value="${escapeAttr(espacio?.nextMass || '')}" placeholder="Ej. Miércoles 19 de agosto, 19:00 hs" />
         </label>
@@ -206,6 +209,8 @@ export async function renderNovedadesView(container) {
       horarioMisas.length === 0
         ? `<p class="song-artist">Sin horario semanal cargado — se usa el texto de "Próxima misa" de arriba.</p>`
         : horarioMisas.map(horarioRowHtml).join('');
+    const hintEl = container.querySelector('#proxima-misa-estado-hint');
+    if (hintEl) hintEl.hidden = horarioMisas.length === 0;
   }
 
   // Los <select>/<input> de cada fila se editan directo en el DOM (no en el
