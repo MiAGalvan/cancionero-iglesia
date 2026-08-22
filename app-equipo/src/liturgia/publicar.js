@@ -12,7 +12,7 @@ import { chordProToPlainLyrics } from './textoPlano.js';
 // las carpetas agregadas por el equipo, al final de ese orden).
 export async function buildPublishPayload(misa) {
   const items = [];
-  for (const categoria of getAllCategories()) {
+  for (const categoria of getAllCategories(misa.space)) {
     const songId = misa.items[categoria];
     if (!songId) continue;
     const song = await getSong(songId);

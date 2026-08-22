@@ -324,15 +324,19 @@ create policy "equipo autorizado reemplaza sus grabaciones en storage"
   );
 
 -- --- custom_labels: carpetas agregadas y tiempos/temas litúrgicos ------
--- A diferencia de todo lo demás, esto NO es por parroquia — las carpetas y
--- los tiempos litúrgicos se comparten entre todas (ver storage/settings.js),
--- así que cualquier integrante logueado puede leerlas y agregar nuevas, sin
--- chequeo de team_members. Nada sensible viaja acá, son solo nombres.
+-- Las carpetas (kind='category') SÍ son de una parroquia puntual (ej.
+-- "DON BOSCO" es de Merced, no de las demás) — `space` guarda cuál. Los
+-- tiempos/temas litúrgicos (kind='tag'), en cambio, son los mismos en
+-- cualquier parroquia (Adviento es Adviento en todos lados), así que se
+-- siguen compartiendo entre todas: siempre viajan con `space` en ''. No
+-- hay chequeo de team_members para leer/agregar/borrar (nada sensible
+-- viaja acá, son solo nombres) — cualquier integrante logueado puede.
 create table if not exists custom_labels (
   kind text not null check (kind in ('category', 'tag')),
   name text not null,
+  space text not null default '', -- '' para los tiempos/temas (compartidos); la key de la parroquia para carpetas
   updated_at timestamptz not null default now(),
-  primary key (kind, name)
+  primary key (kind, name, space)
 );
 
 alter table custom_labels enable row level security;

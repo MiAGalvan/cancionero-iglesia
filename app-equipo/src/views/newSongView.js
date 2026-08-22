@@ -24,7 +24,7 @@ import { pushCustomTag } from '../storage/labelsSync.js';
 export async function renderNewSongView(container, { editId, presetCategory, returnTo } = {}) {
   const existing = editId ? await getSong(Number(editId)) : null;
   const selectedCategories = existing ? existing.categories : presetCategory ? [presetCategory] : [];
-  const categoryOptions = getAllCategories();
+  const categoryOptions = getAllCategories(existing?.space || getCurrentSpaceKey());
   const selectedTags = existing ? existing.tags || [] : [];
 
   // Una canción ya escrita casi siempre se sigue editando "a mano" (tocando

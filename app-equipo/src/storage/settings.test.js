@@ -58,28 +58,49 @@ function assertEqual(actual, expected, label) {
 }
 
 // --- arranca solo con las 12 fijas ---
-assertEqual(getAllCategories(), CATEGORIES, 'sin carpetas agregadas, getAllCategories da solo las 12 fijas');
+assertEqual(getAllCategories('merced'), CATEGORIES, 'sin carpetas agregadas, getAllCategories da solo las 12 fijas');
 assertEqual(isCustomCategory('ENTRADA'), false, 'una categoría fija no es "custom"');
 
 // --- agregar una carpeta nueva ---
-addCustomCategory('Navidad');
-assertEqual(getAllCategories(), [...CATEGORIES, 'Navidad'], 'la carpeta agregada queda al final, después de las 12 fijas');
+addCustomCategory('merced', 'Navidad');
+assertEqual(getAllCategories('merced'), [...CATEGORIES, 'Navidad'], 'la carpeta agregada queda al final, después de las 12 fijas');
 assertEqual(isCustomCategory('Navidad'), true, 'una carpeta agregada sí es "custom"');
 
 // --- no deja agregar duplicados (ni contra las fijas, ni entre sí) ---
-addCustomCategory('navidad'); // mismo nombre, distinta mayúscula/minúscula
-assertEqual(getAllCategories().filter((c) => c.toLowerCase() === 'navidad').length, 1, 'no se duplica una carpeta ya agregada');
-addCustomCategory('ENTRADA');
-assertEqual(getAllCategories().filter((c) => c.toLowerCase() === 'entrada').length, 1, 'no se puede agregar una carpeta con el nombre de una fija');
+addCustomCategory('merced', 'navidad'); // mismo nombre, distinta mayúscula/minúscula
+assertEqual(getAllCategories('merced').filter((c) => c.toLowerCase() === 'navidad').length, 1, 'no se duplica una carpeta ya agregada');
+addCustomCategory('merced', 'ENTRADA');
+assertEqual(getAllCategories('merced').filter((c) => c.toLowerCase() === 'entrada').length, 1, 'no se puede agregar una carpeta con el nombre de una fija');
 
 // --- nombre vacío no agrega nada ---
-const antesDeVacio = getAllCategories();
-addCustomCategory('   ');
-assertEqual(getAllCategories(), antesDeVacio, 'un nombre vacío no agrega ninguna carpeta');
+const antesDeVacio = getAllCategories('merced');
+addCustomCategory('merced', '   ');
+assertEqual(getAllCategories('merced'), antesDeVacio, 'un nombre vacío no agrega ninguna carpeta');
 
-// --- eliminar una carpeta agregada ---
-deleteCustomCategory('Navidad');
-assertEqual(getAllCategories(), CATEGORIES, 'eliminar la carpeta agregada vuelve a dejar solo las 12 fijas');
+// --- una carpeta agregada en una parroquia NO aparece en otra (el bug
+// reportado: "DON BOSCO" cargada para Merced aparecía también en las
+// demás parroquias) ---
+assertEqual(getAllCategories('maria-auxiliadora'), CATEGORIES, 'una carpeta agregada en Merced no aparece en otra parroquia');
+addCustomCategory('maria-auxiliadora', 'Peregrinación');
+assertEqual(
+  getAllCategories('merced').includes('Peregrinación'),
+  false,
+  'y al revés: una carpeta agregada en otra parroquia no aparece en Merced'
+);
+assertEqual(
+  getAllCategories('maria-auxiliadora'),
+  [...CATEGORIES, 'Peregrinación'],
+  'cada parroquia mantiene sus propias carpetas agregadas'
+);
+
+// --- eliminar una carpeta agregada (solo en esa parroquia) ---
+deleteCustomCategory('merced', 'Navidad');
+assertEqual(getAllCategories('merced'), CATEGORIES, 'eliminar la carpeta agregada vuelve a dejar solo las 12 fijas');
+assertEqual(
+  getAllCategories('maria-auxiliadora'),
+  [...CATEGORIES, 'Peregrinación'],
+  'borrar una carpeta en una parroquia no toca las carpetas de otra'
+);
 
 // --- título del header ---
 assertEqual(getHeaderTitle(), DEFAULT_HEADER_TITLE, 'sin cambiarlo, el título por defecto es "Cancionero"');

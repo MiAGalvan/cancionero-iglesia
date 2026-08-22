@@ -243,42 +243,82 @@ export function getSpaceFullLabel(key) {
   return place ? `${space.label} — ${place}` : space.label;
 }
 
-export function getCustomCategories() {
+// Las carpetas agregadas (y su orden) son POR PARROQUIA: una carpeta como
+// "DON BOSCO" tiene sentido para Merced, pero no para María Auxiliadora o
+// San Cayetano — antes vivían en una sola lista compartida por todo el
+// dispositivo (y por toda la nube, ver storage/labelsSync.js) y terminaban
+// apareciendo en todas las parroquias por igual. Ahora cada parroquia
+// tiene su propia lista, guardada bajo su `key` dentro de un mismo objeto
+// en localStorage (en vez de una clave nueva por parroquia, para no
+// ensuciar más el localStorage).
+//
+// Nota de migración: la versión vieja guardaba esto como un array plano
+// (sin parroquia). Ese formato viejo se descarta acá a propósito — no hay
+// forma de saber a qué parroquia pertenecía cada carpeta ya cargada (sería
+// adivinar, y podría perpetuar el mismo problema que se está arreglando).
+// Las carpetas que ya existían hay que volver a agregarlas una vez, esta
+// vez desde la parroquia correspondiente.
+function getCustomCategoriesMap() {
   try {
     const saved = JSON.parse(localStorage.getItem(CUSTOM_CATEGORIES_KEY));
-    return Array.isArray(saved) ? saved : [];
+    if (!saved || Array.isArray(saved) || typeof saved !== 'object') return {};
+    return saved;
   } catch {
-    return [];
+    return {};
   }
 }
 
-function saveCustomCategories(categories) {
-  localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(categories));
+function saveCustomCategoriesMap(map) {
+  localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(map));
 }
 
-function getCategoryOrder() {
+export function getCustomCategories(spaceKey) {
+  const list = getCustomCategoriesMap()[spaceKey];
+  return Array.isArray(list) ? list : [];
+}
+
+function saveCustomCategories(spaceKey, categories) {
+  const map = getCustomCategoriesMap();
+  map[spaceKey] = categories;
+  saveCustomCategoriesMap(map);
+}
+
+function getCategoryOrderMap() {
   try {
     const saved = JSON.parse(localStorage.getItem(CATEGORY_ORDER_KEY));
-    return Array.isArray(saved) ? saved : null;
+    if (!saved || Array.isArray(saved) || typeof saved !== 'object') return {};
+    return saved;
   } catch {
-    return null;
+    return {};
   }
 }
 
-function saveCategoryOrder(order) {
-  localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(order));
+function saveCategoryOrderMap(map) {
+  localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(map));
+}
+
+function getCategoryOrder(spaceKey) {
+  const order = getCategoryOrderMap()[spaceKey];
+  return Array.isArray(order) ? order : null;
+}
+
+function saveCategoryOrder(spaceKey, order) {
+  const map = getCategoryOrderMap();
+  map[spaceKey] = order;
+  saveCategoryOrderMap(map);
 }
 
 // Arranca con las 12 litúrgicas fijas en su orden, más las carpetas
-// agregadas al final (en el orden en que se fueron creando) — pero a
-// partir de ahí, el orden real es el que haya quedado guardado después de
-// usar moveCategory(): una carpeta agregada (ej. "Salmo") se puede mover
-// para que quede intercalada entre las fijas, no solo al final. Es la
-// lista que hay que usar en cualquier lugar de la app que necesite "todas
-// las carpetas", en vez de CATEGORIES (que son solo las 12 fijas).
-export function getAllCategories() {
-  const all = [...CATEGORIES, ...getCustomCategories()];
-  const order = getCategoryOrder();
+// agregadas de ESA parroquia al final (en el orden en que se fueron
+// creando) — pero a partir de ahí, el orden real es el que haya quedado
+// guardado después de usar moveCategory(): una carpeta agregada (ej.
+// "Salmo") se puede mover para que quede intercalada entre las fijas, no
+// solo al final. Es la lista que hay que usar en cualquier lugar de la
+// app que necesite "todas las carpetas", en vez de CATEGORIES (que son
+// solo las 12 fijas).
+export function getAllCategories(spaceKey) {
+  const all = [...CATEGORIES, ...getCustomCategories(spaceKey)];
+  const order = getCategoryOrder(spaceKey);
   if (!order) return all;
 
   // Por si el orden guardado quedó con nombres que ya no existen (se borró
@@ -294,15 +334,15 @@ export function getAllCategories() {
 // Intercambia una carpeta con la de al lado (arriba o abajo) y guarda ese
 // orden. No hace nada si ya está en la punta correspondiente. Devuelve la
 // lista ya actualizada, lista para volver a pintar la pantalla.
-export function moveCategory(name, direction) {
-  const order = getAllCategories();
+export function moveCategory(spaceKey, name, direction) {
+  const order = getAllCategories(spaceKey);
   const index = order.indexOf(name);
   const targetIndex = direction === 'up' ? index - 1 : index + 1;
   if (index === -1 || targetIndex < 0 || targetIndex >= order.length) return order;
 
   const newOrder = [...order];
   [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
-  saveCategoryOrder(newOrder);
+  saveCategoryOrder(spaceKey, newOrder);
   return newOrder;
 }
 
@@ -310,24 +350,24 @@ export function isCustomCategory(name) {
   return !CATEGORIES.includes(name);
 }
 
-// Agrega una carpeta nueva. Devuelve la lista de categorías actualizada (12
-// fijas + custom). Ignora nombres vacíos o repetidos (sin importar
-// mayúsculas/minúsculas), tanto contra las fijas como contra otras carpetas
-// ya agregadas.
-export function addCustomCategory(name) {
+// Agrega una carpeta nueva PARA ESA PARROQUIA. Devuelve la lista de
+// categorías actualizada (12 fijas + custom de esa parroquia). Ignora
+// nombres vacíos o repetidos (sin importar mayúsculas/minúsculas), tanto
+// contra las fijas como contra otras carpetas ya agregadas ahí mismo.
+export function addCustomCategory(spaceKey, name) {
   const trimmed = name.trim();
-  if (!trimmed) return getAllCategories();
+  if (!trimmed) return getAllCategories(spaceKey);
 
-  const existingNames = getAllCategories().map((c) => c.toLowerCase());
-  if (existingNames.includes(trimmed.toLowerCase())) return getAllCategories();
+  const existingNames = getAllCategories(spaceKey).map((c) => c.toLowerCase());
+  if (existingNames.includes(trimmed.toLowerCase())) return getAllCategories(spaceKey);
 
-  saveCustomCategories([...getCustomCategories(), trimmed]);
-  return getAllCategories();
+  saveCustomCategories(spaceKey, [...getCustomCategories(spaceKey), trimmed]);
+  return getAllCategories(spaceKey);
 }
 
-export function deleteCustomCategory(name) {
-  saveCustomCategories(getCustomCategories().filter((c) => c !== name));
-  return getAllCategories();
+export function deleteCustomCategory(spaceKey, name) {
+  saveCustomCategories(spaceKey, getCustomCategories(spaceKey).filter((c) => c !== name));
+  return getAllCategories(spaceKey);
 }
 
 // Tiempos/temas litúrgicos (ver storage/constants.js para la explicación

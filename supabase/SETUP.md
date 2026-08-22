@@ -498,3 +498,27 @@ No requiere ninguna migración ni configuración — es todo del lado de
 memoria con el nombre y el link de cada parroquia). Cada parroquia queda
 con su propio ícono en la pantalla de inicio del celular, y al tocarlo
 abre directo en esa parroquia — no hace falta volver a elegir nada.
+
+## 24. Carpetas agregadas por parroquia (no compartidas entre todas)
+
+Antes, una carpeta agregada (ej. "DON BOSCO", cargada para Merced)
+aparecía también en las demás parroquias — quedaban todas compartidas
+entre sí. Ahora cada parroquia tiene sus propias carpetas agregadas; los
+tiempos/temas litúrgicos (Adviento, Cuaresma...) siguen compartidos entre
+todas, porque esos sí son los mismos en cualquier lado.
+
+**Si ya tenías el proyecto armado de antes:**
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-carpetas-por-parroquia.sql`](./migracion-carpetas-por-parroquia.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, no hace falta nada
+extra: ya está incluido ahí.
+
+**Importante — acción manual después de correr la migración:** las
+carpetas que ya tenías cargadas quedan sin poder usarse (no hay forma de
+saber automáticamente a qué parroquia pertenecía cada una — es
+justamente el problema que se está arreglando). Volvé a agregarlas una
+vez más desde la parroquia correspondiente: elegí esa parroquia en el
+selector de Inicio → **📁 Nueva carpeta** → escribí el nombre. Queda
+guardada solo ahí.

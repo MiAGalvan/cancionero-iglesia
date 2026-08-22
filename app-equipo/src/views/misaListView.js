@@ -22,8 +22,8 @@ function todayIso() {
 
 export async function renderMisaListView(container, { fecha } = {}) {
   const selectedFecha = fecha || todayIso();
-  const categories = getAllCategories();
   const space = getCurrentSpaceKey();
+  const categories = getAllCategories(space);
 
   const [existing, songsByCategory, allMisas] = await Promise.all([
     getMisa(space, selectedFecha),

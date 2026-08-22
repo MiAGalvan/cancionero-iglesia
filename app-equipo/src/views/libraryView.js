@@ -72,15 +72,16 @@ async function renderFoldersView(container) {
       }
     } else if (deleteCategory) {
       if (confirm(`¿Eliminar la carpeta "${deleteCategory}"? Las canciones no se borran, solo dejan de tener esa etiqueta.`)) {
-        deleteCustomCategory(deleteCategory);
+        const spaceKey = getCurrentSpaceKey();
+        deleteCustomCategory(spaceKey, deleteCategory);
         renderResultsOrFolders();
-        pushCustomCategoryDeletion(deleteCategory); // en segundo plano
+        pushCustomCategoryDeletion(spaceKey, deleteCategory); // en segundo plano
       }
     } else if (moveUp) {
-      moveCategory(moveUp, 'up');
+      moveCategory(getCurrentSpaceKey(), moveUp, 'up');
       renderResultsOrFolders();
     } else if (moveDown) {
-      moveCategory(moveDown, 'down');
+      moveCategory(getCurrentSpaceKey(), moveDown, 'down');
       renderResultsOrFolders();
     }
   });
@@ -94,7 +95,7 @@ async function renderFoldersView(container) {
         for (const song of songs) {
           for (const cat of song.categories) counts[cat] = (counts[cat] || 0) + 1;
         }
-        const cats = getAllCategories();
+        const cats = getAllCategories(getCurrentSpaceKey());
         contentEl.innerHTML = `
           <ul class="folder-list">
             ${cats

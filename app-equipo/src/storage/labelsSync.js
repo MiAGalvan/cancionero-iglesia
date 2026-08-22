@@ -1,8 +1,11 @@
 // Sincroniza entre dispositivos las carpetas agregadas y los tiempos/temas
-// litúrgicos agregados (ver storage/settings.js) — a diferencia del
-// cancionero o las parroquias, no son datos "de una parroquia" sino
-// compartidos por toda la app, así que cualquier integrante logueado los
-// puede leer y agregar.
+// litúrgicos agregados (ver storage/settings.js).
+//
+// Las carpetas SÍ son "de una parroquia" (ej. "DON BOSCO" es de Merced,
+// no de las demás) — se sincronizan filtradas por `space`. Los
+// tiempos/temas litúrgicos, en cambio, son los mismos en cualquier
+// parroquia (Adviento es Adviento en todos lados), así que se siguen
+// compartiendo entre todas: siempre viajan con `space` vacío.
 //
 // Merge simple a propósito: al sincronizar, solo se AGREGAN localmente los
 // nombres que vengan de la nube y todavía no estén acá — nunca se borra
@@ -14,34 +17,34 @@
 // resolver, porque acá no se "edita" nada, solo se agrega o se borra.
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 import { getSession } from './auth.js';
-import { getCustomCategories, addCustomCategory, getCustomTags, addCustomTag } from './settings.js';
+import { getCurrentSpaceKey, getCustomCategories, addCustomCategory, getCustomTags, addCustomTag } from './settings.js';
 
-async function pushLabel(kind, name) {
+async function pushLabel(kind, name, space) {
   if (!isSupabaseConfigured) return false;
   const session = await getSession();
   if (!session) return false;
   const { error } = await supabase
     .from('custom_labels')
-    .upsert({ kind, name, updated_at: new Date().toISOString() }, { onConflict: 'kind,name' });
+    .upsert({ kind, name, space, updated_at: new Date().toISOString() }, { onConflict: 'kind,name,space' });
   return !error;
 }
 
-async function pushLabelDeletion(kind, name) {
+async function pushLabelDeletion(kind, name, space) {
   if (!isSupabaseConfigured) return false;
   const session = await getSession();
   if (!session) return false;
-  const { error } = await supabase.from('custom_labels').delete().eq('kind', kind).eq('name', name);
+  const { error } = await supabase.from('custom_labels').delete().eq('kind', kind).eq('name', name).eq('space', space);
   return !error;
 }
 
-export function pushCustomCategory(name) {
-  return pushLabel('category', name);
+export function pushCustomCategory(spaceKey, name) {
+  return pushLabel('category', name, spaceKey);
 }
-export function pushCustomCategoryDeletion(name) {
-  return pushLabelDeletion('category', name);
+export function pushCustomCategoryDeletion(spaceKey, name) {
+  return pushLabelDeletion('category', name, spaceKey);
 }
 export function pushCustomTag(name) {
-  return pushLabel('tag', name);
+  return pushLabel('tag', name, '');
 }
 
 // Se puede llamar seguido (después de loguearse, o con el botón 🔄 de la
@@ -53,22 +56,25 @@ export async function syncLabelsNow() {
   if (!session) return { synced: false, reason: 'not-logged-in' };
 
   try {
-    const { data, error } = await supabase.from('custom_labels').select('kind, name');
+    const spaceKey = getCurrentSpaceKey();
+    const { data, error } = await supabase.from('custom_labels').select('kind, name, space');
     if (error) throw error;
 
     let changed = false;
-    const remoteCategories = data.filter((row) => row.kind === 'category').map((row) => row.name);
+    // Carpetas: solo las de ESTA parroquia. Tiempos/temas: todos (siempre
+    // viajan con space vacío, compartidos).
+    const remoteCategories = data.filter((row) => row.kind === 'category' && row.space === spaceKey).map((row) => row.name);
     const remoteTags = data.filter((row) => row.kind === 'tag').map((row) => row.name);
 
-    const localCategories = getCustomCategories();
+    const localCategories = getCustomCategories(spaceKey);
     for (const name of remoteCategories) {
       if (!localCategories.includes(name)) {
-        addCustomCategory(name);
+        addCustomCategory(spaceKey, name);
         changed = true;
       }
     }
     for (const name of localCategories) {
-      if (!remoteCategories.includes(name)) await pushLabel('category', name);
+      if (!remoteCategories.includes(name)) await pushLabel('category', name, spaceKey);
     }
 
     const localTags = getCustomTags();
@@ -79,7 +85,7 @@ export async function syncLabelsNow() {
       }
     }
     for (const name of localTags) {
-      if (!remoteTags.includes(name)) await pushLabel('tag', name);
+      if (!remoteTags.includes(name)) await pushLabel('tag', name, '');
     }
 
     return { synced: true, changed };

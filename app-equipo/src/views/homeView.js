@@ -195,10 +195,11 @@ export async function renderHomeView(container) {
   });
 
   container.querySelector('#new-folder-btn').addEventListener('click', () => {
-    const nombre = prompt('Nombre de la nueva carpeta (categoría)');
+    const nombre = prompt('Nombre de la nueva carpeta (categoría) — queda solo para esta parroquia');
     if (nombre === null || !nombre.trim()) return;
-    addCustomCategory(nombre);
-    pushCustomCategory(nombre.trim()); // en segundo plano, no bloquea la pantalla
+    const spaceKey = getCurrentSpaceKey();
+    addCustomCategory(spaceKey, nombre);
+    pushCustomCategory(spaceKey, nombre.trim()); // en segundo plano, no bloquea la pantalla
     window.location.hash = '#/library';
   });
 
