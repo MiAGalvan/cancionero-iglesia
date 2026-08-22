@@ -94,11 +94,16 @@ async function supabaseFetch(path, { method = 'GET', body, headers = {} } = {}) 
     },
     body: body ? JSON.stringify(body) : undefined,
   });
+  // PostgREST no siempre manda cuerpo aunque salga bien (ej. un
+  // insert/update sin pedir "return=representation" vuelve 200/201 con el
+  // cuerpo vacío, no necesariamente 204) — antes esto asumía que solo un
+  // 204 podía venir sin cuerpo, y romper el parseo de JSON en cualquier
+  // otro caso vacío.
+  const texto = await res.text();
   if (!res.ok) {
-    const texto = await res.text().catch(() => '');
     throw new Error(`Supabase ${method} ${path} -> ${res.status}: ${texto.slice(0, 300)}`);
   }
-  return res.status === 204 ? null : res.json();
+  return texto ? JSON.parse(texto) : null;
 }
 
 async function registrarEstado({ exito, error, espaciosActualizados }) {
