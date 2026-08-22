@@ -380,6 +380,10 @@ h1 {
   cursor: pointer;
 }
 
+.install-btn[hidden] {
+  display: none;
+}
+
 .install-ios-hint {
   max-width: 320px;
   margin: 20px auto 0;

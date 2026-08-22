@@ -194,6 +194,28 @@ a {
   display: block;
 }
 
+.install-app-btn {
+  display: block;
+  width: fit-content;
+  margin: 16px auto 0;
+}
+
+.install-app-btn[hidden] {
+  display: none;
+}
+
+.install-ios-hint {
+  max-width: 340px;
+  margin: 16px auto 0;
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
 /* Los accesos secundarios (todo menos "Cancionero" en sí) como una grilla
    de cuadrados centrada, tipo pantalla de inicio de una app — en vez de la
    fila de botones de siempre, que en un celular quedaba larga y había que

@@ -7,6 +7,10 @@
 // #/lista-publicada, #/proyeccion, #/espacios, #/novedades, #/compartidas,
 // #/afinador
 import './styles.css';
+// Efecto secundario: engancha el listener de "instalar como app" apenas
+// arranca la app, para no perderse el evento si llega antes de que se
+// pinte la pantalla de Inicio (ver src/pwaInstall.js).
+import './pwaInstall.js';
 import { renderHomeView } from './views/homeView.js';
 import { renderLibraryView } from './views/libraryView.js';
 import { renderNewSongView } from './views/newSongView.js';

@@ -8,6 +8,7 @@ import { syncSpacesNow } from '../storage/spacesSync.js';
 import { syncLabelsNow, pushCustomCategory } from '../storage/labelsSync.js';
 import { getSession, signOut, getVisibleSpaces } from '../storage/auth.js';
 import { getSpaceLogoUrl } from '../storage/logos.js';
+import { puedeInstalar, mostrarInstruccionesIOS, instalar, onCambioDisponibilidad } from '../pwaInstall.js';
 import {
   addCustomCategory,
   getHeaderTitle,
@@ -79,6 +80,12 @@ export async function renderHomeView(container) {
     <div class="home-banner" id="space-banner" hidden>
       <img id="space-logo" alt="" />
     </div>
+    <button type="button" class="btn btn-accent install-app-btn" id="install-app-btn" hidden>
+      📲 Instalar esta app en el celular
+    </button>
+    <p class="install-ios-hint" id="install-ios-hint" hidden>
+      📲 Para instalarla: tocá <strong>Compartir</strong> (el ícono con la flecha, abajo en Safari) y elegí <strong>"Agregar a inicio"</strong>.
+    </p>
     <div class="quick-actions-grid">
       <a class="quick-tile quick-tile-accent hide-on-mobile-nav" href="#/library" title="Ver las carpetas y canciones">
         <span class="quick-tile-icon">🎵</span>
@@ -144,6 +151,19 @@ export async function renderHomeView(container) {
     logoEl.src = logoUrl;
     bannerEl.hidden = false;
   });
+
+  const installBtn = container.querySelector('#install-app-btn');
+  const installHintEl = container.querySelector('#install-ios-hint');
+  function actualizarInstalarUI() {
+    installBtn.hidden = !puedeInstalar();
+    installHintEl.hidden = !mostrarInstruccionesIOS();
+  }
+  installBtn.addEventListener('click', async () => {
+    await instalar();
+    actualizarInstalarUI();
+  });
+  onCambioDisponibilidad(actualizarInstalarUI);
+  actualizarInstalarUI();
 
   container.querySelector('#space-switcher').addEventListener('change', (event) => {
     setCurrentSpaceKey(event.target.value);
