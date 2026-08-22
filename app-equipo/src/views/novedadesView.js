@@ -131,6 +131,10 @@ export async function renderNovedadesView(container) {
 
       <div class="categories-field">
         <span class="categories-label">🙏 Lecturas (de hoy o de una misa programada, con fecha)</span>
+        <p class="chord-editor-hint">
+          Se cargan solas todos los días de madrugada (1ª Lectura, Salmo, 2ª Lectura y Evangelio, según corresponda) — no hace falta tocar nada acá salvo que quieras corregir algo o adelantar la de una misa programada. Si corregís una de hoy a mano, la automática no la vuelve a pisar.
+        </p>
+        <p id="auto-lecturas-status" class="chord-editor-hint" hidden></p>
         <div class="form-actions">
           ${LECTURAS_TITULOS.map(
             (titulo) => `<button type="button" class="btn" data-lectura="${escapeAttr(titulo)}" ${loggedIn ? '' : 'disabled'}>${escapeHtml(titulo)}</button>`
@@ -361,9 +365,14 @@ export async function renderNovedadesView(container) {
   }
 
   async function load() {
+    // "*" en vez de nombrar cada columna: si el proyecto todavía no corrió
+    // la migración de auto_generated, esa columna simplemente no viene en
+    // la fila (undefined, se trata como falsy) en vez de tirar abajo toda
+    // la consulta — ya pasó antes con otra columna nueva (ver
+    // pagina-publica/app.js).
     const { data, error } = await supabase
       .from('anuncios')
-      .select('id, titulo, cuerpo, fecha, updated_at')
+      .select('*')
       .eq('space', space)
       .order('updated_at', { ascending: false });
 
@@ -387,7 +396,7 @@ export async function renderNovedadesView(container) {
             novedad.fecha
               ? ` <span class="category-tag">${escapeHtml(formatFechaCorta(novedad.fecha))}</span>`
               : ''
-          }
+          }${novedad.auto_generated ? ` <span class="category-tag" title="Cargada sola por el trabajo automático">🤖</span>` : ''}
           <span class="song-artist">${escapeHtml(novedad.cuerpo)}</span>
         </span>
         ${
@@ -443,7 +452,11 @@ export async function renderNovedadesView(container) {
       const cuerpo = formWrap.querySelector('#novedad-cuerpo').value.trim();
       if (!titulo) return;
 
-      const payload = { space, titulo, cuerpo, updated_at: new Date().toISOString() };
+      // auto_generated: false porque esto lo está guardando una persona a
+      // mano — así, si es una lectura, el trabajo automático de la
+      // madrugada (ver pagina-publica/api/sync-lecturas.js) no la vuelve a
+      // pisar mientras sea la fecha de hoy.
+      const payload = { space, titulo, cuerpo, updated_at: new Date().toISOString(), auto_generated: false };
       const fechaInput = formWrap.querySelector('#novedad-fecha');
       if (fechaInput) payload.fecha = fechaInput.value || null;
 
@@ -481,6 +494,29 @@ export async function renderNovedadesView(container) {
   });
 
   await load();
+
+  // Muestra si el trabajo automático de lecturas (ver
+  // pagina-publica/api/sync-lecturas.js) viene corriendo bien, para que se
+  // note si se rompió en silencio alguna madrugada en vez de darse cuenta
+  // recién cuando alguien pregunta por qué no está el Evangelio de hoy.
+  const autoStatusEl = container.querySelector('#auto-lecturas-status');
+  const { data: estados } = await supabase
+    .from('cron_status')
+    .select('last_run_at, last_success, last_error')
+    .eq('job', 'sync-lecturas')
+    .maybeSingle();
+  if (estados && autoStatusEl) {
+    const cuando = new Date(estados.last_run_at).toLocaleString('es-AR', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    autoStatusEl.hidden = false;
+    autoStatusEl.textContent = estados.last_success
+      ? `✓ Última publicación automática: ${cuando}.`
+      : `⚠️ La publicación automática falló el ${cuando}${estados.last_error ? ` (${estados.last_error})` : ''}. Podés cargar las lecturas a mano mientras tanto.`;
+  }
 }
 
 // Fecha local (no UTC) en formato YYYY-MM-DD, para que coincida con lo que

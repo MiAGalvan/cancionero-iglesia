@@ -522,3 +522,56 @@ justamente el problema que se está arreglando). Volvé a agregarlas una
 vez más desde la parroquia correspondiente: elegí esa parroquia en el
 selector de Inicio → **📁 Nueva carpeta** → escribí el nombre. Queda
 guardada solo ahí.
+
+## 25. Publicación automática de las lecturas (Evangelio, Salmo, etc.)
+
+Todos los días de madrugada (5am hora Argentina), un trabajo automático
+trae el Evangelio, la 1ª Lectura, el Salmo y la 2ª Lectura (cuando hay)
+desde el feed público de [evangelizo.org](https://evangelizo.org) y los
+publica solo, para todas las parroquias — ya no hace falta que nadie del
+equipo los cargue a mano. Si alguien corrige una lectura de hoy desde la
+app, el trabajo automático no la vuelve a pisar mientras sea esa fecha.
+
+Es un archivo nuevo (`pagina-publica/api/sync-lecturas.js`) que corre
+como una función en Vercel, disparada por `pagina-publica/vercel.json`
+(sección `crons`) — **Vercel lo detecta solo con el próximo deploy, sin
+que haga falta instalar nada.** Pero antes de que funcione hacen falta
+dos pasos manuales, porque esto necesita una clave que yo no puedo ver ni
+configurar por vos:
+
+**1. Correr la migración SQL** (agrega la columna que distingue una
+lectura automática de una corregida a mano, y una tabla chica para ver el
+estado):
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-lecturas-automaticas.sql`](./migracion-lecturas-automaticas.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, ya está incluido ahí.
+
+**2. Configurar dos variables de entorno en Vercel**, en el proyecto de
+**`pagina-publica`** (el que tiene la URL que termina en `.vercel.app` de
+la página pública, NO el de la app del equipo):
+
+1. En tu proyecto de Supabase: **Project Settings** → **API** → copiá la
+   **`service_role` key** (la secreta, distinta de la `anon` key — esta
+   SÍ puede escribir sin restricciones, por eso nunca va en ningún código
+   que se vea en el navegador).
+2. En Vercel: entrá al proyecto de `pagina-publica` → **Settings** →
+   **Environment Variables** → agregá:
+   - `SUPABASE_SERVICE_ROLE_KEY` = (la que copiaste en el paso anterior)
+   - `CRON_SECRET` = cualquier texto largo al azar que inventes vos (sirve
+     para que nadie más pueda disparar el trabajo desde afuera con solo
+     conocer la URL)
+3. Guardá y hacé un **Redeploy** del proyecto (Deployments → los tres
+   puntos del último deploy → Redeploy) para que las variables nuevas
+   queden activas.
+
+**Para confirmar que quedó funcionando:** en Vercel, el proyecto de
+`pagina-publica` → pestaña **Cron Jobs** (o **Settings** → **Cron Jobs**)
+tiene que mostrar `/api/sync-lecturas` programado a las `0 8 * * *`
+(8:00 UTC = 5am Argentina). Desde ahí mismo se puede disparar una
+ejecución de prueba a mano. Al otro día, en **📣 Novedades** de la app
+del equipo, debajo de los botones de lecturas, va a decir "✓ Última
+publicación automática: [fecha]" — si en cambio dice que falló, revisá
+que las dos variables de entorno estén bien copiadas (sin espacios de
+más) y volvé a hacer Redeploy.

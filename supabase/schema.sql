@@ -484,6 +484,7 @@ create table if not exists anuncios (
   titulo text not null,
   cuerpo text not null default '',
   fecha date, -- solo para las 4 lecturas del día (ver migracion-fecha-lecturas.sql); null en avisos/eventos comunes
+  auto_generated boolean not null default false, -- true si la cargó sola pagina-publica/api/sync-lecturas.js, ver migracion-lecturas-automaticas.sql
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
@@ -538,3 +539,24 @@ create policy "equipo autorizado borra novedades"
         and (tm.is_admin or anuncios.space = any(tm.spaces))
     )
   );
+
+-- --- cron_status: para ver desde la app si el trabajo automático de
+-- lecturas (pagina-publica/api/sync-lecturas.js) viene corriendo bien, o
+-- se rompió en silencio alguna madrugada. Solo lo escribe ese trabajo,
+-- con la service role key (no pasa por RLS) — no hay política de
+-- insert/update para nadie más.
+create table if not exists cron_status (
+  job text primary key,
+  last_run_at timestamptz,
+  last_success boolean,
+  last_error text,
+  spaces_updated int
+);
+
+alter table cron_status enable row level security;
+
+create policy "equipo logueado lee el estado de los trabajos automaticos"
+  on cron_status
+  for select
+  to authenticated
+  using (true);
