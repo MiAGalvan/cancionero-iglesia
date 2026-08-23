@@ -380,7 +380,9 @@ export async function renderNovedadesView(container) {
       return;
     }
     const referencia = evangelio.cuerpo.split('\n')[0].trim();
-    const url = `${PUBLIC_URL}?space=${encodeURIComponent(space)}`;
+    // #/lecturas al final, no la raíz: la raíz abre la lista de canciones,
+    // y la invitación es a LEER el Evangelio, no a ver el cancionero.
+    const url = `${PUBLIC_URL}?space=${encodeURIComponent(space)}#/lecturas`;
     const texto = `🎶 Antes de cantar, recemos.\n\nLeé el Evangelio de hoy${
       referencia ? ` (${referencia})` : ''
     } para llegar a la misa con el corazón afinado — cantar también es orar.\n\n${url}`;
