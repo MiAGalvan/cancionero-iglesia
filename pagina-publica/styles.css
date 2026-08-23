@@ -416,3 +416,10 @@ h1 {
   flex: 1;
   text-align: center;
 }
+
+.lecturas-inspiracion {
+  text-align: center;
+  font-style: italic;
+  color: var(--text-dim);
+  margin: -8px 0 20px;
+}

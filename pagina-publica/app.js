@@ -799,6 +799,7 @@ function renderLecturas() {
         ? `<p class="fecha">${escapeHtml(formatFechaLarga(fecha))} ${estado ? `<span class="estado-badge ${estado.clase}">${estado.label}</span>` : ''}</p>`
         : ''
     }
+    <p class="lecturas-inspiracion">"Cantar y tocar es rezar" — San Agustín</p>
     ${
       lecturas.length === 0
         ? `<p class="empty">Todavía no se cargaron las lecturas de hoy.</p>`

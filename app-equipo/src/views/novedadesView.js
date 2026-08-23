@@ -8,6 +8,7 @@ import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSession } from '../storage/auth.js';
 import { getCurrentSpaceKey, getSpaceLabel, getSpace, updateSpace } from '../storage/settings.js';
 import { pushSpace } from '../storage/spacesSync.js';
+import { PUBLIC_URL } from './qrView.js';
 
 // Estos 4 títulos son los que reconoce la página pública para mostrarlos
 // siempre en el orden de la misa en "Lecturas" (ver pagina-publica/app.js)
@@ -139,6 +140,13 @@ export async function renderNovedadesView(container) {
           ${LECTURAS_TITULOS.map(
             (titulo) => `<button type="button" class="btn" data-lectura="${escapeAttr(titulo)}" ${loggedIn ? '' : 'disabled'}>${escapeHtml(titulo)}</button>`
           ).join('')}
+        </div>
+        <p class="chord-editor-hint">
+          "Cantar y tocar es rezar" — invitá a la gente a leer el Evangelio antes de venir a cantar.
+        </p>
+        <div class="form-actions">
+          <button type="button" class="btn btn-accent" id="share-evangelio-btn">📤 Compartir invitación con el Evangelio de hoy</button>
+          <span class="qr-share-status" id="share-evangelio-status" hidden></span>
         </div>
       </div>
 
@@ -354,6 +362,45 @@ export async function renderNovedadesView(container) {
         fecha: existing?.fecha || hoyIso(),
       });
     });
+  });
+
+  // Arma una invitación (no solo un aviso) a partir del Evangelio ya
+  // cargado: la idea es que quien va a cantar lo lea antes de venir a
+  // misa, no solo enterarse de que existe. Usa el mismo mecanismo que el
+  // botón "Compartir" del QR (navigator.share con fallback a copiar al
+  // portapapeles), así abre el menú nativo de WhatsApp/Instagram/etc. en
+  // vez de intentar postear directo a cada red (eso exigiría credenciales
+  // propias por plataforma, mucho más pesado para lo que hace falta acá).
+  container.querySelector('#share-evangelio-btn')?.addEventListener('click', async () => {
+    const shareStatusEl = container.querySelector('#share-evangelio-status');
+    const evangelio = cachedAnuncios.find((a) => tituloCoincideConLectura(a.titulo, 'Evangelio'));
+    if (!evangelio?.cuerpo) {
+      shareStatusEl.hidden = false;
+      shareStatusEl.textContent = 'Todavía no hay Evangelio cargado para compartir.';
+      return;
+    }
+    const referencia = evangelio.cuerpo.split('\n')[0].trim();
+    const url = `${PUBLIC_URL}?space=${encodeURIComponent(space)}`;
+    const texto = `🎶 Antes de cantar, recemos.\n\nLeé el Evangelio de hoy${
+      referencia ? ` (${referencia})` : ''
+    } para llegar a la misa con el corazón afinado — cantar también es orar.\n\n${url}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Evangelio de hoy', text: texto });
+      } catch {
+        // Canceló el menú de compartir, o falló: no hace falta avisar nada.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(texto);
+      shareStatusEl.hidden = false;
+      shareStatusEl.textContent = '✓ Texto copiado, pegalo donde quieras compartirlo.';
+    } catch {
+      shareStatusEl.hidden = false;
+      shareStatusEl.textContent = 'No se pudo copiar. Copialo a mano de la lectura de arriba.';
+    }
   });
 
   function showError(err) {
