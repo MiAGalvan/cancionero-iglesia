@@ -120,6 +120,10 @@ textarea {
   resize: vertical;
 }
 
+.share-fallback-textarea {
+  margin-top: 10px;
+}
+
 a {
   color: var(--accent);
 }

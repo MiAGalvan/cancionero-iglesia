@@ -819,7 +819,8 @@ function renderLecturas() {
         ? `<div class="entrate-promo">
             <button type="button" id="compartir-evangelio-btn" class="entrate-btn">📤 Compartir el Evangelio de hoy</button>
           </div>
-          <p id="compartir-evangelio-status" class="letra-aviso compartir-evangelio-status" hidden></p>`
+          <p id="compartir-evangelio-status" class="letra-aviso compartir-evangelio-status" hidden></p>
+          <textarea id="compartir-evangelio-textarea" class="compartir-evangelio-textarea" rows="4" readonly hidden></textarea>`
         : ''
     }
     ${renderNovedades(otrosAvisos)}
@@ -837,23 +838,42 @@ function renderLecturas() {
     const texto = `🎶 Antes de cantar, recemos.\n\nLeé el Evangelio de hoy${
       referencia ? ` (${referencia})` : ''
     } para llegar a la misa con el corazón afinado — cantar también es orar.\n\n${url}`;
+    const textareaEl = document.getElementById('compartir-evangelio-textarea');
 
-    if (navigator.share) {
+    // El navegador "embebido" que abre Facebook/Instagram al tocar un link
+    // DENTRO de esas apps (no el navegador normal del celular, sino el que
+    // se abre encima) suele tener roto tanto navigator.share como el
+    // portapapeles por JS, sin tirar ningún error — el botón queda sin
+    // hacer nada, en silencio. Ahí vamos directo al texto seleccionable de
+    // abajo, que no depende de ninguna API rota: mantener presionado y
+    // "Copiar" siempre funciona, sea cual sea el navegador.
+    const esNavegadorEmbebido = /FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
+
+    if (!esNavegadorEmbebido && navigator.share) {
       try {
         await navigator.share({ title: 'Evangelio de hoy', text: texto });
+        return;
       } catch {
-        // Canceló el menú de compartir, o falló: no hace falta avisar nada.
+        // Canceló, o falló: seguimos abajo al respaldo.
       }
-      return;
     }
-    try {
-      await navigator.clipboard.writeText(texto);
-      statusEl.hidden = false;
-      statusEl.textContent = '✓ Texto copiado, pegalo donde quieras compartirlo.';
-    } catch {
-      statusEl.hidden = false;
-      statusEl.textContent = 'No se pudo copiar. Copialo a mano de arriba.';
+    if (!esNavegadorEmbebido) {
+      try {
+        await navigator.clipboard.writeText(texto);
+        statusEl.hidden = false;
+        statusEl.textContent = '✓ Texto copiado, pegalo donde quieras compartirlo.';
+        return;
+      } catch {
+        // Tampoco se pudo: seguimos al respaldo final.
+      }
     }
+    textareaEl.value = texto;
+    textareaEl.hidden = false;
+    textareaEl.select();
+    statusEl.hidden = false;
+    statusEl.textContent = esNavegadorEmbebido
+      ? 'Este navegador (el de Facebook/Instagram) no deja compartir directo. Mantené presionado el texto de abajo y elegí "Copiar".'
+      : 'No se pudo copiar solo. Mantené presionado el texto de abajo y elegí "Copiar".';
   });
 }
 
