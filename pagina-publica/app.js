@@ -83,6 +83,16 @@ function yaEstaInstalada() {
 }
 
 const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+// El navegador "embebido" que abren Facebook/Instagram al tocar un link
+// DENTRO de esas apps (no el navegador normal del celular, sino el que se
+// abre encima) no dispara beforeinstallprompt (no se puede instalar desde
+// ahí) y además suele tener rotos tanto navigator.share como el
+// portapapeles por JS, sin avisar ningún error. En vez de ofrecer ahí
+// funciones que sabemos que no van a andar, se muestra un aviso para que
+// abran el link en su navegador de verdad (ver renderLecturas).
+const esNavegadorEmbebido = /FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
+
 let promptDeInstalacion = null;
 
 window.addEventListener('beforeinstallprompt', (event) => {
@@ -815,7 +825,9 @@ function renderLecturas() {
             .join('')
     }
     ${
-      evangelio
+      esNavegadorEmbebido
+        ? `<p class="letra-aviso compartir-evangelio-status">📲 Para instalar esta app o compartir mejor, abrí este link en tu navegador (tocá ⋮ arriba a la derecha → "Abrir en Chrome").</p>`
+        : evangelio
         ? `<div class="entrate-promo">
             <button type="button" id="compartir-evangelio-btn" class="entrate-btn">📤 Compartir el Evangelio de hoy</button>
           </div>
@@ -840,16 +852,13 @@ function renderLecturas() {
     } para llegar a la misa con el corazón afinado — cantar también es orar.\n\n${url}`;
     const textareaEl = document.getElementById('compartir-evangelio-textarea');
 
-    // El navegador "embebido" que abre Facebook/Instagram al tocar un link
-    // DENTRO de esas apps (no el navegador normal del celular, sino el que
-    // se abre encima) suele tener roto tanto navigator.share como el
-    // portapapeles por JS, sin tirar ningún error — el botón queda sin
-    // hacer nada, en silencio. Ahí vamos directo al texto seleccionable de
-    // abajo, que no depende de ninguna API rota: mantener presionado y
-    // "Copiar" siempre funciona, sea cual sea el navegador.
-    const esNavegadorEmbebido = /FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
-
-    if (!esNavegadorEmbebido && navigator.share) {
+    // Este botón ya no se muestra en el navegador embebido de Facebook/
+    // Instagram (ver más arriba, esNavegadorEmbebido) — pero otros
+    // navegadores "raros" (otras apps con su propio navegador interno)
+    // pueden tener el mismo problema sin que los detectemos por nombre, así
+    // que el texto seleccionable de abajo queda como respaldo genérico si
+    // share y portapapeles fallan los dos.
+    if (navigator.share) {
       try {
         await navigator.share({ title: 'Evangelio de hoy', text: texto });
         return;
@@ -857,23 +866,19 @@ function renderLecturas() {
         // Canceló, o falló: seguimos abajo al respaldo.
       }
     }
-    if (!esNavegadorEmbebido) {
-      try {
-        await navigator.clipboard.writeText(texto);
-        statusEl.hidden = false;
-        statusEl.textContent = '✓ Texto copiado, pegalo donde quieras compartirlo.';
-        return;
-      } catch {
-        // Tampoco se pudo: seguimos al respaldo final.
-      }
+    try {
+      await navigator.clipboard.writeText(texto);
+      statusEl.hidden = false;
+      statusEl.textContent = '✓ Texto copiado, pegalo donde quieras compartirlo.';
+      return;
+    } catch {
+      // Tampoco se pudo: seguimos al respaldo final.
     }
     textareaEl.value = texto;
     textareaEl.hidden = false;
     textareaEl.select();
     statusEl.hidden = false;
-    statusEl.textContent = esNavegadorEmbebido
-      ? 'Este navegador (el de Facebook/Instagram) no deja compartir directo. Mantené presionado el texto de abajo y elegí "Copiar".'
-      : 'No se pudo copiar solo. Mantené presionado el texto de abajo y elegí "Copiar".';
+    statusEl.textContent = 'No se pudo copiar solo. Mantené presionado el texto de abajo y elegí "Copiar".';
   });
 }
 
