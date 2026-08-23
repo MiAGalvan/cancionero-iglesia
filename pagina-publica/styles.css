@@ -423,3 +423,8 @@ h1 {
   color: var(--text-dim);
   margin: -8px 0 20px;
 }
+
+.compartir-evangelio-status {
+  text-align: center;
+  margin-top: -12px;
+}

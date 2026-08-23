@@ -788,6 +788,7 @@ function renderLecturas() {
   const { lecturas, otrosAvisos } = separarLecturas(ultimosAnuncios);
   const fecha = fechaRepresentativaLecturas(lecturas);
   const estado = estadoParaFecha(fecha);
+  const evangelio = lecturas.find((l) => normalizarTitulo(l.titulo).startsWith('EVANGELIO'));
 
   app.innerHTML = `
     <div class="lecturas-topbar">
@@ -813,8 +814,47 @@ function renderLecturas() {
             )
             .join('')
     }
+    ${
+      evangelio
+        ? `<div class="entrate-promo">
+            <button type="button" id="compartir-evangelio-btn" class="entrate-btn">📤 Compartir el Evangelio de hoy</button>
+          </div>
+          <p id="compartir-evangelio-status" class="letra-aviso compartir-evangelio-status" hidden></p>`
+        : ''
+    }
     ${renderNovedades(otrosAvisos)}
   `;
+
+  // Invita a leer antes de venir a misa, no solo avisa que la lectura está
+  // cargada — mismo texto y mecanismo (Web Share API con fallback a
+  // portapapeles) que el botón del equipo en app-equipo/novedadesView.js,
+  // pero acá lo puede tocar cualquiera que entró por el QR, no solo el
+  // equipo de música.
+  document.getElementById('compartir-evangelio-btn')?.addEventListener('click', async () => {
+    const statusEl = document.getElementById('compartir-evangelio-status');
+    const referencia = (evangelio.cuerpo || '').split('\n')[0].trim();
+    const url = `${window.location.origin}${window.location.pathname}${hrefTo('lecturas')}`;
+    const texto = `🎶 Antes de cantar, recemos.\n\nLeé el Evangelio de hoy${
+      referencia ? ` (${referencia})` : ''
+    } para llegar a la misa con el corazón afinado — cantar también es orar.\n\n${url}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Evangelio de hoy', text: texto });
+      } catch {
+        // Canceló el menú de compartir, o falló: no hace falta avisar nada.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(texto);
+      statusEl.hidden = false;
+      statusEl.textContent = '✓ Texto copiado, pegalo donde quieras compartirlo.';
+    } catch {
+      statusEl.hidden = false;
+      statusEl.textContent = 'No se pudo copiar. Copialo a mano de arriba.';
+    }
+  });
 }
 
 function renderNovedades(anuncios) {
