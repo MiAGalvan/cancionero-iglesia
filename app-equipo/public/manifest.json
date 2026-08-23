@@ -1,6 +1,6 @@
 {
-  "name": "Cancionero Iglesia — Equipo de música",
-  "short_name": "Cancionero",
+  "name": "Rezar Cantando — Equipo de música",
+  "short_name": "Rezar Cantando",
   "description": "Cancionero litúrgico offline y armador de listas de misa",
   "start_url": "/",
   "scope": "/",

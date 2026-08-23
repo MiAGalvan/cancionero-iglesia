@@ -54,8 +54,8 @@ if ('serviceWorker' in navigator) {
 // instalar la página de Merced abriría la de San Cayetano la próxima vez.
 function instalarManifestDinamico() {
   const manifest = {
-    name: `${nombreParroquia()} — Cantos y Novedades`,
-    short_name: 'Cancionero',
+    name: `${nombreParroquia()} — Rezar Cantando`,
+    short_name: 'Rezar Cantando',
     start_url: window.location.pathname + window.location.search,
     scope: window.location.pathname,
     display: 'standalone',
