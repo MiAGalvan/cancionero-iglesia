@@ -716,6 +716,17 @@ function renderAdoracion() {
     <p class="lecturas-inspiracion">${escapeHtml(invitacion)}</p>
     <p class="adoracion-cta">Esto es solo una invitación — la Adoración se vive yendo. Te esperamos en la capilla.</p>
     ${
+      hayAdoracion
+        ? esNavegadorEmbebido
+          ? `<p class="letra-aviso compartir-evangelio-status">📲 Para compartir mejor, abrí este link en tu navegador (tocá ⋮ arriba a la derecha → "Abrir en Chrome").</p>`
+          : `<div class="entrate-promo">
+              <button type="button" id="compartir-adoracion-btn" class="entrate-btn">📤 Invitar a alguien</button>
+            </div>
+            <p id="compartir-adoracion-status" class="letra-aviso compartir-evangelio-status" hidden></p>
+            <textarea id="compartir-adoracion-textarea" class="compartir-evangelio-textarea" rows="4" readonly hidden></textarea>`
+        : ''
+    }
+    ${
       esHoy
         ? `
       <section class="cancion">
@@ -765,6 +776,48 @@ function renderAdoracion() {
     }
     ${renderNovedades(separarLecturas(ultimosAnuncios).otrosAvisos)}
   `;
+
+  // Invita a otros a ir, no solo avisa — mismo mecanismo (Web Share API,
+  // con respaldo a portapapeles y, si tampoco anda, un texto seleccionable
+  // a mano) que el botón de compartir el Evangelio. El texto usa el día
+  // fijo ("todos los jueves"), no la frase relativa de la tarjeta de
+  // arriba ("Hoy"/"Mañana") — quien lo lea puede hacerlo cualquier día, y
+  // "todos los jueves" sigue siendo cierto pase lo que pase.
+  document.getElementById('compartir-adoracion-btn')?.addEventListener('click', async () => {
+    const statusEl = document.getElementById('compartir-adoracion-status');
+    const textareaEl = document.getElementById('compartir-adoracion-textarea');
+    // "lunes/martes/miércoles/jueves/viernes" ya son invariables en plural
+    // (terminan en "s"); solo "domingo" y "sábado" necesitan la "s" extra.
+    const nombreDia = DIAS_SEMANA[espacio.adoracion_dia].toLowerCase();
+    const nombreDiaPlural = nombreDia.endsWith('s') ? nombreDia : `${nombreDia}s`;
+    const diaFijo = `Todos los ${nombreDiaPlural}, ${espacio.adoracion_hora || ''} hs`.trim();
+    const url = `${window.location.origin}${window.location.pathname}${hrefTo('adoracion')}`;
+    const texto = `🙏 ${invitacion}\n\nAdoración al Santísimo — ${nombreParroquia()}\n${diaFijo}${
+      lugar ? `\n📍 ${lugar}` : ''
+    }\n\n${url}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Adoración al Santísimo', text: texto });
+        return;
+      } catch {
+        // Canceló, o falló: seguimos abajo al respaldo.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(texto);
+      statusEl.hidden = false;
+      statusEl.textContent = '✓ Texto copiado, pegalo donde quieras compartirlo.';
+      return;
+    } catch {
+      // Tampoco se pudo: seguimos al respaldo final.
+    }
+    textareaEl.value = texto;
+    textareaEl.hidden = false;
+    textareaEl.select();
+    statusEl.hidden = false;
+    statusEl.textContent = 'No se pudo copiar solo. Mantené presionado el texto de abajo y elegí "Copiar".';
+  });
 }
 
 // --- Redes sociales: renglón compacto al fondo de Inicio, más una
