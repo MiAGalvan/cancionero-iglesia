@@ -18,7 +18,7 @@ export const PUBLIC_URL = 'https://cancionero-iglesia-qk5n.vercel.app/';
 // lista de misa, sin duplicar toda la lógica de generación.
 const MODOS = [
   { key: 'misa', label: '🎵 Lista de misa', hash: '', tituloCompartir: 'Cantos de la misa' },
-  { key: 'adoracion', label: '🙏 Adoración', hash: '#/adoracion', tituloCompartir: 'Ora con nosotros' },
+  { key: 'adoracion', label: '🙏 Adoración al Santísimo', hash: '#/adoracion', tituloCompartir: 'Ora con nosotros' },
 ];
 
 export async function renderQrView(container) {
