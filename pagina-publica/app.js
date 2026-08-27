@@ -612,7 +612,7 @@ function renderInicio() {
         hayAdoracion
           ? `<a class="inicio-menu-item" href="${hrefTo('adoracion')}">
         <span class="inicio-menu-icon">🙏</span>
-        <span>Ora con nosotros</span>
+        <span>Adoración al Santísimo</span>
       </a>`
           : ''
       }
