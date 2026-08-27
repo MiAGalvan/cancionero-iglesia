@@ -12,17 +12,27 @@ import { getVisibleSpaces } from '../storage/auth.js';
 // URL de Vercel que le hayas puesto a pagina-publica).
 export const PUBLIC_URL = 'https://cancionero-iglesia-qk5n.vercel.app/';
 
+// Cada modo apunta a una pantalla distinta de la página pública, pero
+// siempre con el mismo mecanismo (misma URL fija + ?space=..., cambia solo
+// el hash) — así el QR de Adoración se puede imprimir aparte del de la
+// lista de misa, sin duplicar toda la lógica de generación.
+const MODOS = [
+  { key: 'misa', label: '🎵 Lista de misa', hash: '', tituloCompartir: 'Cantos de la misa' },
+  { key: 'adoracion', label: '🙏 Adoración', hash: '#/adoracion', tituloCompartir: 'Ora con nosotros' },
+];
+
 export async function renderQrView(container) {
   const isConfigured = !PUBLIC_URL.includes('TU-USUARIO');
   const spaces = await getVisibleSpaces();
   let selectedSpace = spaces.some((space) => space.key === getCurrentSpaceKey())
     ? getCurrentSpaceKey()
     : spaces[0].key;
+  let selectedModo = MODOS[0].key;
 
   container.innerHTML = `
     <div class="topbar">
       <a class="btn" href="#/library">← Cancionero</a>
-      <h2>QR de la lista de misa</h2>
+      <h2>QR</h2>
       <span></span>
     </div>
     <div class="form-view qr-view">
@@ -41,6 +51,9 @@ export async function renderQrView(container) {
         siempre apunta a la misma dirección, lo que cambia con cada misa es
         el contenido que el equipo publica, no el QR.
       </p>
+      <div class="mode-tabs" id="modo-tabs">
+        ${MODOS.map((modo) => `<button type="button" class="mode-tab" data-modo-tab="${modo.key}">${modo.label}</button>`).join('')}
+      </div>
       <div class="mode-tabs" id="space-tabs">
         ${spaces.map(
           (space) => `<button type="button" class="mode-tab" data-space-tab="${space.key}">${escapeHtml(
@@ -66,17 +79,22 @@ export async function renderQrView(container) {
 
   const canvas = container.querySelector('#qr-canvas');
   const urlEl = container.querySelector('#qr-url');
+  const modoButtons = container.querySelectorAll('[data-modo-tab]');
   const tabButtons = container.querySelectorAll('[data-space-tab]');
   const shareBtn = container.querySelector('#share-btn');
   const shareStatusEl = container.querySelector('#share-status');
   let currentUrl = '';
 
   function render() {
+    modoButtons.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.modoTab === selectedModo);
+    });
     tabButtons.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.spaceTab === selectedSpace);
     });
+    const modo = MODOS.find((m) => m.key === selectedModo);
     const spaceLabel = spaces.find((space) => space.key === selectedSpace)?.label || '';
-    currentUrl = `${PUBLIC_URL}?space=${encodeURIComponent(selectedSpace)}`;
+    currentUrl = `${PUBLIC_URL}?space=${encodeURIComponent(selectedSpace)}${modo.hash}`;
     urlEl.textContent = currentUrl;
     shareStatusEl.hidden = true;
     // "H" (la corrección de errores más alta) es lo que permite tapar el
@@ -94,7 +112,7 @@ export async function renderQrView(container) {
       // link al portapapeles en vez de fallar mudo.
       if (navigator.share) {
         try {
-          await navigator.share({ title: `Cantos de la misa — ${spaceLabel}`, url: currentUrl });
+          await navigator.share({ title: `${modo.tituloCompartir} — ${spaceLabel}`, url: currentUrl });
         } catch {
           // El usuario canceló el menú de compartir, o falló: no hace falta avisar nada.
         }
@@ -110,6 +128,13 @@ export async function renderQrView(container) {
       }
     };
   }
+
+  modoButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selectedModo = btn.dataset.modoTab;
+      render();
+    });
+  });
 
   tabButtons.forEach((btn) => {
     btn.addEventListener('click', () => {

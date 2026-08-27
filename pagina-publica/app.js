@@ -310,6 +310,8 @@ function renderTodo() {
     renderRedes();
   } else if (route === 'capillas') {
     renderCapillas();
+  } else if (route === 'adoracion') {
+    renderAdoracion();
   } else if (!ultimaData) {
     app.innerHTML = `
       ${renderBanner(ultimoLogoUrl)}
@@ -565,6 +567,7 @@ function renderInicio() {
   const proximaMisa = infoMisa?.texto || ultimoEspacio?.next_mass || '';
   const direccion = ultimoEspacio?.address || '';
   const hayCapillas = (ultimoEspacio?.capillas || []).length > 0;
+  const hayAdoracion = typeof ultimoEspacio?.adoracion_dia === 'number';
 
   // Sin horario semanal cargado (solo texto libre de respaldo) no hay
   // forma de saber nada de esto, así que se deja el título de siempre en
@@ -606,6 +609,14 @@ function renderInicio() {
         ${renderBadgeLecturas()}
       </a>
       ${
+        hayAdoracion
+          ? `<a class="inicio-menu-item" href="${hrefTo('adoracion')}">
+        <span class="inicio-menu-icon">🙏</span>
+        <span>Ora con nosotros</span>
+      </a>`
+          : ''
+      }
+      ${
         hayCapillas
           ? `<a class="inicio-menu-item" href="${hrefTo('capillas')}">
         <span class="inicio-menu-icon">⛪</span>
@@ -645,6 +656,114 @@ function renderCapillas() {
             )
             .join('')
     }
+  `;
+}
+
+// --- Pantalla de Adoración al Santísimo ("Ora con nosotros") ------------
+// A propósito NO reproduce audio ni intenta ser el momento de oración en
+// sí: es una invitación (lugar, día/hora, una reflexión corta) para que la
+// gente vaya a la capilla — si alguien pudiera "vivir" la Adoración entera
+// leyendo cómodo desde el celular, la página habría fallado en su
+// propósito. La guía completa de los 7 momentos solo se muestra cuando ES
+// el día, pensada para quien ya va a ir o para quien la lidera durante la
+// hora, no como algo para hojear cualquier día de la semana.
+const TIPOS_CANCION_LABEL = {
+  cancionero: 'Está en el cancionero',
+  buscar: 'Sugerido, buscarlo afuera',
+  equipo: 'Lo canta el equipo, sin grabación',
+};
+
+function renderAdoracion() {
+  const espacio = ultimoEspacio;
+  const hayAdoracion = typeof espacio?.adoracion_dia === 'number';
+  const infoAdoracion = hayAdoracion
+    ? proximaMisaDesdeHorario([{ dia: espacio.adoracion_dia, hora: espacio.adoracion_hora || '00:00', horaFin: espacio.adoracion_hora_fin }])
+    : null;
+  const esHoy = infoAdoracion?.estado === 'en-vivo' || infoAdoracion?.estado === 'hoy';
+  const badgeInfo =
+    infoAdoracion?.estado === 'en-vivo'
+      ? { clase: 'badge-en-vivo', label: '🔴 En vivo ahora' }
+      : infoAdoracion?.estado === 'hoy'
+      ? { clase: 'badge-proximamente', label: '🕓 Hoy' }
+      : null;
+  const badge = badgeInfo ? `<span class="estado-badge ${badgeInfo.clase}">${badgeInfo.label}</span>` : '';
+  const lugar = espacio?.adoracion_lugar || espacio?.address || '';
+  const invitacion =
+    espacio?.adoracion_invitacion ||
+    'Un momento para estar en silencio frente a Jesús presente en la Eucaristía.';
+
+  const { lecturas, reflexion } = separarLecturas(ultimosAnuncios);
+  const evangelio = lecturas.find((l) => normalizarTitulo(l.titulo).startsWith('EVANGELIO'));
+  const canciones = espacio?.adoracion_canciones || [];
+
+  app.innerHTML = `
+    <div class="lecturas-topbar">
+      <a class="btn-volver" href="${hrefTo('inicio')}">← Volver</a>
+      <h1 class="lecturas-titulo">Ora con nosotros</h1>
+    </div>
+    <div class="vas-a-misa-card">
+      <h2 class="vas-a-misa-titulo">Adoración al Santísimo ${badge}</h2>
+      ${
+        hayAdoracion
+          ? `
+        <p class="proxima-misa-label">${esHoy ? 'Hoy' : 'Próxima Adoración'}</p>
+        <p class="proxima-misa-hora">${escapeHtml(infoAdoracion.texto)}</p>
+        ${lugar ? `<p class="proxima-misa-direccion">📍 ${escapeHtml(lugar)}</p>` : ''}
+      `
+          : `<p class="proxima-misa-hora">Todavía no cargaron el horario de Adoración para ${escapeHtml(nombreParroquia())}.</p>`
+      }
+    </div>
+    <p class="lecturas-inspiracion">${escapeHtml(invitacion)}</p>
+    <p class="adoracion-cta">Esto es solo una invitación — la Adoración se vive yendo. Te esperamos en la capilla.</p>
+    ${
+      esHoy
+        ? `
+      <section class="cancion">
+        <h2 class="categoria">1. Preparación</h2>
+        <p class="letra">Se expone el Santísimo Sacramento en el altar. Antes de comenzar, buscá un lugar cómodo, dejá el celular en silencio y tomate un momento para calmar el cuerpo y la mente: estás por encontrarte con Jesús.</p>
+      </section>
+      <section class="cancion">
+        <h2 class="categoria">2. Oración inicial</h2>
+        <p class="letra">Señor Jesús, aquí presente en la Eucaristía: gracias por esperarme. Abrí mi corazón para escucharte y aceptar tu voluntad. Perdoná mis pecados y guiame en este tiempo de oración.</p>
+      </section>
+      ${
+        evangelio
+          ? `<section class="cancion">
+              <h2 class="categoria">3. Lectura de la Escritura</h2>
+              <p class="letra">${escapeHtml(evangelio.cuerpo)}</p>
+            </section>`
+          : ''
+      }
+      <section class="cancion">
+        <h2 class="categoria">4. Contemplación y silencio</h2>
+        ${reflexion ? `<p class="letra">${escapeHtml(reflexion.cuerpo)}</p>` : ''}
+        <p class="letra">Quedate un momento en silencio, simplemente mirando a Jesús. No hace falta decir nada — dejá que Él te mire a vos.</p>
+      </section>
+      ${
+        canciones.length > 0
+          ? `<section class="cancion">
+              <h2 class="categoria">5. Cantos sugeridos</h2>
+              <p class="letra">Para intercalar donde el grupo sienta que corresponde, entre las oraciones y los silencios.</p>
+              ${canciones
+                .map(
+                  (c) => `<p class="letra"><strong>${escapeHtml(c.titulo)}</strong> — ${escapeHtml(TIPOS_CANCION_LABEL[c.tipo] || '')}</p>`
+                )
+                .join('')}
+            </section>`
+          : ''
+      }
+      <section class="cancion">
+        <h2 class="categoria">6. Intenciones y peticiones</h2>
+        <p class="letra">Es momento de traer ante Jesús lo que llevás en el corazón: tus intenciones personales, las de tu familia, por la Iglesia, por el Papa, y en reparación por los pecados cometidos contra la Eucaristía.</p>
+      </section>
+      <section class="cancion">
+        <h2 class="categoria">7. Bendición y conclusión</h2>
+        <p class="letra">Se da la bendición con el Santísimo Sacramento. Salí de este encuentro fortalecido, llevando la paz de Cristo a los demás. Gracias, Señor, por este tiempo junto a Vos.</p>
+      </section>
+    `
+        : ''
+    }
+    ${renderNovedades(separarLecturas(ultimosAnuncios).otrosAvisos)}
   `;
 }
 
@@ -778,20 +897,26 @@ function ordenLectura(titulo) {
   return clave === undefined ? null : ORDEN_LECTURAS.get(clave);
 }
 
-// Separa lo cargado en Novedades en dos grupos: las 4 lecturas litúrgicas
-// (en su orden fijo) y todo lo demás (avisos/eventos reales) — lo usan
-// tanto la pantalla de Lecturas como la de Inicio, para no repetir la
-// misma lógica dos veces.
+// Separa lo cargado en Novedades en tres grupos: las 4 lecturas litúrgicas
+// (en su orden fijo), la reflexión del día (si está cargada — se usa solo
+// en la guía de Adoración, no tiene lugar en el orden de la misa) y todo
+// lo demás (avisos/eventos reales) — lo usan tanto Lecturas como Inicio
+// como Adoración, para no repetir la misma lógica varias veces.
 function separarLecturas(anuncios) {
   const lecturas = [];
   const otrosAvisos = [];
+  let reflexion = null;
   for (const anuncio of anuncios) {
+    if (normalizarTitulo(anuncio.titulo).startsWith('REFLEXION')) {
+      if (!reflexion || (anuncio.updated_at || '') > (reflexion.updated_at || '')) reflexion = anuncio;
+      continue;
+    }
     const orden = ordenLectura(anuncio.titulo);
     if (orden === null) otrosAvisos.push(anuncio);
     else lecturas.push({ ...anuncio, orden });
   }
   lecturas.sort((a, b) => a.orden - b.orden);
-  return { lecturas, otrosAvisos };
+  return { lecturas, otrosAvisos, reflexion };
 }
 
 function renderLecturas() {

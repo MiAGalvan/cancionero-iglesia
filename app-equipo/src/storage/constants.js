@@ -44,6 +44,7 @@ export const LITURGICAL_TAGS = [
   'Perdón/Reconciliación',
   'Envío/Misión',
   'Espíritu Santo',
+  'Adoración',
 ];
 
 // La lista de parroquias/capillas (espacios) es editable desde la app — ver

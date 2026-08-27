@@ -13,7 +13,11 @@ import { PUBLIC_URL } from './qrView.js';
 // Estos 4 títulos son los que reconoce la página pública para mostrarlos
 // siempre en el orden de la misa en "Lecturas" (ver pagina-publica/app.js)
 // — los botones de acá evitan que alguien los tipee mal a mano.
-const LECTURAS_TITULOS = ['1ª Lectura', 'Salmo', '2ª Lectura', 'Evangelio'];
+// "Reflexión" no forma parte de la misa (no tiene lugar en el orden
+// litúrgico como las otras 4), así que la página pública la trata aparte:
+// no aparece en la pantalla de Lecturas, se usa solo en la guía de
+// Adoración (ver renderAdoracion en pagina-publica/app.js).
+const LECTURAS_TITULOS = ['1ª Lectura', 'Salmo', '2ª Lectura', 'Evangelio', 'Reflexión'];
 
 // Mismo criterio flexible que usa la página pública para reconocer una
 // lectura (ver ordenLectura en pagina-publica/app.js): alcanza con que el
@@ -133,7 +137,7 @@ export async function renderNovedadesView(container) {
       <div class="categories-field">
         <span class="categories-label">🙏 Lecturas (de hoy o de una misa programada, con fecha)</span>
         <p class="chord-editor-hint">
-          Se cargan solas todos los días de madrugada (1ª Lectura, Salmo, 2ª Lectura y Evangelio, según corresponda) — no hace falta tocar nada acá salvo que quieras corregir algo o adelantar la de una misa programada. Si corregís una de hoy a mano, la automática no la vuelve a pisar.
+          Se cargan solas todos los días de madrugada (1ª Lectura, Salmo, 2ª Lectura, Evangelio y Reflexión, según corresponda) — no hace falta tocar nada acá salvo que quieras corregir algo o adelantar la de una misa programada. Si corregís una de hoy a mano, la automática no la vuelve a pisar.
         </p>
         <p id="auto-lecturas-status" class="chord-editor-hint" hidden></p>
         <div class="form-actions">

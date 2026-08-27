@@ -379,6 +379,12 @@ create table if not exists spaces (
   whatsapp text not null default '', -- ej. link de wa.me a un grupo o número de contacto
   horario_misas jsonb not null default '[]', -- [{dia: 0-6 (0=domingo, como Date.getDay()), hora: 'HH:MM'}], se repite cada semana
   capillas jsonb not null default '[]', -- [{id, nombre, direccion, horario}], informativas, sin cancionero propio
+  adoracion_dia integer, -- 0-6 (como horario_misas), null = esta parroquia no hace Adoración
+  adoracion_hora text,
+  adoracion_hora_fin text,
+  adoracion_lugar text, -- si está vacío, la página pública usa `address`
+  adoracion_invitacion text, -- texto corto que se ve al escanear el QR de Adoración, invitando a ir
+  adoracion_canciones jsonb not null default '[]', -- [{id, titulo, tipo: 'cancionero'|'buscar'|'equipo'}]
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );

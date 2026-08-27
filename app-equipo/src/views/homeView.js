@@ -112,6 +112,10 @@ export async function renderHomeView(container) {
         <span class="quick-tile-icon">📣</span>
         <span class="quick-tile-label">Novedades</span>
       </a>
+      <a class="quick-tile" href="#/adoracion" title="Día, horario y cantos sugeridos para la Adoración al Santísimo">
+        <span class="quick-tile-icon">🙏</span>
+        <span class="quick-tile-label">Adoración</span>
+      </a>
       <a class="quick-tile hide-on-mobile-nav" href="#/compartidas" title="Canciones que otras parroquias compartieron">
         <span class="quick-tile-icon">📚</span>
         <span class="quick-tile-label">Compartidas</span>

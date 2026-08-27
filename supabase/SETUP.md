@@ -575,3 +575,30 @@ del equipo, debajo de los botones de lecturas, va a decir "✓ Última
 publicación automática: [fecha]" — si en cambio dice que falló, revisá
 que las dos variables de entorno estén bien copiadas (sin espacios de
 más) y volvé a hacer Redeploy.
+
+## 26. Adoración al Santísimo ("Ora con nosotros")
+
+Sección nueva, propia (no vive dentro de Novedades): cada parroquia carga
+día/horario, lugar y un texto corto de invitación desde **🙏 Adoración**
+en la app del equipo, y la página pública muestra "Ora con nosotros" en
+el menú de Inicio (con su propio QR, generado desde la misma pantalla de
+**QR** de siempre, eligiendo la pestaña "🙏 Adoración").
+
+La guía completa (7 momentos: preparación, oración inicial, la lectura y
+la reflexión del día, cantos sugeridos, intenciones y bendición) se arma
+sola y solo se muestra el día que corresponde — no hace falta cargar
+nada de eso a mano. La reflexión del día reusa el mismo trabajo
+automático de las lecturas (sección 25): el feed de evangelizo.org
+también trae una columna `MEDITATIO` con una reflexión real ligada al
+Evangelio de ese día, así que no hace falta ninguna llamada a IA ni
+ningún trabajo nuevo — alcanza con la migración de abajo.
+
+**Correr la migración SQL** (agrega las columnas de Adoración a la tabla
+`spaces`, que ya existe):
+
+1. **SQL Editor** → **New query**.
+2. Pegá todo el contenido de [`migracion-adoracion.sql`](./migracion-adoracion.sql) y tocá **Run**.
+
+Si estás instalando todo de cero con `schema.sql`, ya está incluido ahí.
+No hace falta ninguna variable de entorno nueva ni ningún otro paso
+manual — con la migración corrida, ya se puede cargar desde la app.

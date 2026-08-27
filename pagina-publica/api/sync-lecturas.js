@@ -30,6 +30,11 @@ const CATEGORIA_A_TITULO = {
   PSALMUS: 'Salmo',
   'LECTIO 2': '2ª Lectura',
   EVANGELIUM: 'Evangelio',
+  // El mismo feed trae una reflexión real (de un santo o padre de la
+  // Iglesia) ligada al Evangelio del día — se usa en la guía de Adoración
+  // (pagina-publica/app.js, renderAdoracion), no en la pantalla de
+  // Lecturas de la misa.
+  MEDITATIO: 'Reflexión',
 };
 
 function decodeXmlEntities(text) {

@@ -117,6 +117,12 @@ export function addSpace({
   whatsapp = '',
   horarioMisas = [],
   capillas = [],
+  adoracionDia = null,
+  adoracionHora = '',
+  adoracionHoraFin = '',
+  adoracionLugar = '',
+  adoracionInvitacion = '',
+  adoracionCanciones = [],
 }) {
   const trimmedLabel = label.trim();
   if (!trimmedLabel) return null;
@@ -143,6 +149,12 @@ export function addSpace({
     whatsapp: whatsapp.trim(),
     horarioMisas,
     capillas,
+    adoracionDia,
+    adoracionHora,
+    adoracionHoraFin,
+    adoracionLugar,
+    adoracionInvitacion,
+    adoracionCanciones,
     updatedAt: new Date().toISOString(),
   };
   saveSpaces([...spaces, newSpace]);
@@ -167,6 +179,12 @@ export function updateSpace(
     whatsapp = '',
     horarioMisas = [],
     capillas = [],
+    adoracionDia = null,
+    adoracionHora = '',
+    adoracionHoraFin = '',
+    adoracionLugar = '',
+    adoracionInvitacion = '',
+    adoracionCanciones = [],
   }
 ) {
   const trimmedLabel = label.trim();
@@ -189,6 +207,12 @@ export function updateSpace(
         whatsapp: whatsapp.trim(),
         horarioMisas,
         capillas,
+        adoracionDia,
+        adoracionHora,
+        adoracionHoraFin,
+        adoracionLugar,
+        adoracionInvitacion,
+        adoracionCanciones,
         updatedAt,
       };
       return updatedSpace;
