@@ -15,6 +15,7 @@
 import { getSession } from '../storage/auth.js';
 import { getCurrentSpaceKey, getSpaceLabel, getSpace, updateSpace } from '../storage/settings.js';
 import { pushSpace } from '../storage/spacesSync.js';
+import { PUBLIC_URL } from './qrView.js';
 
 const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -48,6 +49,16 @@ export async function renderAdoracionView(container) {
         se ve al escanear el QR de Adoración. La lectura, la reflexión del
         día y las oraciones de la guía se arman solas — no hace falta
         cargarlas.
+      </p>
+      <div class="form-actions">
+        <a class="btn btn-accent" href="${PUBLIC_URL}?space=${encodeURIComponent(space)}&preview=1#/adoracion" target="_blank" rel="noopener">
+          📖 Ver la guía completa (para prepararte como anfitrión)
+        </a>
+      </div>
+      <p class="chord-editor-hint">
+        Se abre igual que la va a ver la gente, pero sin esperar al día
+        real — así quien vaya a guiar la hora puede leerla y estudiarla
+        con anticipación.
       </p>
       ${
         loggedIn

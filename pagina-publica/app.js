@@ -32,6 +32,13 @@ const SPACE_LABELS_DE_ARRANQUE = {
   general: 'General (misas conjuntas)',
 };
 const space = new URLSearchParams(window.location.search).get('space') || 'merced';
+// ?preview=1 en el link (ver app-equipo/src/views/adoracionView.js, botón
+// "Ver la guía completa") fuerza a mostrar la guía de Adoración entera sin
+// esperar a que sea el día real — para que el equipo pueda leerla y
+// prepararse como anfitrión con anticipación, no recién el día de la
+// Adoración. No se linkea desde ningún lado de la navegación pública
+// normal, así que un visitante común no se lo cruza sin querer.
+const previewGuiaAdoracion = new URLSearchParams(window.location.search).get('preview') === '1';
 
 const app = document.getElementById('app');
 
@@ -710,7 +717,7 @@ function renderAdoracion() {
   const infoAdoracion = hayAdoracion
     ? proximaMisaDesdeHorario([{ dia: espacio.adoracion_dia, hora: espacio.adoracion_hora || '00:00', horaFin: espacio.adoracion_hora_fin }])
     : null;
-  const esHoy = infoAdoracion?.estado === 'en-vivo' || infoAdoracion?.estado === 'hoy';
+  const esHoy = infoAdoracion?.estado === 'en-vivo' || infoAdoracion?.estado === 'hoy' || previewGuiaAdoracion;
   const badgeInfo =
     infoAdoracion?.estado === 'en-vivo'
       ? { clase: 'badge-en-vivo', label: '🔴 En vivo ahora' }
@@ -746,6 +753,11 @@ function renderAdoracion() {
     </div>
     <p class="lecturas-inspiracion">${escapeHtml(invitacion)}</p>
     <p class="adoracion-cta">Esto es solo una invitación — la Adoración se vive yendo. Te esperamos en la capilla.</p>
+    ${
+      previewGuiaAdoracion
+        ? `<p class="letra-aviso adoracion-preview-aviso">👁️ Vista previa para el equipo — la lectura y la reflexión de acá abajo son las de HOY, aunque no sea el día real de la Adoración.</p>`
+        : ''
+    }
     ${
       hayAdoracion
         ? esNavegadorEmbebido

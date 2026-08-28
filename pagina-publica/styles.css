@@ -429,6 +429,15 @@ h1 {
   margin-top: -12px;
 }
 
+.adoracion-preview-aviso {
+  text-align: center;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 0 0 16px;
+}
+
 .adoracion-cta {
   text-align: center;
   font-weight: 700;
