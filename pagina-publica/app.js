@@ -686,17 +686,10 @@ const TIPOS_CANCION_LABEL = {
 // referencias puntuales al movimiento: número de Cursillo, Ultreyas,
 // Escuela de Dirigentes, Secretariado). Los "🎵 Canto" son los mismos
 // puntos que ya marcaba la guía original para intercalar un canto — ahí
-// se insertan los cantos sugeridos que cargó el equipo.
-function oracionHtml(lineas) {
-  return lineas
-    .map(({ quien, texto }) =>
-      quien
-        ? `<p class="letra oracion-linea"><span class="oracion-quien">${escapeHtml(quien)}:</span> ${escapeHtml(texto)}</p>`
-        : `<p class="letra oracion-silencio">${escapeHtml(texto)}</p>`
-    )
-    .join('');
-}
-
+// se insertan los cantos sugeridos que cargó el equipo. Se muestra de a
+// un paso por vez (ver armarPasosGuia más abajo) en vez de todo el texto
+// junto, para que el Lector y el resto del grupo puedan seguirla en vivo
+// sin perderse.
 function cantoSugeridoHtml(canciones) {
   if (canciones.length === 0) {
     return `<p class="letra oracion-canto">🎵 Canto (u otro momento de silencio)</p>`;
@@ -709,6 +702,145 @@ function cantoSugeridoHtml(canciones) {
         .join('')}
     </div>
   `;
+}
+
+// Se guarda afuera de renderAdoracion() a propósito: la página se
+// refresca sola cada REFRESH_MS (ver cargarYMostrar/setInterval más
+// abajo) sin que cambie el hash — si el paso viviera adentro de la
+// función, cada refresco automático reiniciaría a cualquiera que esté
+// en medio de la Adoración de vuelta al paso 1. Solo se reinicia cuando
+// se entra de nuevo a esta pantalla desde otra (ver el listener de
+// 'hashchange' al final del archivo), no con cada refresco de datos.
+let pasoActualAdoracion = 0;
+
+// Convierte las 5 partes en una lista plana de "pasos" (uno por línea de
+// Lector/Todos, más los títulos de sección, los cantos y la lectura/
+// reflexión del día) para el modo paso a paso: quien lidera lee su línea
+// en voz alta, toca "Siguiente", y ahí se resalta la respuesta de "Todos"
+// para que el grupo la lea junto — sin necesidad de sincronizar los
+// celulares entre sí, cada uno avanza el suyo siguiendo de oído.
+function armarPasosGuia({ evangelio, reflexion }) {
+  const pasos = [];
+  const tit = (texto) => pasos.push({ tipo: 'titulo', texto });
+  const lec = (texto) => pasos.push({ tipo: 'lector', texto });
+  const tod = (texto) => pasos.push({ tipo: 'todos', texto });
+  const sil = (texto) => pasos.push({ tipo: 'silencio', texto });
+  const canto = () => pasos.push({ tipo: 'canto' });
+
+  tit('I. Presentación al Señor');
+  lec('En el nombre del Padre, y del Hijo, y del Espíritu Santo.');
+  tod('Amén.');
+  lec('Incorporados a Jesucristo, glorifiquemos al Padre, en la alegría del Espíritu Santo.');
+  tod('Gloria al Padre, y al Hijo, y al Espíritu Santo. Como era en el principio, ahora y siempre, por los siglos de los siglos. Amén.');
+  lec('Señor Jesucristo: los que hoy te adoramos, fiados en tu ayuda, queremos ser fermento vivo en esta comunidad, y nos postramos reverentes ante Ti.');
+  tod('Queremos CONOCER a Jesucristo. Queremos AMAR a Jesucristo. Queremos AYUDAR a Jesucristo. Queremos SUFRIR por Jesucristo. Queremos VIVIR en Jesucristo.');
+  lec('Queremos ser tuyos, Señor, los tuyos de veras: los que no duden, los que no titubeen, los que no se desalienten, los que lo den todo antes de traicionarte. Por eso, en esta hora, en amigable intimidad, te rogamos que nos enseñes, que nos formes, y nos enciendas en santa valentía.');
+  tod('Señor, eres nuestro Dios y Maestro. Sólo Tú tienes palabras de vida eterna. Eres nuestro único Señor. ¡Haznos apóstoles de tu Reino, miembros vivos de tu Iglesia! ¡Que sintamos la alegría de ser testigos tuyos ante los hombres!');
+  lec('En esta hora permaneceremos al pie de tu Cruz, con la Madre y Señora, como San Juan.');
+  tod('Señor, nos acercamos a tu Santa Cruz, adorando el misterio de tu Pasión. Recogemos aquel grito: "Tengo sed" — que abrasa tu alma de sed divina. Rodeamos tu cruz para acompañarte, para orar contigo por la Iglesia, para ofrecernos contigo, para compartir tus dolores, para descargar nuestros pecados e ingratitudes.');
+  canto();
+  lec('¡Queremos que Cristo reine sobre nosotros!');
+  tod('Amén.');
+  lec('¡Alabado sea Jesucristo!');
+  tod('Amén.');
+  lec('¡Venga a nosotros tu Reino!');
+  tod('¡Padre nuestro, venga a nosotros tu Reino!');
+
+  tit('II. Palabra de Dios');
+  pasos.push({ tipo: 'lectura', texto: evangelio?.cuerpo || 'Todavía no se cargó la lectura de hoy.' });
+  if (reflexion) pasos.push({ tipo: 'reflexion', texto: reflexion.cuerpo });
+  sil('— Breve silencio —');
+
+  tit('III. Plegaria a Jesucristo');
+  lec('El pecado hiere el corazón de Cristo; priva al hombre de la Vida Divina. Pidamos al Señor su misericordia sobre nosotros, sobre esta comunidad, sobre todo el mundo.');
+  tod('Señor, míranos con ojos de misericordia y perdón. Sentimos el horror de nuestras infidelidades. No mires la ruindad de nuestra vida, sino el amor con que nos amaste en la Cruz.');
+  lec('Por nuestras incomprensibles flaquezas, por el desprecio con que a veces oímos tu voz.');
+  tod('Perdón, Señor, perdón.');
+  lec('Por la tardanza en aceptar tus exigencias, por la tibieza con que andamos tu camino, por nuestra cobardía en asumir los compromisos de nuestro Bautismo.');
+  tod('Perdón, Señor, perdón.');
+  lec('Por la rutina en nuestra piedad, por el desaliento ante los sacrificios, por la pereza en practicar el bien.');
+  tod('Perdón, Señor, perdón.');
+  lec('Por la frialdad en nuestra oración, por la debilidad de nuestra fe, que no sabe ver tu rostro en el rostro de los hermanos.');
+  tod('Perdón, Señor, perdón.');
+  lec('Por no haber trabajado por la paz y la justicia social, por habernos desentendido de los pobres y los marginados.');
+  tod('Perdón, Señor, perdón.');
+  lec('Por los jóvenes que te buscan y no te encuentran, por las familias que viven al margen de Ti.');
+  tod('Perdón, Señor, perdón.');
+  lec('Por todos nuestros pecados, por los de esta comunidad, por los de todos los hombres del mundo entero.');
+  tod('Perdón, Señor, perdón.');
+  canto();
+
+  tit('IV. Súplicas a Jesucristo');
+  lec('Bendice, Señor, a nuestra Santa Madre la Iglesia Católica.');
+  tod('Que Dios se digne pacificarla, unirla, custodiarla en todo el orbe de la tierra, vivificándola cada día.');
+  lec('Bendice al Santo Padre, a nuestro Obispo, y a todos los sacerdotes de nuestra comunidad, que rigen el Pueblo Santo de Dios.');
+  tod('Te rogamos, óyenos.');
+  lec('Bendice, Señor, a quienes elegiste para que se consagren a Ti; aumenta el número de los llamados, para que sean luz y sal de la tierra.');
+  tod('Te rogamos, óyenos.');
+  lec('Bendice a nuestro pueblo; haz sentir su responsabilidad a nuestros gobernantes, para que haya justicia y más amor entre los hombres.');
+  tod('Te rogamos, óyenos.');
+  lec('Bendice nuestra sed de ser santos, nuestras familias, nuestros estudios, nuestros trabajos, todas nuestras cosas.');
+  tod('Te rogamos, óyenos.');
+  lec('Infúndenos una piedad auténtica, alegría en el trato con los hermanos, para trabajar siempre más y mejor por tu Reino.');
+  tod('Te rogamos, óyenos.');
+  lec('Danos cristianos que te amen sobre todas las cosas, fieles al lema: "aunque todos te abandonen, yo no".');
+  tod('Te rogamos, óyenos.');
+  lec('Por el más cobarde de nosotros, por el que más necesita de tu Gracia, por el que cree necesitarla menos.');
+  tod('Te rogamos, óyenos.');
+  lec('Para que sepamos superar, con tu Gracia, los fracasos, y para que no nos envanezcamos con los éxitos.');
+  tod('Te rogamos, óyenos.');
+  lec('Bendice, Señor, a los enfermos, a los pobres, a los presos, a los oprimidos, a cuantos sufren y peligran.');
+  tod('Te rogamos, óyenos.');
+  lec('Bendice a los hermanos separados, para que todos lleguemos a la unidad en el seno de la única Iglesia.');
+  tod('Te rogamos, óyenos.');
+  lec('Bendice a los que sin conocerte, te buscan; dales, Señor, fe.');
+  tod('Te rogamos, óyenos.');
+  lec('Por los que se han encomendado a nuestras oraciones; por los que quisiéramos tener presentes en esta hora.');
+  tod('Te rogamos, óyenos.');
+  lec('Medita ahora, por un momento, la frase que más te haya impresionado. ¿Qué quieres, Señor, de mí?');
+  tod('Habla, Señor, que tu siervo escucha.');
+  sil('— Breve silencio —');
+  lec('¡Alabado sea Jesucristo!');
+  tod('Por siempre sea alabado.');
+
+  tit('V. Consagración a Jesucristo');
+  tod(
+    'Te adoramos, Señor, y con honda gratitud reconocemos que nos has elegido para ser constructores de tu Reino. Queremos ser tuyos de veras, Señor, y por mediación de la Virgen Santísima, nos consagramos a Ti. Danos fuerzas para llevar la cruz mientras nos dure la vida. Jesús nuestro, haznos apóstoles, enséñanos a orar. Danos hambre de Ti. Haz, Señor, que abramos para todos los hombres un ancho camino a tu Gracia. Amén.'
+  );
+  canto();
+  sil('Se da la bendición con el Santísimo Sacramento. Salí de este encuentro fortalecido, llevando la paz de Cristo a los demás.');
+
+  return pasos;
+}
+
+function tituloSeccionEnPaso(pasos, indice) {
+  for (let i = indice; i >= 0; i--) {
+    if (pasos[i].tipo === 'titulo') return pasos[i].texto;
+  }
+  return '';
+}
+
+function renderPasoActualHtml(paso, canciones) {
+  if (paso.tipo === 'titulo') {
+    return `<p class="paso-titulo">${escapeHtml(paso.texto)}</p><p class="paso-hint">Tocá "Siguiente" para empezar esta parte.</p>`;
+  }
+  if (paso.tipo === 'lector') {
+    return `<p class="oracion-quien">Lector</p><p class="paso-texto">${escapeHtml(paso.texto)}</p>`;
+  }
+  if (paso.tipo === 'todos') {
+    return `<p class="oracion-quien">Todos</p><p class="paso-texto paso-todos">${escapeHtml(paso.texto)}</p>`;
+  }
+  if (paso.tipo === 'lectura') {
+    return `<p class="oracion-quien">Lectura</p><p class="paso-texto">${escapeHtml(paso.texto)}</p>`;
+  }
+  if (paso.tipo === 'reflexion') {
+    return `<p class="paso-texto oracion-reflexion">${escapeHtml(paso.texto)}</p>`;
+  }
+  if (paso.tipo === 'canto') {
+    return cantoSugeridoHtml(canciones);
+  }
+  // silencio
+  return `<p class="paso-texto oracion-silencio">${escapeHtml(paso.texto)}</p>`;
 }
 
 function renderAdoracion() {
@@ -739,6 +871,12 @@ function renderAdoracion() {
   const { lecturas, reflexion } = separarLecturas(ultimosAnuncios);
   const evangelio = lecturas.find((l) => normalizarTitulo(l.titulo).startsWith('EVANGELIO'));
   const canciones = espacio?.adoracion_canciones || [];
+
+  const pasosGuia = mostrarGuia ? armarPasosGuia({ evangelio, reflexion }) : [];
+  if (pasoActualAdoracion >= pasosGuia.length) pasoActualAdoracion = Math.max(0, pasosGuia.length - 1);
+  if (pasoActualAdoracion < 0) pasoActualAdoracion = 0;
+  const pasoActual = pasosGuia[pasoActualAdoracion];
+  const seccionActual = mostrarGuia ? tituloSeccionEnPaso(pasosGuia, pasoActualAdoracion) : '';
 
   app.innerHTML = `
     <div class="lecturas-topbar">
@@ -782,181 +920,45 @@ function renderAdoracion() {
         : ''
     }
     ${
-      mostrarGuia
+      mostrarGuia && pasoActual
         ? `
-      <section class="cancion">
-        <h2 class="categoria">I. Presentación al Señor</h2>
-        ${oracionHtml([
-          { quien: 'Lector', texto: 'En el nombre del Padre, y del Hijo, y del Espíritu Santo.' },
-          { quien: 'Todos', texto: 'Amén.' },
-          { quien: 'Lector', texto: 'Incorporados a Jesucristo, glorifiquemos al Padre, en la alegría del Espíritu Santo.' },
-          {
-            quien: 'Todos',
-            texto:
-              'Gloria al Padre, y al Hijo, y al Espíritu Santo. Como era en el principio, ahora y siempre, por los siglos de los siglos. Amén.',
-          },
-          {
-            quien: 'Lector',
-            texto:
-              'Señor Jesucristo: los que hoy te adoramos, fiados en tu ayuda, queremos ser fermento vivo en esta comunidad, y nos postramos reverentes ante Ti.',
-          },
-          {
-            quien: 'Todos',
-            texto:
-              'Queremos CONOCER a Jesucristo. Queremos AMAR a Jesucristo. Queremos AYUDAR a Jesucristo. Queremos SUFRIR por Jesucristo. Queremos VIVIR en Jesucristo.',
-          },
-          {
-            quien: 'Lector',
-            texto:
-              'Queremos ser tuyos, Señor, los tuyos de veras: los que no duden, los que no titubeen, los que no se desalienten, los que lo den todo antes de traicionarte. Por eso, en esta hora, en amigable intimidad, te rogamos que nos enseñes, que nos formes, y nos enciendas en santa valentía.',
-          },
-          {
-            quien: 'Todos',
-            texto:
-              'Señor, eres nuestro Dios y Maestro. Sólo Tú tienes palabras de vida eterna. Eres nuestro único Señor. ¡Haznos apóstoles de tu Reino, miembros vivos de tu Iglesia! ¡Que sintamos la alegría de ser testigos tuyos ante los hombres!',
-          },
-          { quien: 'Lector', texto: 'En esta hora permaneceremos al pie de tu Cruz, con la Madre y Señora, como San Juan.' },
-          {
-            quien: 'Todos',
-            texto:
-              'Señor, nos acercamos a tu Santa Cruz, adorando el misterio de tu Pasión. Recogemos aquel grito: "Tengo sed" — que abrasa tu alma de sed divina. Rodeamos tu cruz para acompañarte, para orar contigo por la Iglesia, para ofrecernos contigo, para compartir tus dolores, para descargar nuestros pecados e ingratitudes.',
-          },
-        ])}
-        ${cantoSugeridoHtml(canciones)}
-        ${oracionHtml([
-          { quien: 'Lector', texto: '¡Queremos que Cristo reine sobre nosotros!' },
-          { quien: 'Todos', texto: 'Amén.' },
-          { quien: 'Lector', texto: '¡Alabado sea Jesucristo!' },
-          { quien: 'Todos', texto: 'Amén.' },
-          { quien: 'Lector', texto: '¡Venga a nosotros tu Reino!' },
-          { quien: 'Todos', texto: '¡Padre nuestro, venga a nosotros tu Reino!' },
-        ])}
-      </section>
-
-      <section class="cancion">
-        <h2 class="categoria">II. Palabra de Dios</h2>
-        ${
-          evangelio
-            ? `<p class="letra">${escapeHtml(evangelio.cuerpo)}</p>`
-            : `<p class="letra">Todavía no se cargó la lectura de hoy.</p>`
-        }
-        ${reflexion ? `<p class="letra oracion-reflexion">${escapeHtml(reflexion.cuerpo)}</p>` : ''}
-        <p class="letra oracion-silencio">— Breve silencio —</p>
-      </section>
-
-      <section class="cancion">
-        <h2 class="categoria">III. Plegaria a Jesucristo</h2>
-        ${oracionHtml([
-          {
-            quien: 'Lector',
-            texto:
-              'El pecado hiere el corazón de Cristo; priva al hombre de la Vida Divina. Pidamos al Señor su misericordia sobre nosotros, sobre esta comunidad, sobre todo el mundo.',
-          },
-          {
-            quien: 'Todos',
-            texto:
-              'Señor, míranos con ojos de misericordia y perdón. Sentimos el horror de nuestras infidelidades. No mires la ruindad de nuestra vida, sino el amor con que nos amaste en la Cruz.',
-          },
-          { quien: 'Lector', texto: 'Por nuestras incomprensibles flaquezas, por el desprecio con que a veces oímos tu voz.' },
-          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
-          {
-            quien: 'Lector',
-            texto:
-              'Por la tardanza en aceptar tus exigencias, por la tibieza con que andamos tu camino, por nuestra cobardía en asumir los compromisos de nuestro Bautismo.',
-          },
-          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
-          { quien: 'Lector', texto: 'Por la rutina en nuestra piedad, por el desaliento ante los sacrificios, por la pereza en practicar el bien.' },
-          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
-          {
-            quien: 'Lector',
-            texto: 'Por la frialdad en nuestra oración, por la debilidad de nuestra fe, que no sabe ver tu rostro en el rostro de los hermanos.',
-          },
-          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
-          {
-            quien: 'Lector',
-            texto:
-              'Por no haber trabajado por la paz y la justicia social, por habernos desentendido de los pobres y los marginados.',
-          },
-          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
-          { quien: 'Lector', texto: 'Por los jóvenes que te buscan y no te encuentran, por las familias que viven al margen de Ti.' },
-          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
-          { quien: 'Lector', texto: 'Por todos nuestros pecados, por los de esta comunidad, por los de todos los hombres del mundo entero.' },
-          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
-        ])}
-        ${cantoSugeridoHtml(canciones)}
-      </section>
-
-      <section class="cancion">
-        <h2 class="categoria">IV. Súplicas a Jesucristo</h2>
-        ${oracionHtml([
-          { quien: 'Lector', texto: 'Bendice, Señor, a nuestra Santa Madre la Iglesia Católica.' },
-          {
-            quien: 'Todos',
-            texto: 'Que Dios se digne pacificarla, unirla, custodiarla en todo el orbe de la tierra, vivificándola cada día.',
-          },
-          {
-            quien: 'Lector',
-            texto: 'Bendice al Santo Padre, a nuestro Obispo, y a todos los sacerdotes de nuestra comunidad, que rigen el Pueblo Santo de Dios.',
-          },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-          {
-            quien: 'Lector',
-            texto: 'Bendice, Señor, a quienes elegiste para que se consagren a Ti; aumenta el número de los llamados, para que sean luz y sal de la tierra.',
-          },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-          {
-            quien: 'Lector',
-            texto: 'Bendice a nuestro pueblo; haz sentir su responsabilidad a nuestros gobernantes, para que haya justicia y más amor entre los hombres.',
-          },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-          { quien: 'Lector', texto: 'Bendice nuestra sed de ser santos, nuestras familias, nuestros estudios, nuestros trabajos, todas nuestras cosas.' },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-          {
-            quien: 'Lector',
-            texto: 'Infúndenos una piedad auténtica, alegría en el trato con los hermanos, para trabajar siempre más y mejor por tu Reino.',
-          },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-          { quien: 'Lector', texto: 'Danos cristianos que te amen sobre todas las cosas, fieles al lema: "aunque todos te abandonen, yo no".' },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-          { quien: 'Lector', texto: 'Por el más cobarde de nosotros, por el que más necesita de tu Gracia, por el que cree necesitarla menos.' },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-          { quien: 'Lector', texto: 'Para que sepamos superar, con tu Gracia, los fracasos, y para que no nos envanezcamos con los éxitos.' },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-          { quien: 'Lector', texto: 'Bendice, Señor, a los enfermos, a los pobres, a los presos, a los oprimidos, a cuantos sufren y peligran.' },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-          { quien: 'Lector', texto: 'Bendice a los hermanos separados, para que todos lleguemos a la unidad en el seno de la única Iglesia.' },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-          { quien: 'Lector', texto: 'Bendice a los que sin conocerte, te buscan; dales, Señor, fe.' },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-          { quien: 'Lector', texto: 'Por los que se han encomendado a nuestras oraciones; por los que quisiéramos tener presentes en esta hora.' },
-          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
-        ])}
-        ${oracionHtml([
-          { quien: 'Lector', texto: 'Medita ahora, por un momento, la frase que más te haya impresionado. ¿Qué quieres, Señor, de mí?' },
-          { quien: 'Todos', texto: 'Habla, Señor, que tu siervo escucha.' },
-          { quien: null, texto: '— Breve silencio —' },
-          { quien: 'Lector', texto: '¡Alabado sea Jesucristo!' },
-          { quien: 'Todos', texto: 'Por siempre sea alabado.' },
-        ])}
-      </section>
-
-      <section class="cancion">
-        <h2 class="categoria">V. Consagración a Jesucristo</h2>
-        ${oracionHtml([
-          {
-            quien: 'Todos',
-            texto:
-              'Te adoramos, Señor, y con honda gratitud reconocemos que nos has elegido para ser constructores de tu Reino. Queremos ser tuyos de veras, Señor, y por mediación de la Virgen Santísima, nos consagramos a Ti. Danos fuerzas para llevar la cruz mientras nos dure la vida. Jesús nuestro, haznos apóstoles, enséñanos a orar. Danos hambre de Ti. Haz, Señor, que abramos para todos los hombres un ancho camino a tu Gracia. Amén.',
-          },
-        ])}
-        ${cantoSugeridoHtml(canciones)}
-        <p class="letra">Se da la bendición con el Santísimo Sacramento. Salí de este encuentro fortalecido, llevando la paz de Cristo a los demás.</p>
+      <section class="cancion adoracion-guia-paso">
+        <p class="paso-seccion">${escapeHtml(seccionActual)} · Paso ${pasoActualAdoracion + 1} de ${pasosGuia.length}</p>
+        <div class="paso-contenido">
+          ${renderPasoActualHtml(pasoActual, canciones)}
+        </div>
+        <div class="paso-nav">
+          <button type="button" id="paso-anterior-btn" class="paso-nav-btn" ${pasoActualAdoracion === 0 ? 'disabled' : ''}>← Anterior</button>
+          <button type="button" id="paso-siguiente-btn" class="paso-nav-btn paso-nav-btn-principal" ${
+            pasoActualAdoracion >= pasosGuia.length - 1 ? 'disabled' : ''
+          }>Siguiente →</button>
+        </div>
+        ${pasoActualAdoracion > 0 ? `<button type="button" id="paso-reiniciar-btn" class="paso-reiniciar">↺ Volver al inicio de la guía</button>` : ''}
       </section>
     `
         : ''
     }
     ${renderNovedades(separarLecturas(ultimosAnuncios).otrosAvisos)}
   `;
+
+  // Botones del paso a paso: cada uno solo cambia el número de paso y
+  // vuelve a llamar a renderAdoracion() — no hace falta pedir datos de
+  // nuevo, ya están en memoria.
+  document.getElementById('paso-anterior-btn')?.addEventListener('click', () => {
+    pasoActualAdoracion = Math.max(0, pasoActualAdoracion - 1);
+    renderAdoracion();
+    document.querySelector('.adoracion-guia-paso')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  document.getElementById('paso-siguiente-btn')?.addEventListener('click', () => {
+    pasoActualAdoracion += 1;
+    renderAdoracion();
+    document.querySelector('.adoracion-guia-paso')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  document.getElementById('paso-reiniciar-btn')?.addEventListener('click', () => {
+    pasoActualAdoracion = 0;
+    renderAdoracion();
+    document.querySelector('.adoracion-guia-paso')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   // Invita a otros a ir, no solo avisa — mismo mecanismo (Web Share API,
   // con respaldo a portapapeles y, si tampoco anda, un texto seleccionable
@@ -1270,7 +1272,15 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-window.addEventListener('hashchange', renderTodo);
+// Al entrar de nuevo a Adoración desde otra pantalla, se reinicia el paso a
+// paso al principio — pero un cambio de hash es lo único que dispara este
+// reinicio: el refresco automático de datos (cargarYMostrar, cada
+// REFRESH_MS) llama a renderTodo() directo, sin pasar por acá, así que no
+// interrumpe a nadie que esté en medio de la Adoración siguiendo la guía.
+window.addEventListener('hashchange', () => {
+  if (currentRoute() === 'adoracion') pasoActualAdoracion = 0;
+  renderTodo();
+});
 
 cargarYMostrar();
 setInterval(cargarYMostrar, REFRESH_MS);
