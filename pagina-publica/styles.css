@@ -436,6 +436,34 @@ h1 {
   margin: 0 0 24px;
 }
 
+.oracion-linea {
+  margin: 0 0 10px;
+}
+
+.oracion-quien {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.oracion-silencio,
+.oracion-reflexion {
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+.oracion-canto-caja {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  background: var(--bg-elevated);
+}
+
+.oracion-canto {
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
 .compartir-evangelio-textarea {
   display: block;
   width: 100%;

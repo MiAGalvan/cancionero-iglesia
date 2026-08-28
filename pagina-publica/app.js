@@ -673,6 +673,37 @@ const TIPOS_CANCION_LABEL = {
   equipo: 'Lo canta el equipo, sin grabación',
 };
 
+// Guía adaptada de la "Hora Apostólica" (Guía del Peregrino, Movimiento de
+// Cursillos de Cristiandad) — mismas 5 partes y el mismo estilo de
+// Lector/Todos, pero generalizada para cualquier feligrés (se sacaron las
+// referencias puntuales al movimiento: número de Cursillo, Ultreyas,
+// Escuela de Dirigentes, Secretariado). Los "🎵 Canto" son los mismos
+// puntos que ya marcaba la guía original para intercalar un canto — ahí
+// se insertan los cantos sugeridos que cargó el equipo.
+function oracionHtml(lineas) {
+  return lineas
+    .map(({ quien, texto }) =>
+      quien
+        ? `<p class="letra oracion-linea"><span class="oracion-quien">${escapeHtml(quien)}:</span> ${escapeHtml(texto)}</p>`
+        : `<p class="letra oracion-silencio">${escapeHtml(texto)}</p>`
+    )
+    .join('');
+}
+
+function cantoSugeridoHtml(canciones) {
+  if (canciones.length === 0) {
+    return `<p class="letra oracion-canto">🎵 Canto (u otro momento de silencio)</p>`;
+  }
+  return `
+    <div class="oracion-canto-caja">
+      <p class="letra oracion-canto">🎵 Canto — alguno de estos, o el que sientan que corresponde:</p>
+      ${canciones
+        .map((c) => `<p class="letra"><strong>${escapeHtml(c.titulo)}</strong> — ${escapeHtml(TIPOS_CANCION_LABEL[c.tipo] || '')}</p>`)
+        .join('')}
+    </div>
+  `;
+}
+
 function renderAdoracion() {
   const espacio = ultimoEspacio;
   const hayAdoracion = typeof espacio?.adoracion_dia === 'number';
@@ -730,46 +761,172 @@ function renderAdoracion() {
       esHoy
         ? `
       <section class="cancion">
-        <h2 class="categoria">1. Preparación</h2>
-        <p class="letra">Se expone el Santísimo Sacramento en el altar. Antes de comenzar, buscá un lugar cómodo, dejá el celular en silencio y tomate un momento para calmar el cuerpo y la mente: estás por encontrarte con Jesús.</p>
+        <h2 class="categoria">I. Presentación al Señor</h2>
+        ${oracionHtml([
+          { quien: 'Lector', texto: 'En el nombre del Padre, y del Hijo, y del Espíritu Santo.' },
+          { quien: 'Todos', texto: 'Amén.' },
+          { quien: 'Lector', texto: 'Incorporados a Jesucristo, glorifiquemos al Padre, en la alegría del Espíritu Santo.' },
+          {
+            quien: 'Todos',
+            texto:
+              'Gloria al Padre, y al Hijo, y al Espíritu Santo. Como era en el principio, ahora y siempre, por los siglos de los siglos. Amén.',
+          },
+          {
+            quien: 'Lector',
+            texto:
+              'Señor Jesucristo: los que hoy te adoramos, fiados en tu ayuda, queremos ser fermento vivo en esta comunidad, y nos postramos reverentes ante Ti.',
+          },
+          {
+            quien: 'Todos',
+            texto:
+              'Queremos CONOCER a Jesucristo. Queremos AMAR a Jesucristo. Queremos AYUDAR a Jesucristo. Queremos SUFRIR por Jesucristo. Queremos VIVIR en Jesucristo.',
+          },
+          {
+            quien: 'Lector',
+            texto:
+              'Queremos ser tuyos, Señor, los tuyos de veras: los que no duden, los que no titubeen, los que no se desalienten, los que lo den todo antes de traicionarte. Por eso, en esta hora, en amigable intimidad, te rogamos que nos enseñes, que nos formes, y nos enciendas en santa valentía.',
+          },
+          {
+            quien: 'Todos',
+            texto:
+              'Señor, eres nuestro Dios y Maestro. Sólo Tú tienes palabras de vida eterna. Eres nuestro único Señor. ¡Haznos apóstoles de tu Reino, miembros vivos de tu Iglesia! ¡Que sintamos la alegría de ser testigos tuyos ante los hombres!',
+          },
+          { quien: 'Lector', texto: 'En esta hora permaneceremos al pie de tu Cruz, con la Madre y Señora, como San Juan.' },
+          {
+            quien: 'Todos',
+            texto:
+              'Señor, nos acercamos a tu Santa Cruz, adorando el misterio de tu Pasión. Recogemos aquel grito: "Tengo sed" — que abrasa tu alma de sed divina. Rodeamos tu cruz para acompañarte, para orar contigo por la Iglesia, para ofrecernos contigo, para compartir tus dolores, para descargar nuestros pecados e ingratitudes.',
+          },
+        ])}
+        ${cantoSugeridoHtml(canciones)}
+        ${oracionHtml([
+          { quien: 'Lector', texto: '¡Queremos que Cristo reine sobre nosotros!' },
+          { quien: 'Todos', texto: 'Amén.' },
+          { quien: 'Lector', texto: '¡Alabado sea Jesucristo!' },
+          { quien: 'Todos', texto: 'Amén.' },
+          { quien: 'Lector', texto: '¡Venga a nosotros tu Reino!' },
+          { quien: 'Todos', texto: '¡Padre nuestro, venga a nosotros tu Reino!' },
+        ])}
       </section>
+
       <section class="cancion">
-        <h2 class="categoria">2. Oración inicial</h2>
-        <p class="letra">Señor Jesús, aquí presente en la Eucaristía: gracias por esperarme. Abrí mi corazón para escucharte y aceptar tu voluntad. Perdoná mis pecados y guiame en este tiempo de oración.</p>
+        <h2 class="categoria">II. Palabra de Dios</h2>
+        ${
+          evangelio
+            ? `<p class="letra">${escapeHtml(evangelio.cuerpo)}</p>`
+            : `<p class="letra">Todavía no se cargó la lectura de hoy.</p>`
+        }
+        ${reflexion ? `<p class="letra oracion-reflexion">${escapeHtml(reflexion.cuerpo)}</p>` : ''}
+        <p class="letra oracion-silencio">— Breve silencio —</p>
       </section>
-      ${
-        evangelio
-          ? `<section class="cancion">
-              <h2 class="categoria">3. Lectura de la Escritura</h2>
-              <p class="letra">${escapeHtml(evangelio.cuerpo)}</p>
-            </section>`
-          : ''
-      }
+
       <section class="cancion">
-        <h2 class="categoria">4. Contemplación y silencio</h2>
-        ${reflexion ? `<p class="letra">${escapeHtml(reflexion.cuerpo)}</p>` : ''}
-        <p class="letra">Quedate un momento en silencio, simplemente mirando a Jesús. No hace falta decir nada — dejá que Él te mire a vos.</p>
+        <h2 class="categoria">III. Plegaria a Jesucristo</h2>
+        ${oracionHtml([
+          {
+            quien: 'Lector',
+            texto:
+              'El pecado hiere el corazón de Cristo; priva al hombre de la Vida Divina. Pidamos al Señor su misericordia sobre nosotros, sobre esta comunidad, sobre todo el mundo.',
+          },
+          {
+            quien: 'Todos',
+            texto:
+              'Señor, míranos con ojos de misericordia y perdón. Sentimos el horror de nuestras infidelidades. No mires la ruindad de nuestra vida, sino el amor con que nos amaste en la Cruz.',
+          },
+          { quien: 'Lector', texto: 'Por nuestras incomprensibles flaquezas, por el desprecio con que a veces oímos tu voz.' },
+          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
+          {
+            quien: 'Lector',
+            texto:
+              'Por la tardanza en aceptar tus exigencias, por la tibieza con que andamos tu camino, por nuestra cobardía en asumir los compromisos de nuestro Bautismo.',
+          },
+          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
+          { quien: 'Lector', texto: 'Por la rutina en nuestra piedad, por el desaliento ante los sacrificios, por la pereza en practicar el bien.' },
+          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
+          {
+            quien: 'Lector',
+            texto: 'Por la frialdad en nuestra oración, por la debilidad de nuestra fe, que no sabe ver tu rostro en el rostro de los hermanos.',
+          },
+          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
+          {
+            quien: 'Lector',
+            texto:
+              'Por no haber trabajado por la paz y la justicia social, por habernos desentendido de los pobres y los marginados.',
+          },
+          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
+          { quien: 'Lector', texto: 'Por los jóvenes que te buscan y no te encuentran, por las familias que viven al margen de Ti.' },
+          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
+          { quien: 'Lector', texto: 'Por todos nuestros pecados, por los de esta comunidad, por los de todos los hombres del mundo entero.' },
+          { quien: 'Todos', texto: 'Perdón, Señor, perdón.' },
+        ])}
+        ${cantoSugeridoHtml(canciones)}
       </section>
-      ${
-        canciones.length > 0
-          ? `<section class="cancion">
-              <h2 class="categoria">5. Cantos sugeridos</h2>
-              <p class="letra">Para intercalar donde el grupo sienta que corresponde, entre las oraciones y los silencios.</p>
-              ${canciones
-                .map(
-                  (c) => `<p class="letra"><strong>${escapeHtml(c.titulo)}</strong> — ${escapeHtml(TIPOS_CANCION_LABEL[c.tipo] || '')}</p>`
-                )
-                .join('')}
-            </section>`
-          : ''
-      }
+
       <section class="cancion">
-        <h2 class="categoria">6. Intenciones y peticiones</h2>
-        <p class="letra">Es momento de traer ante Jesús lo que llevás en el corazón: tus intenciones personales, las de tu familia, por la Iglesia, por el Papa, y en reparación por los pecados cometidos contra la Eucaristía.</p>
+        <h2 class="categoria">IV. Súplicas a Jesucristo</h2>
+        ${oracionHtml([
+          { quien: 'Lector', texto: 'Bendice, Señor, a nuestra Santa Madre la Iglesia Católica.' },
+          {
+            quien: 'Todos',
+            texto: 'Que Dios se digne pacificarla, unirla, custodiarla en todo el orbe de la tierra, vivificándola cada día.',
+          },
+          {
+            quien: 'Lector',
+            texto: 'Bendice al Santo Padre, a nuestro Obispo, y a todos los sacerdotes de nuestra comunidad, que rigen el Pueblo Santo de Dios.',
+          },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+          {
+            quien: 'Lector',
+            texto: 'Bendice, Señor, a quienes elegiste para que se consagren a Ti; aumenta el número de los llamados, para que sean luz y sal de la tierra.',
+          },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+          {
+            quien: 'Lector',
+            texto: 'Bendice a nuestro pueblo; haz sentir su responsabilidad a nuestros gobernantes, para que haya justicia y más amor entre los hombres.',
+          },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+          { quien: 'Lector', texto: 'Bendice nuestra sed de ser santos, nuestras familias, nuestros estudios, nuestros trabajos, todas nuestras cosas.' },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+          {
+            quien: 'Lector',
+            texto: 'Infúndenos una piedad auténtica, alegría en el trato con los hermanos, para trabajar siempre más y mejor por tu Reino.',
+          },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+          { quien: 'Lector', texto: 'Danos cristianos que te amen sobre todas las cosas, fieles al lema: "aunque todos te abandonen, yo no".' },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+          { quien: 'Lector', texto: 'Por el más cobarde de nosotros, por el que más necesita de tu Gracia, por el que cree necesitarla menos.' },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+          { quien: 'Lector', texto: 'Para que sepamos superar, con tu Gracia, los fracasos, y para que no nos envanezcamos con los éxitos.' },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+          { quien: 'Lector', texto: 'Bendice, Señor, a los enfermos, a los pobres, a los presos, a los oprimidos, a cuantos sufren y peligran.' },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+          { quien: 'Lector', texto: 'Bendice a los hermanos separados, para que todos lleguemos a la unidad en el seno de la única Iglesia.' },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+          { quien: 'Lector', texto: 'Bendice a los que sin conocerte, te buscan; dales, Señor, fe.' },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+          { quien: 'Lector', texto: 'Por los que se han encomendado a nuestras oraciones; por los que quisiéramos tener presentes en esta hora.' },
+          { quien: 'Todos', texto: 'Te rogamos, óyenos.' },
+        ])}
+        ${oracionHtml([
+          { quien: 'Lector', texto: 'Medita ahora, por un momento, la frase que más te haya impresionado. ¿Qué quieres, Señor, de mí?' },
+          { quien: 'Todos', texto: 'Habla, Señor, que tu siervo escucha.' },
+          { quien: null, texto: '— Breve silencio —' },
+          { quien: 'Lector', texto: '¡Alabado sea Jesucristo!' },
+          { quien: 'Todos', texto: 'Por siempre sea alabado.' },
+        ])}
       </section>
+
       <section class="cancion">
-        <h2 class="categoria">7. Bendición y conclusión</h2>
-        <p class="letra">Se da la bendición con el Santísimo Sacramento. Salí de este encuentro fortalecido, llevando la paz de Cristo a los demás. Gracias, Señor, por este tiempo junto a Vos.</p>
+        <h2 class="categoria">V. Consagración a Jesucristo</h2>
+        ${oracionHtml([
+          {
+            quien: 'Todos',
+            texto:
+              'Te adoramos, Señor, y con honda gratitud reconocemos que nos has elegido para ser constructores de tu Reino. Queremos ser tuyos de veras, Señor, y por mediación de la Virgen Santísima, nos consagramos a Ti. Danos fuerzas para llevar la cruz mientras nos dure la vida. Jesús nuestro, haznos apóstoles, enséñanos a orar. Danos hambre de Ti. Haz, Señor, que abramos para todos los hombres un ancho camino a tu Gracia. Amén.',
+          },
+        ])}
+        ${cantoSugeridoHtml(canciones)}
+        <p class="letra">Se da la bendición con el Santísimo Sacramento. Salí de este encuentro fortalecido, llevando la paz de Cristo a los demás.</p>
       </section>
     `
         : ''
