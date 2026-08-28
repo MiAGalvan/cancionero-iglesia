@@ -132,6 +132,10 @@ export async function renderHomeView(container) {
         <span class="quick-tile-icon">⚙️</span>
         <span class="quick-tile-label">Parroquias</span>
       </a>
+      <a class="quick-tile" href="#/importar-cancionero" title="Cargar de una vez el cancionero en papel de Merced">
+        <span class="quick-tile-icon">📥</span>
+        <span class="quick-tile-label">Importar</span>
+      </a>
       <button class="quick-tile" id="new-folder-btn">
         <span class="quick-tile-icon">📁</span>
         <span class="quick-tile-label">Nueva carpeta</span>

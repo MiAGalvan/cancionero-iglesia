@@ -5,7 +5,7 @@
 // #/login (opcional ?returnTo=/ruta/de/vuelta),
 // #/misa/nueva, #/misa/:fecha, #/publicar/:fecha, #/qr,
 // #/lista-publicada, #/proyeccion, #/espacios, #/novedades, #/adoracion,
-// #/compartidas, #/afinador
+// #/importar-cancionero, #/compartidas, #/afinador
 import './styles.css';
 // Efecto secundario: engancha el listener de "instalar como app" apenas
 // arranca la app, para no perderse el evento si llega antes de que se
@@ -24,6 +24,7 @@ import { renderProyeccionView } from './views/proyeccionView.js';
 import { renderEspaciosView } from './views/espaciosView.js';
 import { renderNovedadesView } from './views/novedadesView.js';
 import { renderAdoracionView } from './views/adoracionView.js';
+import { renderImportarCancioneroView } from './views/importarCancioneroView.js';
 import { renderCompartidasView } from './views/compartidasView.js';
 import { renderTunerView } from './views/tunerView.js';
 
@@ -89,6 +90,8 @@ function router() {
     renderNovedadesView(app);
   } else if (parts[0] === 'adoracion') {
     renderAdoracionView(app);
+  } else if (parts[0] === 'importar-cancionero') {
+    renderImportarCancioneroView(app);
   } else if (parts[0] === 'compartidas') {
     renderCompartidasView(app);
   } else if (parts[0] === 'afinador') {

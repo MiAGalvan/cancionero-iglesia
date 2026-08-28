@@ -6,7 +6,7 @@
 // buscador de esta pantalla busca en toda la biblioteca, sin importar la
 // categoría. La pantalla de inicio (parroquia, título, accesos varios) vive
 // en homeView.js — acá solo carpetas y canciones.
-import { searchSongs, deleteSong, getAllSongs, getSongsByCategory } from '../storage/db.js';
+import { searchSongs, deleteSong, getAllSongs, getSongsByCategory, getSong, updateSong } from '../storage/db.js';
 import { propagateDelete, syncNow } from '../storage/sync.js';
 import { pushCustomCategoryDeletion } from '../storage/labelsSync.js';
 import { getVisibleSpaces } from '../storage/auth.js';
@@ -17,6 +17,7 @@ import {
   moveCategory,
   getCurrentSpaceKey,
   setCurrentSpaceKey,
+  getDeviceGroup,
 } from '../storage/settings.js';
 
 export async function renderLibraryView(container, { category } = {}) {
@@ -60,7 +61,10 @@ async function renderFoldersView(container) {
     const deleteCategory = event.target.dataset.deleteCategory;
     const moveUp = event.target.dataset.moveUp;
     const moveDown = event.target.dataset.moveDown;
-    if (deleteId) {
+    const moveSongId = event.target.dataset.move;
+    if (moveSongId) {
+      abrirSelectorCategorias(moveSongId, renderResultsOrFolders);
+    } else if (deleteId) {
       if (confirm('¿Eliminar esta canción?')) {
         const deleted = await deleteSong(Number(deleteId));
         // Esperamos a que el borrado quede confirmado en el servidor antes
@@ -156,6 +160,11 @@ async function renderCategoryView(container, category) {
 
   listEl.addEventListener('click', async (event) => {
     const deleteId = event.target.dataset.delete;
+    const moveSongId = event.target.dataset.move;
+    if (moveSongId) {
+      abrirSelectorCategorias(moveSongId, () => refresh(searchInput.value));
+      return;
+    }
     if (!deleteId) return;
     if (confirm('¿Eliminar esta canción?')) {
       const deleted = await deleteSong(Number(deleteId));
@@ -206,8 +215,68 @@ function songItemHtml(song) {
           ${(song.tags || []).map((tag) => `<span class="liturgical-tag">🕊️ ${escapeHtml(tag)}</span>`).join('')}
         </span>
       </a>
+      <button class="btn btn-icon" data-move="${song.id}" title="Mover a otra carpeta">📁</button>
       <button class="btn btn-danger btn-icon" data-delete="${song.id}" title="Eliminar">✕</button>
     </li>`;
+}
+
+// Selector rápido de carpetas/categorías, sin pasar por el formulario
+// completo de edición — pensado sobre todo para reubicar de a poco las
+// canciones que quedaron importadas en una carpeta "provisoria" (ej. las
+// de Cuaresma/Navidad del cancionero en papel, que el libro agrupa por
+// época y no por momento de la misa, así que nadie sabía todavía si van
+// en la Entrada, la Comunión, etc.). Una canción puede quedar en más de
+// una carpeta a la vez (checkboxes, no un único valor).
+async function abrirSelectorCategorias(songId, onGuardado) {
+  const song = await getSong(Number(songId));
+  if (!song) return;
+  const categorias = getAllCategories(getCurrentSpaceKey());
+
+  const overlay = document.createElement('div');
+  overlay.className = 'category-picker-overlay';
+  overlay.innerHTML = `
+    <div class="category-picker">
+      <h3>Mover — ${escapeHtml(song.title || '(sin título)')}</h3>
+      <p class="chord-editor-hint">Elegí a qué carpeta o carpetas pertenece.</p>
+      <div class="category-picker-list">
+        ${categorias
+          .map(
+            (cat) => `
+          <label class="category-picker-item">
+            <input type="checkbox" value="${escapeAttr(cat)}" ${song.categories.includes(cat) ? 'checked' : ''} />
+            ${escapeHtml(cat)}
+          </label>`
+          )
+          .join('')}
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-accent" id="category-picker-save">Guardar</button>
+        <button type="button" class="btn" id="category-picker-cancel">Cancelar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const cerrar = () => overlay.remove();
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) cerrar();
+  });
+  overlay.querySelector('#category-picker-cancel').addEventListener('click', cerrar);
+  overlay.querySelector('#category-picker-save').addEventListener('click', async () => {
+    const nuevasCategorias = Array.from(overlay.querySelectorAll('input[type="checkbox"]:checked')).map((el) => el.value);
+    await updateSong(song.id, {
+      title: song.title,
+      artist: song.artist,
+      categories: nuevasCategorias,
+      chordpro: song.chordpro,
+      shared: song.shared,
+      tags: song.tags,
+      updatedBy: getDeviceGroup() || null,
+    });
+    cerrar();
+    syncNow(); // en segundo plano
+    onGuardado();
+  });
 }
 
 function escapeHtml(text) {
