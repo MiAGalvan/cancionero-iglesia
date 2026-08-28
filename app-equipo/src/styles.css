@@ -319,9 +319,19 @@ a {
 
 #library-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
+/* flex:1 + min-height:0 + overflow-y:auto a propósito: cuando .song-list
+   es hija directa de #app (ej. al entrar a UNA carpeta puntual, ver
+   renderCategoryView en libraryView.js), sin esto quedaba con la altura
+   de todo su contenido y el scroll lo bloqueaba #app (overflow:hidden,
+   ver más arriba) — con pocas canciones no se notaba, pero con una
+   carpeta larga (ej. después de importar el cancionero en papel) el
+   final de la lista quedaba inalcanzable, sin ninguna barra de scroll.
+   Cuando .song-list ya está adentro de otro contenedor que scrollea
+   (ej. #library-content) esto no rompe nada, simplemente no hace falta. */
 .song-list {
   list-style: none;
   margin: 0;
@@ -329,6 +339,9 @@ a {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .folder-list {
@@ -590,6 +603,8 @@ a {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
