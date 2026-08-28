@@ -717,7 +717,13 @@ function renderAdoracion() {
   const infoAdoracion = hayAdoracion
     ? proximaMisaDesdeHorario([{ dia: espacio.adoracion_dia, hora: espacio.adoracion_hora || '00:00', horaFin: espacio.adoracion_hora_fin }])
     : null;
-  const esHoy = infoAdoracion?.estado === 'en-vivo' || infoAdoracion?.estado === 'hoy' || previewGuiaAdoracion;
+  const esHoy = infoAdoracion?.estado === 'en-vivo' || infoAdoracion?.estado === 'hoy';
+  // Mismo criterio que la lista de canciones de la misa: se puede ver con
+  // anticipación (no solo el día exacto), porque lo único que cambia día a
+  // día es la lectura — el resto de la guía (las 5 partes) es siempre la
+  // misma. Ayuda a que la gente llegue ya preparada, no es información que
+  // haya que esconder hasta último momento.
+  const mostrarGuia = hayAdoracion || previewGuiaAdoracion;
   const badgeInfo =
     infoAdoracion?.estado === 'en-vivo'
       ? { clase: 'badge-en-vivo', label: '🔴 En vivo ahora' }
@@ -754,8 +760,14 @@ function renderAdoracion() {
     <p class="lecturas-inspiracion">${escapeHtml(invitacion)}</p>
     <p class="adoracion-cta">Esto es solo una invitación — la Adoración se vive yendo. Te esperamos en la capilla.</p>
     ${
-      previewGuiaAdoracion
-        ? `<p class="letra-aviso adoracion-preview-aviso">👁️ Vista previa para el equipo — la lectura y la reflexión de acá abajo son las de HOY, aunque no sea el día real de la Adoración.</p>`
+      mostrarGuia
+        ? `<p class="letra-aviso adoracion-preview-aviso">${
+            esHoy
+              ? '📖 Guía para seguir durante la hora.'
+              : `📖 La guía completa está más abajo — así podés llegar ya preparado. La lectura y la reflexión que se ven son las de HOY, se van a actualizar solas para el día real.${
+                  previewGuiaAdoracion && !hayAdoracion ? ' (Vista previa para el equipo.)' : ''
+                }`
+          }</p>`
         : ''
     }
     ${
@@ -770,7 +782,7 @@ function renderAdoracion() {
         : ''
     }
     ${
-      esHoy
+      mostrarGuia
         ? `
       <section class="cancion">
         <h2 class="categoria">I. Presentación al Señor</h2>
