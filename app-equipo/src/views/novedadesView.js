@@ -155,6 +155,20 @@ export async function renderNovedadesView(container) {
         <textarea id="share-evangelio-textarea" class="share-fallback-textarea" rows="4" readonly hidden></textarea>
       </div>
 
+      <div class="categories-field">
+        <span class="categories-label">🔍 Consultar lecturas de una fecha (para preparar los cantos con anticipación)</span>
+        <p class="chord-editor-hint">
+          Busca en otra fuente (Vatican News) que publica con más anticipación que la automática de arriba —
+          a cambio no trae el Salmo, y no siempre trae una reflexión. Solo te muestra el resultado: no guarda
+          ni publica nada hasta que vos elijas "Usar esta".
+        </p>
+        <div class="misa-category-row">
+          <input type="date" id="consultar-fecha-input" value="${mananaIso()}" ${loggedIn ? '' : 'disabled'} />
+          <button type="button" class="btn" id="consultar-fecha-btn" ${loggedIn ? '' : 'disabled'}>Buscar</button>
+        </div>
+        <div id="consultar-fecha-resultado"></div>
+      </div>
+
       <div id="novedad-form-wrap"></div>
       <div class="form-actions">
         <button type="button" class="btn btn-accent" id="add-btn" ${loggedIn ? '' : 'disabled'}>
@@ -367,6 +381,64 @@ export async function renderNovedadesView(container) {
         fecha: existing?.fecha || hoyIso(),
       });
     });
+  });
+
+  // Consulta a demanda (no publica nada sola) a una fuente distinta de la
+  // automática de arriba — Vatican News publica con más anticipación, útil
+  // para preparar cantos de una misa de dentro de varios días. Ver
+  // pagina-publica/api/consultar-lecturas.js.
+  const resultadoConsultaEl = container.querySelector('#consultar-fecha-resultado');
+  container.querySelector('#consultar-fecha-btn')?.addEventListener('click', async () => {
+    const fecha = container.querySelector('#consultar-fecha-input').value;
+    if (!fecha) return;
+    resultadoConsultaEl.innerHTML = `<p class="chord-editor-hint">Buscando...</p>`;
+    try {
+      const res = await fetch(`${PUBLIC_URL}api/consultar-lecturas?fecha=${fecha}`);
+      const data = await res.json();
+      if (!data.ok) {
+        resultadoConsultaEl.innerHTML = `<p class="chord-editor-hint">Todavía no está disponible para esa fecha — probá más cerca del día, o cargala a mano con los botones de arriba.</p>`;
+        return;
+      }
+      const items = [
+        { titulo: '1ª Lectura', cuerpo: data.primeraLectura },
+        { titulo: '2ª Lectura', cuerpo: data.segundaLectura },
+        { titulo: 'Evangelio', cuerpo: data.evangelio },
+        { titulo: 'Reflexión', cuerpo: data.reflexion },
+      ].filter((item) => item.cuerpo);
+
+      resultadoConsultaEl.innerHTML = `
+        ${data.tituloDia ? `<p class="chord-editor-hint"><strong>${escapeHtml(data.tituloDia)}</strong></p>` : ''}
+        <ul class="song-list">
+          ${items
+            .map(
+              (item, i) => `
+            <li class="song-item">
+              <span>
+                <strong>${escapeHtml(item.titulo)}</strong>
+                <span class="song-artist">${escapeHtml(item.cuerpo.slice(0, 140))}${item.cuerpo.length > 140 ? '…' : ''}</span>
+              </span>
+              <button type="button" class="btn btn-accent" data-usar-consulta="${i}">Usar esta</button>
+            </li>`
+            )
+            .join('')}
+        </ul>
+      `;
+
+      resultadoConsultaEl.querySelectorAll('[data-usar-consulta]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const item = items[Number(btn.dataset.usarConsulta)];
+          const existing = cachedAnuncios.find((a) => tituloCoincideConLectura(a.titulo, item.titulo) && a.fecha === fecha);
+          openForm({
+            id: existing?.id,
+            titulo: existing?.titulo || item.titulo,
+            cuerpo: item.cuerpo,
+            fecha,
+          });
+        });
+      });
+    } catch {
+      resultadoConsultaEl.innerHTML = `<p class="chord-editor-hint">No se pudo consultar (revisá la conexión).</p>`;
+    }
   });
 
   // Arma una invitación (no solo un aviso) a partir del Evangelio ya
@@ -595,6 +667,12 @@ export async function renderNovedadesView(container) {
 // espera un <input type="date"> y con cómo la página pública compara "hoy".
 function hoyIso() {
   const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function mananaIso() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
