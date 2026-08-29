@@ -29,6 +29,11 @@ function decodeEntities(text) {
     .replace(/&iacute;/g, 'í')
     .replace(/&aacute;/g, 'á')
     .replace(/&uacute;/g, 'ú')
+    .replace(/&Oacute;/g, 'Ó')
+    .replace(/&Eacute;/g, 'É')
+    .replace(/&Iacute;/g, 'Í')
+    .replace(/&Aacute;/g, 'Á')
+    .replace(/&Uacute;/g, 'Ú')
     .replace(/&ntilde;/g, 'ñ')
     .replace(/&Ntilde;/g, 'Ñ')
     .replace(/&iquest;/g, '¿')
@@ -53,10 +58,14 @@ function extraerLecturas(html) {
   const idxPapas = texto.indexOf('Las palabras de los Papas');
 
   const finPrimera = idxSegunda !== -1 && idxSegunda < idxEvangelio ? idxSegunda : idxEvangelio;
+  // El trim() va ANTES de sacar la etiqueta "Primera lectura": en domingo
+  // esa etiqueta viene con un espacio adelante (que trim() saca primero),
+  // así que si el replace corriera antes de trim() el ^ nunca matcheaba y
+  // la etiqueta quedaba pegada al principio del texto.
   const primeraLectura = texto
     .slice(idxLectura + 'Lectura del Día'.length, finPrimera)
-    .replace(/^Primera lectura\s*/, '')
-    .trim();
+    .trim()
+    .replace(/^Primera lectura\s*/, '');
 
   const segundaLectura =
     idxSegunda !== -1 && idxSegunda < idxEvangelio
@@ -66,9 +75,18 @@ function extraerLecturas(html) {
   const finEvangelio = idxPapas !== -1 ? idxPapas : idxEvangelio + 3000;
   const evangelio = texto.slice(idxEvangelio + 'Evangelio del Día'.length, finEvangelio).trim();
 
-  // La reflexión no siempre está (algunos días no traen comentario) — se
-  // corta en un largo razonable, no hay un marcador de cierre confiable.
-  const reflexion = idxPapas !== -1 ? texto.slice(idxPapas + 'Las palabras de los Papas'.length, idxPapas + 2000).trim() : null;
+  // La reflexión no siempre está (algunos días no traen comentario). No hay
+  // un marcador de cierre confiable, así que se corta en un largo
+  // razonable — pero antes se prueba con el texto legal fijo que Vatican
+  // News pone después del comentario ("Su contribución a una gran
+  // misión..."), si aparece, para no arrastrar ese aviso como si fuera
+  // parte de la reflexión.
+  let reflexion = null;
+  if (idxPapas !== -1) {
+    const bloque = texto.slice(idxPapas + 'Las palabras de los Papas'.length, idxPapas + 2500);
+    const idxAviso = bloque.indexOf('Su contribución a una gran misión');
+    reflexion = (idxAviso !== -1 ? bloque.slice(0, idxAviso) : bloque.slice(0, 2000)).trim();
+  }
 
   // "Fecha DD/MM/YYYY <Nombre del día litúrgico>" — informativo, para
   // mostrar arriba de las lecturas (ej. "Sábado de la XXII semana...").
