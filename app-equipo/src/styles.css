@@ -124,6 +124,28 @@ textarea {
   margin-top: 10px;
 }
 
+.consulta-lectura-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+
+.consulta-lectura-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.consulta-lectura-texto {
+  color: var(--text);
+  white-space: pre-line;
+  line-height: 1.5;
+  margin: 0;
+}
+
 a {
   color: var(--accent);
 }

@@ -408,20 +408,18 @@ export async function renderNovedadesView(container) {
 
       resultadoConsultaEl.innerHTML = `
         ${data.tituloDia ? `<p class="chord-editor-hint"><strong>${escapeHtml(data.tituloDia)}</strong></p>` : ''}
-        <ul class="song-list">
-          ${items
-            .map(
-              (item, i) => `
-            <li class="song-item">
-              <span>
-                <strong>${escapeHtml(item.titulo)}</strong>
-                <span class="song-artist">${escapeHtml(item.cuerpo.slice(0, 140))}${item.cuerpo.length > 140 ? '…' : ''}</span>
-              </span>
+        ${items
+          .map(
+            (item, i) => `
+          <div class="consulta-lectura-item">
+            <div class="consulta-lectura-header">
+              <strong>${escapeHtml(item.titulo)}</strong>
               <button type="button" class="btn btn-accent" data-usar-consulta="${i}">Usar esta</button>
-            </li>`
-            )
-            .join('')}
-        </ul>
+            </div>
+            <p class="consulta-lectura-texto">${escapeHtml(item.cuerpo)}</p>
+          </div>`
+          )
+          .join('')}
       `;
 
       resultadoConsultaEl.querySelectorAll('[data-usar-consulta]').forEach((btn) => {
