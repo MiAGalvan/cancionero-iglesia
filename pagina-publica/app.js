@@ -17,7 +17,7 @@ const SUPABASE_URL = 'https://mfmlbykzraejkcrdkjpw.supabase.co';
 const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mbWxieWt6cmFlamtjcmRranB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxMDUyMTAsImV4cCI6MjEwMDY4MTIxMH0.qb8QMD6zEy-Pk182-Q0qKa_EVwIMQTEw6KYiJhm77SM';
 
-const REFRESH_MS = 45000; // cada cuánto se refresca sola, por si publican un cambio de último momento
+const REFRESH_MS = 20000; // cada cuánto se refresca sola, por si publican un cambio de último momento
 
 // Cada parroquia tiene su propio QR, que apunta a esta misma página con
 // ?space=algo en la URL (ver app-equipo/src/views/qrView.js). El nombre
