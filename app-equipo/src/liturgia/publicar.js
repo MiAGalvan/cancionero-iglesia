@@ -7,27 +7,33 @@ import { getSession } from '../storage/auth.js';
 import { getAllCategories, getSpaceFullLabel, getDeviceGroup } from '../storage/settings.js';
 import { chordProToPlainLyrics } from './textoPlano.js';
 
-// `misa.items` es { [categoria]: songId | null }. Devuelve solo las
-// categorías que tienen canción elegida, en el orden litúrgico fijo (más
-// las carpetas agregadas por el equipo, al final de ese orden).
+// `misa.items` es { [categoria]: songId[] } — puede haber más de una
+// canción por categoría (ej. dos cantos de Comunión seguidos), quedan en
+// el orden en que se agregaron. En misas guardadas antes de que existiera
+// esto, `misa.items[categoria]` es un solo songId o null; se admite igual,
+// sin necesidad de migrar nada ya guardado. Devuelve solo las canciones
+// elegidas, en el orden litúrgico fijo de categorías (más las carpetas
+// agregadas por el equipo, al final de ese orden).
 export async function buildPublishPayload(misa) {
   const items = [];
   for (const categoria of getAllCategories(misa.space)) {
-    const songId = misa.items[categoria];
-    if (!songId) continue;
-    const song = await getSong(songId);
-    if (!song) continue;
-    items.push({
-      categoria,
-      titulo_cancion: song.title,
-      letra_sin_acordes: chordProToPlainLyrics(song.chordpro),
-      // El uuid no es información sensible (ya viaja entre dispositivos del
-      // equipo por la sincronización normal) y la página pública del QR no
-      // lo usa para nada — solo sirve para que "Ver publicada", adentro de
-      // la app, pueda linkear directo a la canción con acordes si la
-      // encuentra en el cancionero local (ver listaPublicadaView.js).
-      song_uuid: song.uuid,
-    });
+    const valor = misa.items[categoria];
+    const songIds = Array.isArray(valor) ? valor : valor ? [valor] : [];
+    for (const songId of songIds) {
+      const song = await getSong(songId);
+      if (!song) continue;
+      items.push({
+        categoria,
+        titulo_cancion: song.title,
+        letra_sin_acordes: chordProToPlainLyrics(song.chordpro),
+        // El uuid no es información sensible (ya viaja entre dispositivos del
+        // equipo por la sincronización normal) y la página pública del QR no
+        // lo usa para nada — solo sirve para que "Ver publicada", adentro de
+        // la app, pueda linkear directo a la canción con acordes si la
+        // encuentra en el cancionero local (ver listaPublicadaView.js).
+        song_uuid: song.uuid,
+      });
+    }
   }
   return items;
 }

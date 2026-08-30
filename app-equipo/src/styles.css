@@ -1113,6 +1113,108 @@ a {
   font-size: 1rem;
 }
 
+/* --- Buscador de canciones de "Lista de misa" (reemplaza al <select>
+   nativo — con el cancionero importado, un <select> con 40+ opciones no
+   deja escribir para filtrar, sobre todo en tablet/celular) y admite
+   agregar más de una canción por categoría, mostradas como chips. --- */
+.misa-category-row-multi {
+  align-items: flex-start;
+}
+
+.song-picker {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.song-picker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.song-picker-chips:empty {
+  display: none;
+}
+
+.song-picker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 6px 5px 12px;
+  font-size: 0.9rem;
+}
+
+.song-picker-chip-remove {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 4px;
+}
+
+.song-picker-input {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 1rem;
+}
+
+.song-picker-dropdown {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+}
+
+.song-picker-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.song-picker-option:last-child {
+  border-bottom: none;
+}
+
+.song-picker-option:hover,
+.song-picker-option:active {
+  background: var(--bg);
+}
+
+.song-picker-empty {
+  padding: 10px 12px;
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
 .horario-hasta {
   flex-shrink: 0;
   color: var(--text-dim);
