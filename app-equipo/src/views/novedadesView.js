@@ -531,6 +531,7 @@ export async function renderNovedadesView(container) {
   }
 
   function novedadItemHtml(novedad) {
+    const yaVencio = novedad.vence && novedad.vence < hoyIso();
     return `
       <li class="song-item novedad-item" data-id="${novedad.id}">
         <span>
@@ -538,7 +539,13 @@ export async function renderNovedadesView(container) {
             novedad.fecha
               ? ` <span class="category-tag">${escapeHtml(formatFechaCorta(novedad.fecha))}</span>`
               : ''
-          }${novedad.auto_generated ? ` <span class="category-tag" title="Cargada sola por el trabajo automático">🤖</span>` : ''}
+          }${novedad.auto_generated ? ` <span class="category-tag" title="Cargada sola por el trabajo automático">🤖</span>` : ''}${
+            novedad.vence
+              ? ` <span class="category-tag" title="${
+                  yaVencio ? 'Ya no se ve en la página pública' : 'Deja de verse en la página pública después de esta fecha'
+                }">${yaVencio ? '⏳ Venció' : '⏳'} ${escapeHtml(formatFechaCorta(novedad.vence))}</span>`
+              : ''
+          }
           <span class="song-artist">${escapeHtml(novedad.cuerpo)}</span>
         </span>
         ${
@@ -574,7 +581,10 @@ export async function renderNovedadesView(container) {
                 Fecha de esta lectura (para saber si es de hoy o de una misa programada)
                 <input type="date" id="novedad-fecha" value="${escapeAttr(existing?.fecha || hoyIso())}" />
               </label>`
-            : ''
+            : `<label>
+                Vigente hasta (opcional — pasada esa fecha, deja de verse solo en la página pública)
+                <input type="date" id="novedad-vence" value="${escapeAttr(existing?.vence || '')}" />
+              </label>`
         }
         <label>
           Detalle
@@ -601,6 +611,8 @@ export async function renderNovedadesView(container) {
       const payload = { space, titulo, cuerpo, updated_at: new Date().toISOString(), auto_generated: false };
       const fechaInput = formWrap.querySelector('#novedad-fecha');
       if (fechaInput) payload.fecha = fechaInput.value || null;
+      const venceInput = formWrap.querySelector('#novedad-vence');
+      if (venceInput) payload.vence = venceInput.value || null;
 
       const { error } = existing?.id
         ? await supabase.from('anuncios').update(payload).eq('id', existing.id)
@@ -622,7 +634,7 @@ export async function renderNovedadesView(container) {
     const deleteId = event.target.dataset.delete;
 
     if (editId) {
-      const { data } = await supabase.from('anuncios').select('id, titulo, cuerpo, fecha').eq('id', editId).single();
+      const { data } = await supabase.from('anuncios').select('*').eq('id', editId).single();
       if (data) openForm(data);
     } else if (deleteId) {
       if (!confirm('¿Eliminar esta novedad?')) return;

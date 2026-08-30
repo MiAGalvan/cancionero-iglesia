@@ -490,6 +490,7 @@ create table if not exists anuncios (
   titulo text not null,
   cuerpo text not null default '',
   fecha date, -- solo para las 4 lecturas del día (ver migracion-fecha-lecturas.sql); null en avisos/eventos comunes
+  vence date, -- solo para avisos comunes (ver migracion-vencimiento-avisos.sql): pasada esa fecha, la página pública deja de mostrarlo
   auto_generated boolean not null default false, -- true si la cargó sola pagina-publica/api/sync-lecturas.js, ver migracion-lecturas-automaticas.sql
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()

@@ -1244,11 +1244,16 @@ function renderLecturas() {
 }
 
 function renderNovedades(anuncios) {
-  if (!anuncios || anuncios.length === 0) return '';
+  // "vence" es opcional (ver app-equipo/novedadesView.js) — pasada esa
+  // fecha, el aviso deja de mostrarse solo, sin que nadie tenga que
+  // acordarse de borrarlo a mano (ej. "Tallarineada este sábado", una vez
+  // pasado el sábado ya no tiene sentido seguir viéndolo).
+  const vigentes = (anuncios || []).filter((anuncio) => !anuncio.vence || anuncio.vence >= hoyIso());
+  if (vigentes.length === 0) return '';
   return `
     <section class="novedades">
       <h2 class="novedades-titulo">Novedades</h2>
-      ${anuncios
+      ${vigentes
         .map(
           (anuncio) => `
         <article class="novedad">
