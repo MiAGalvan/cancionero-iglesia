@@ -3,13 +3,15 @@
 // ninguna lista fija: todo se puede reorganizar, porque a medida que esto
 // se usa en más lugares (otras ciudades, otras provincias) hace falta poder
 // diferenciarlas claramente por localidad y provincia.
-import { getSpaces, addSpace, updateSpace, deleteSpace, getCurrentSpaceKey } from '../storage/settings.js';
+import { getSpaces, addSpace, updateSpace, deleteSpace, getCurrentSpaceKey, getModoLectura } from '../storage/settings.js';
 import { getSession, getAllowedSpaceKeys, isAdmin } from '../storage/auth.js';
 import { uploadSpaceLogo, getLogosForSpaces } from '../storage/logos.js';
 import { pushSpace, pushSpaceDeletion, syncSpacesNow } from '../storage/spacesSync.js';
 
 export async function renderEspaciosView(container) {
   const loggedIn = Boolean(await getSession());
+  const modoLectura = getModoLectura();
+  const puedeEditar = loggedIn && !modoLectura;
   // Un integrante restringido a su(s) parroquia(s) ni siquiera ve acá las
   // demás — y como crear una parroquia NUEVA queda solo para el admin (ver
   // supabase/schema.sql), a un integrante logueado y no-admin le
@@ -36,8 +38,9 @@ export async function renderEspaciosView(container) {
             : ' Iniciá sesión para poder subir o cambiar el logo de cada una.'
         }
       </p>
+      ${modoLectura ? `<div class="warning-box">👁️ Modo lectura activado — se puede ver todo, pero no editar. Desactivalo desde Inicio.</div>` : ''}
       ${
-        admin
+        admin && !modoLectura
           ? `<div class="form-actions">
               <button type="button" class="btn btn-accent" id="add-space-btn">+ Agregar parroquia o capilla</button>
             </div>`
@@ -74,15 +77,15 @@ export async function renderEspaciosView(container) {
           </span>
         </span>
         ${
-          loggedIn
+          puedeEditar
             ? `<label class="btn btn-icon" title="Subir o cambiar el logo">
                 🖼️
                 <input type="file" accept="image/*" data-logo-input="${escapeAttr(space.key)}" hidden />
-              </label>`
+              </label>
+              <button type="button" class="btn btn-icon" data-edit="${escapeAttr(space.key)}" title="Editar">✏️</button>
+              <button type="button" class="btn btn-danger btn-icon" data-delete="${escapeAttr(space.key)}" title="Eliminar">✕</button>`
             : ''
         }
-        <button type="button" class="btn btn-icon" data-edit="${escapeAttr(space.key)}" title="Editar">✏️</button>
-        <button type="button" class="btn btn-danger btn-icon" data-delete="${escapeAttr(space.key)}" title="Eliminar">✕</button>
       </li>`;
   }
 

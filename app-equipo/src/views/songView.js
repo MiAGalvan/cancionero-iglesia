@@ -15,6 +15,7 @@ import {
   getDeviceGroup,
   getCurrentSpaceKey,
   getSpaceFullLabel,
+  getModoLectura,
 } from '../storage/settings.js';
 import { getSession } from '../storage/auth.js';
 import { createAudioRecorder } from '../recorder/audioRecorder.js';
@@ -23,6 +24,7 @@ import { isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { updatePublishedSong } from '../liturgia/publicar.js';
 
 export async function renderSongView(container, { id, returnTo }) {
+  const modoLectura = getModoLectura();
   const song = await getSong(Number(id));
   const backHref = returnTo || '#/library';
   const backLabel = returnTo ? '← Volver' : '← Biblioteca';
@@ -43,14 +45,18 @@ export async function renderSongView(container, { id, returnTo }) {
       <h2>${escapeHtml(song.title)}</h2>
       <div class="form-actions">
         ${
-          fromListaPublicada
+          fromListaPublicada && !modoLectura
             ? `<button class="btn" id="update-published-btn">🔄 Actualizar en la lista publicada</button>`
             : ''
         }
         <button class="btn btn-icon" id="sidebar-toggle" title="Mostrar/ocultar controles">☰</button>
         <button class="btn btn-icon" id="fullscreen-toggle" title="Pantalla completa">⛶</button>
-        <a class="btn" href="#/song/${song.id}/edit${returnToQuery}">Editar</a>
-        <button class="btn btn-danger" id="delete-btn">Eliminar</button>
+        ${
+          modoLectura
+            ? ''
+            : `<a class="btn" href="#/song/${song.id}/edit${returnToQuery}">Editar</a>
+               <button class="btn btn-danger" id="delete-btn">Eliminar</button>`
+        }
       </div>
     </div>
     <div class="song-layout">
@@ -117,14 +123,18 @@ export async function renderSongView(container, { id, returnTo }) {
             </div>
           </div>
         </div>
-        <div class="sidebar-group">
-          <h3>Grabación</h3>
-          <div class="recording-controls">
-            <button class="btn" id="record-toggle">🎙️ Grabar</button>
-            <p class="recording-status" id="recording-status" hidden></p>
-            <audio class="recording-player" id="recording-player" controls hidden></audio>
-          </div>
-        </div>
+        ${
+          modoLectura
+            ? ''
+            : `<div class="sidebar-group">
+                <h3>Grabación</h3>
+                <div class="recording-controls">
+                  <button class="btn" id="record-toggle">🎙️ Grabar</button>
+                  <p class="recording-status" id="recording-status" hidden></p>
+                  <audio class="recording-player" id="recording-player" controls hidden></audio>
+                </div>
+              </div>`
+        }
       </aside>
       <div class="lyrics-container" id="lyrics-container"></div>
     </div>
@@ -252,65 +262,67 @@ export async function renderSongView(container, { id, returnTo }) {
   // sube con la clave espacio+grupo+canción, así volver a grabar la misma
   // canción con el mismo grupo reemplaza la grabación anterior en vez de
   // acumular archivos sueltos (ver storage/recordings.js).
-  const recordBtn = container.querySelector('#record-toggle');
-  const recordingStatusEl = container.querySelector('#recording-status');
-  const recordingPlayerEl = container.querySelector('#recording-player');
-  const audioRecorder = createAudioRecorder();
+  if (!modoLectura) {
+    const recordBtn = container.querySelector('#record-toggle');
+    const recordingStatusEl = container.querySelector('#recording-status');
+    const recordingPlayerEl = container.querySelector('#recording-player');
+    const audioRecorder = createAudioRecorder();
 
-  function showRecordingStatus(text) {
-    recordingStatusEl.hidden = false;
-    recordingStatusEl.textContent = text;
-  }
+    const showRecordingStatus = (text) => {
+      recordingStatusEl.hidden = false;
+      recordingStatusEl.textContent = text;
+    };
 
-  recordBtn.addEventListener('click', async () => {
-    if (!audioRecorder.isRecording()) {
-      if (!isSupabaseConfigured) {
-        showRecordingStatus('Falta configurar Supabase.');
+    recordBtn.addEventListener('click', async () => {
+      if (!audioRecorder.isRecording()) {
+        if (!isSupabaseConfigured) {
+          showRecordingStatus('Falta configurar Supabase.');
+          return;
+        }
+        const session = await getSession();
+        if (!session) {
+          showRecordingStatus('Hace falta iniciar sesión para grabar.');
+          return;
+        }
+        try {
+          await audioRecorder.start();
+        } catch (err) {
+          console.error(err);
+          showRecordingStatus('No se pudo acceder al micrófono.');
+          return;
+        }
+        recordBtn.textContent = '⏹ Detener';
+        recordingPlayerEl.hidden = true;
+        showRecordingStatus('Grabando...');
         return;
       }
-      const session = await getSession();
-      if (!session) {
-        showRecordingStatus('Hace falta iniciar sesión para grabar.');
-        return;
-      }
+
+      recordBtn.textContent = '🎙️ Grabar';
+      recordBtn.disabled = true;
+      showRecordingStatus('Subiendo...');
       try {
-        await audioRecorder.start();
+        const blob = await audioRecorder.stop();
+        const spaceKey = getCurrentSpaceKey();
+        const groupName = getDeviceGroup();
+        const url = await uploadSongRecording({
+          spaceKey,
+          spaceName: getSpaceFullLabel(spaceKey),
+          groupName,
+          songUuid: song.uuid,
+          songTitle: song.title,
+          blob,
+        });
+        recordingPlayerEl.src = url;
+        recordingPlayerEl.hidden = false;
+        showRecordingStatus(`✓ Guardada como grabación de ${groupName || 'tu parroquia'}.`);
       } catch (err) {
         console.error(err);
-        showRecordingStatus('No se pudo acceder al micrófono.');
-        return;
+        showRecordingStatus('No se pudo guardar la grabación. Probá de nuevo.');
+      } finally {
+        recordBtn.disabled = false;
       }
-      recordBtn.textContent = '⏹ Detener';
-      recordingPlayerEl.hidden = true;
-      showRecordingStatus('Grabando...');
-      return;
-    }
-
-    recordBtn.textContent = '🎙️ Grabar';
-    recordBtn.disabled = true;
-    showRecordingStatus('Subiendo...');
-    try {
-      const blob = await audioRecorder.stop();
-      const spaceKey = getCurrentSpaceKey();
-      const groupName = getDeviceGroup();
-      const url = await uploadSongRecording({
-        spaceKey,
-        spaceName: getSpaceFullLabel(spaceKey),
-        groupName,
-        songUuid: song.uuid,
-        songTitle: song.title,
-        blob,
-      });
-      recordingPlayerEl.src = url;
-      recordingPlayerEl.hidden = false;
-      showRecordingStatus(`✓ Guardada como grabación de ${groupName || 'tu parroquia'}.`);
-    } catch (err) {
-      console.error(err);
-      showRecordingStatus('No se pudo guardar la grabación. Probá de nuevo.');
-    } finally {
-      recordBtn.disabled = false;
-    }
-  });
+    });
+  }
 
   // Ocultar/mostrar el panel de controles: con el panel oculto la letra usa
   // todo el ancho de la pantalla.
@@ -367,7 +379,7 @@ export async function renderSongView(container, { id, returnTo }) {
     });
   }
 
-  container.querySelector('#delete-btn').addEventListener('click', async () => {
+  container.querySelector('#delete-btn')?.addEventListener('click', async () => {
     if (confirm(`¿Eliminar "${song.title}"?`)) {
       const deleted = await deleteSong(song.id);
       // Esperamos a que el borrado quede confirmado en el servidor ANTES de

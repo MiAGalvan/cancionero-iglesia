@@ -21,7 +21,7 @@ import { getSession } from '../storage/auth.js';
 import { getAllSongs, saveSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
 import { pushCustomCategory } from '../storage/labelsSync.js';
-import { addCustomCategory, getCurrentSpaceKey, getDeviceGroup, getSpaceLabel } from '../storage/settings.js';
+import { addCustomCategory, getCurrentSpaceKey, getDeviceGroup, getSpaceLabel, getModoLectura } from '../storage/settings.js';
 import { pastedTextToChordPro } from '../parser/chordProParser.js';
 import datosImport from '../data/cancionero-merced-import.json';
 
@@ -31,7 +31,7 @@ export async function renderImportarCancioneroView(container) {
   const session = await getSession();
   const loggedIn = Boolean(session);
   const espacioActual = getCurrentSpaceKey();
-  const puedeImportar = loggedIn && espacioActual === ESPACIO_OBJETIVO;
+  const puedeImportar = loggedIn && !getModoLectura() && espacioActual === ESPACIO_OBJETIVO;
 
   container.innerHTML = `
     <div class="topbar">

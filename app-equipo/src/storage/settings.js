@@ -19,6 +19,7 @@ const SPACES_KEY = 'cancionero-iglesia:spaces';
 // que corre antes de que este archivo exista (para elegir el tema sin que
 // se vea un parpadeo al cargar la página) — si la cambiás acá, cambiala ahí también.
 const THEME_KEY = 'cancionero-iglesia:theme';
+const MODO_LECTURA_KEY = 'cancionero-iglesia:modo-lectura';
 
 export const DEFAULT_HEADER_TITLE = 'Cancionero';
 
@@ -442,6 +443,24 @@ export function deleteCustomTag(name) {
 // cada cosa (ver liturgia/publicar.js y views/newSongView.js) sin tener
 // que crear una cuenta nueva por cada grupo. Se guarda en mayúsculas para
 // que no queden variantes tipo "Coro Sábado" vs "coro sabado" mezcladas.
+// "Modo lectura": para prestarle este dispositivo a alguien que solo
+// necesita buscar y leer canciones (ej. durante un ensayo) sin poder tocar
+// nada por accidente — es local a ESTE dispositivo (como el tema
+// claro/oscuro), no depende de la sesión ni se sincroniza. No bloquea nada
+// a nivel de datos (eso lo sigue haciendo Supabase con quien SÍ tiene
+// sesión); solo esconde los botones de crear/editar/borrar en la interfaz.
+export function getModoLectura() {
+  return localStorage.getItem(MODO_LECTURA_KEY) === '1';
+}
+
+export function setModoLectura(activo) {
+  if (activo) {
+    localStorage.setItem(MODO_LECTURA_KEY, '1');
+  } else {
+    localStorage.removeItem(MODO_LECTURA_KEY);
+  }
+}
+
 export function getDeviceGroup() {
   return localStorage.getItem(DEVICE_GROUP_KEY) || '';
 }

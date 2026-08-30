@@ -18,6 +18,7 @@ import {
   getCurrentSpaceKey,
   setCurrentSpaceKey,
   getDeviceGroup,
+  getModoLectura,
 } from '../storage/settings.js';
 
 export async function renderLibraryView(container, { category } = {}) {
@@ -29,6 +30,7 @@ export async function renderLibraryView(container, { category } = {}) {
 }
 
 async function renderFoldersView(container) {
+  const modoLectura = getModoLectura();
   const visibleSpaces = await getVisibleSpaces();
   // Si el espacio actual ya no está entre los permitidos, lo corregimos
   // solo a la primera parroquia que sí puede tocar (ver misma lógica en
@@ -42,7 +44,7 @@ async function renderFoldersView(container) {
     <div class="topbar">
       <a class="btn" href="#/inicio">← Inicio</a>
       <h2>Cancionero</h2>
-      <a class="btn btn-accent" href="#/song/new">+ Nueva canción</a>
+      ${modoLectura ? '<span></span>' : `<a class="btn btn-accent" href="#/song/new">+ Nueva canción</a>`}
     </div>
     <div class="library-search">
       <input type="text" id="search-input" placeholder="Buscar en todas las categorías..." />
@@ -57,6 +59,7 @@ async function renderFoldersView(container) {
   // canciones, carpetas y resultados de búsqueda, sin importar cuántas
   // veces se vuelva a pintar #library-content.
   contentEl.addEventListener('click', async (event) => {
+    if (modoLectura) return; // ningún botón de editar/borrar/mover existe en el HTML, pero por las dudas
     const deleteId = event.target.dataset.delete;
     const deleteCategory = event.target.dataset.deleteCategory;
     const moveUp = event.target.dataset.moveUp;
@@ -106,17 +109,21 @@ async function renderFoldersView(container) {
               .map(
                 (cat, i) => `
               <li>
-                <span class="folder-move">
-                  <button class="btn btn-icon" data-move-up="${escapeAttr(cat)}" title="Subir" ${i === 0 ? 'disabled' : ''}>▲</button>
-                  <button class="btn btn-icon" data-move-down="${escapeAttr(cat)}" title="Bajar" ${i === cats.length - 1 ? 'disabled' : ''}>▼</button>
-                </span>
+                ${
+                  modoLectura
+                    ? ''
+                    : `<span class="folder-move">
+                        <button class="btn btn-icon" data-move-up="${escapeAttr(cat)}" title="Subir" ${i === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="btn btn-icon" data-move-down="${escapeAttr(cat)}" title="Bajar" ${i === cats.length - 1 ? 'disabled' : ''}>▼</button>
+                      </span>`
+                }
                 <a class="folder-item" href="#/library/${encodeURIComponent(cat)}">
                   <span class="folder-icon">📁</span>
                   <span class="folder-name">${escapeHtml(cat)}</span>
                   <span class="folder-count">${counts[cat] || 0}</span>
                 </a>
                 ${
-                  isCustomCategory(cat)
+                  !modoLectura && isCustomCategory(cat)
                     ? `<button class="btn btn-danger btn-icon" data-delete-category="${escapeAttr(cat)}" title="Eliminar carpeta">✕</button>`
                     : ''
                 }
@@ -129,7 +136,7 @@ async function renderFoldersView(container) {
       }
 
       const songs = await searchSongs(query, getCurrentSpaceKey());
-      contentEl.innerHTML = songSearchResultsHtml(songs);
+      contentEl.innerHTML = songSearchResultsHtml(songs, modoLectura);
     } catch (err) {
       console.error('No se pudo cargar el cancionero:', err);
       contentEl.innerHTML = `<div class="empty-state">No se pudo cargar el cancionero: ${escapeHtml(
@@ -143,11 +150,12 @@ async function renderFoldersView(container) {
 }
 
 async function renderCategoryView(container, category) {
+  const modoLectura = getModoLectura();
   container.innerHTML = `
     <div class="topbar">
       <a class="btn" href="#/library">← Categorías</a>
       <h2>${escapeHtml(category)}</h2>
-      <a class="btn btn-accent" href="#/song/new/${encodeURIComponent(category)}">+ Nueva</a>
+      ${modoLectura ? '<span></span>' : `<a class="btn btn-accent" href="#/song/new/${encodeURIComponent(category)}">+ Nueva</a>`}
     </div>
     <div class="library-search">
       <input type="text" id="search-input" placeholder="Buscar en ${escapeHtml(category)}..." />
@@ -159,6 +167,7 @@ async function renderCategoryView(container, category) {
   const listEl = container.querySelector('#song-list');
 
   listEl.addEventListener('click', async (event) => {
+    if (modoLectura) return;
     const deleteId = event.target.dataset.delete;
     const moveSongId = event.target.dataset.move;
     if (moveSongId) {
@@ -190,21 +199,21 @@ async function renderCategoryView(container, category) {
       listEl.innerHTML = `<li class="empty-state">No hay canciones acá todavía.</li>`;
       return;
     }
-    listEl.innerHTML = filtered.map(songItemHtml).join('');
+    listEl.innerHTML = filtered.map((song) => songItemHtml(song, modoLectura)).join('');
   }
 
   searchInput.addEventListener('input', () => refresh(searchInput.value));
   refresh();
 }
 
-function songSearchResultsHtml(songs) {
+function songSearchResultsHtml(songs, modoLectura) {
   if (songs.length === 0) {
     return `<div class="empty-state">No se encontraron canciones.</div>`;
   }
-  return `<ul class="song-list">${songs.map(songItemHtml).join('')}</ul>`;
+  return `<ul class="song-list">${songs.map((song) => songItemHtml(song, modoLectura)).join('')}</ul>`;
 }
 
-function songItemHtml(song) {
+function songItemHtml(song, modoLectura) {
   return `
     <li class="song-item" data-id="${song.id}">
       <a href="#/song/${song.id}">
@@ -215,8 +224,12 @@ function songItemHtml(song) {
           ${(song.tags || []).map((tag) => `<span class="liturgical-tag">🕊️ ${escapeHtml(tag)}</span>`).join('')}
         </span>
       </a>
-      <button class="btn btn-icon" data-move="${song.id}" title="Mover a otra carpeta">📁</button>
-      <button class="btn btn-danger btn-icon" data-delete="${song.id}" title="Eliminar">✕</button>
+      ${
+        modoLectura
+          ? ''
+          : `<button class="btn btn-icon" data-move="${song.id}" title="Mover a otra carpeta">📁</button>
+             <button class="btn btn-danger btn-icon" data-delete="${song.id}" title="Eliminar">✕</button>`
+      }
     </li>`;
 }
 

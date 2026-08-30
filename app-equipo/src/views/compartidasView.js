@@ -9,7 +9,7 @@ import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSession, isAdmin } from '../storage/auth.js';
 import { saveSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
-import { getCurrentSpaceKey, getChordNotation } from '../storage/settings.js';
+import { getCurrentSpaceKey, getChordNotation, getModoLectura } from '../storage/settings.js';
 import { parseChordPro, renderSong } from '../viewer/songViewer.js';
 import { getRecordingsForSong } from '../storage/recordings.js';
 
@@ -17,6 +17,7 @@ export async function renderCompartidasView(container) {
   const space = getCurrentSpaceKey();
   const session = await getSession();
   const loggedIn = Boolean(session);
+  const modoLectura = getModoLectura();
   // El admin (acceso a todas las parroquias, ver team_members) ve TODO el
   // cancionero de todas las parroquias acá, no solo lo marcado "compartir"
   // — así tiene un único lugar para ver o copiar cualquier canción de
@@ -51,6 +52,7 @@ export async function renderCompartidasView(container) {
             </div>`
           : ''
       }
+      ${modoLectura ? `<div class="warning-box">👁️ Modo lectura activado — se puede ver y escuchar, pero no copiar nada al cancionero.</div>` : ''}
       ${
         loggedIn
           ? `<input type="text" id="search-input" placeholder="Buscar por título o artista..." />`
@@ -106,7 +108,11 @@ export async function renderCompartidasView(container) {
           </span>
           <button type="button" class="btn btn-icon" data-preview="${escapeAttr(song.uuid)}" title="Ver letra y acordes">👁</button>
           <button type="button" class="btn btn-icon" data-audios="${escapeAttr(song.uuid)}" title="Escuchar cómo la canta cada grupo">🎧</button>
-          <button type="button" class="btn btn-accent" data-copy="${escapeAttr(song.uuid)}">Copiar a mi cancionero</button>
+          ${
+            modoLectura
+              ? ''
+              : `<button type="button" class="btn btn-accent" data-copy="${escapeAttr(song.uuid)}">Copiar a mi cancionero</button>`
+          }
         </div>
         <div class="compartida-preview" id="preview-${escapeAttr(song.uuid)}" hidden></div>
         <div class="compartida-audios" id="audios-${escapeAttr(song.uuid)}" hidden></div>

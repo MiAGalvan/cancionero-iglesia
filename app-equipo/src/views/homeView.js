@@ -19,6 +19,8 @@ import {
   setStoredTheme,
   getDeviceGroup,
   setDeviceGroup,
+  getModoLectura,
+  setModoLectura,
 } from '../storage/settings.js';
 
 // Agrupa las opciones del selector por provincia (con <optgroup>), así con
@@ -53,6 +55,7 @@ function renderSpaceOptions(spaces) {
 }
 
 export async function renderHomeView(container) {
+  const modoLectura = getModoLectura();
   const visibleSpaces = await getVisibleSpaces();
   // Si el espacio actual ya no está entre los permitidos (ej. cambiaron
   // los permisos de este usuario, o es la primera vez que entra
@@ -71,12 +74,19 @@ export async function renderHomeView(container) {
       </div>
       <div class="header-title-row library-title-row">
         <h1 id="header-title">${escapeHtml(getHeaderTitle())}</h1>
-        <button class="btn btn-icon" id="edit-title-btn" title="Cambiar título">✏️</button>
+        ${modoLectura ? '' : `<button class="btn btn-icon" id="edit-title-btn" title="Cambiar título">✏️</button>`}
         <button class="btn btn-icon" id="theme-toggle-btn" title="Cambiar entre pantalla clara y oscura">${
           getEffectiveTheme() === 'dark' ? '☀️' : '🌙'
         }</button>
       </div>
     </div>
+    ${
+      modoLectura
+        ? `<div class="warning-box modo-lectura-aviso">
+            👁️ Modo lectura activado — se puede buscar y leer, pero no crear, editar ni borrar nada. Tocá "Modo lectura" abajo para desactivarlo.
+          </div>`
+        : ''
+    }
     <div class="home-banner" id="space-banner" hidden>
       <img id="space-logo" alt="" />
     </div>
@@ -136,14 +146,22 @@ export async function renderHomeView(container) {
         <span class="quick-tile-icon">📥</span>
         <span class="quick-tile-label">Importar</span>
       </a>
-      <button class="quick-tile" id="new-folder-btn">
-        <span class="quick-tile-icon">📁</span>
-        <span class="quick-tile-label">Nueva carpeta</span>
+      <button class="quick-tile" id="modo-lectura-btn" title="Prestar este dispositivo para buscar y leer, sin poder crear/editar/borrar nada (ej. durante un ensayo)">
+        <span class="quick-tile-icon">👁️</span>
+        <span class="quick-tile-label">Modo lectura: ${modoLectura ? 'ON' : 'OFF'}</span>
       </button>
-      <a class="quick-tile quick-tile-accent hide-on-mobile-nav" href="#/song/new">
-        <span class="quick-tile-icon">➕</span>
-        <span class="quick-tile-label">Nueva canción</span>
-      </a>
+      ${
+        modoLectura
+          ? ''
+          : `<button class="quick-tile" id="new-folder-btn">
+              <span class="quick-tile-icon">📁</span>
+              <span class="quick-tile-label">Nueva carpeta</span>
+            </button>
+            <a class="quick-tile quick-tile-accent hide-on-mobile-nav" href="#/song/new">
+              <span class="quick-tile-icon">➕</span>
+              <span class="quick-tile-label">Nueva canción</span>
+            </a>`
+      }
     </div>
     <div class="warning-box sync-status" id="sync-status" hidden></div>
   `;
@@ -185,7 +203,7 @@ export async function renderHomeView(container) {
     container.querySelector('#theme-toggle-btn').textContent = nuevoTema === 'dark' ? '☀️' : '🌙';
   });
 
-  container.querySelector('#edit-title-btn').addEventListener('click', () => {
+  container.querySelector('#edit-title-btn')?.addEventListener('click', () => {
     const nuevoTitulo = prompt('Título de la biblioteca', getHeaderTitle());
     if (nuevoTitulo === null) return; // canceló
     setHeaderTitle(nuevoTitulo);
@@ -202,13 +220,21 @@ export async function renderHomeView(container) {
     container.querySelector('#device-group-btn .quick-tile-label').textContent = getDeviceGroup() || 'Grupo';
   });
 
-  container.querySelector('#new-folder-btn').addEventListener('click', () => {
+  container.querySelector('#new-folder-btn')?.addEventListener('click', () => {
     const nombre = prompt('Nombre de la nueva carpeta (categoría) — queda solo para esta parroquia');
     if (nombre === null || !nombre.trim()) return;
     const spaceKey = getCurrentSpaceKey();
     addCustomCategory(spaceKey, nombre);
     pushCustomCategory(spaceKey, nombre.trim()); // en segundo plano, no bloquea la pantalla
     window.location.hash = '#/library';
+  });
+
+  container.querySelector('#modo-lectura-btn').addEventListener('click', () => {
+    const activar = !getModoLectura();
+    if (activar || confirm('¿Desactivar el modo lectura y volver a permitir crear/editar/borrar en este dispositivo?')) {
+      setModoLectura(activar);
+      renderHomeView(container);
+    }
   });
 
   const authStatusEl = container.querySelector('#auth-status');

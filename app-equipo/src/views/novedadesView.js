@@ -6,7 +6,7 @@
 // cargado) funciona sin login, porque la tabla es de lectura pública.
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSession } from '../storage/auth.js';
-import { getCurrentSpaceKey, getSpaceLabel, getSpace, updateSpace } from '../storage/settings.js';
+import { getCurrentSpaceKey, getSpaceLabel, getSpace, updateSpace, getModoLectura } from '../storage/settings.js';
 import { pushSpace } from '../storage/spacesSync.js';
 import { PUBLIC_URL } from './qrView.js';
 
@@ -48,6 +48,15 @@ export async function renderNovedadesView(container) {
   const space = getCurrentSpaceKey();
   const session = await getSession();
   const loggedIn = Boolean(session);
+  const modoLectura = getModoLectura();
+  // Todo lo que en esta pantalla "requiere sesión" en realidad requiere
+  // sesión Y que el dispositivo no esté en modo lectura — se combinan acá
+  // para no repetir "loggedIn && !modoLectura" en cada uno de los ~20
+  // lugares que dicen "${puedeEditar ? '' : 'disabled'}". El aviso de
+  // "iniciá sesión" (más abajo) sigue mirando `loggedIn` solo, sin
+  // modoLectura: a alguien ya logueado no hay que pedirle que inicie
+  // sesión de nuevo, hay que decirle que apague el modo lectura.
+  const puedeEditar = loggedIn && !modoLectura;
   const espacio = getSpace(space);
 
   container.innerHTML = `
@@ -69,6 +78,8 @@ export async function renderNovedadesView(container) {
               Iniciá sesión para poder crear o editar novedades.
               <a href="#/login?returnTo=${encodeURIComponent('/novedades')}">Ingresar</a>
             </div>`
+          : modoLectura
+          ? `<div class="warning-box">👁️ Modo lectura activado — se puede ver todo, pero no editar. Desactivalo desde Inicio.</div>`
           : ''
       }
       <div id="novedad-status" class="warning-box" hidden></div>
@@ -80,12 +91,12 @@ export async function renderNovedadesView(container) {
         </p>
         <label>
           Próxima misa (día y hora, tal cual la querés ver — solo se usa si no hay ningún horario semanal cargado abajo)
-          <input type="text" id="next-mass-input" ${loggedIn ? '' : 'disabled'}
+          <input type="text" id="next-mass-input" ${puedeEditar ? '' : 'disabled'}
             value="${escapeAttr(espacio?.nextMass || '')}" placeholder="Ej. Miércoles 19 de agosto, 19:00 hs" />
         </label>
         <label>
           Dirección
-          <input type="text" id="address-input" ${loggedIn ? '' : 'disabled'}
+          <input type="text" id="address-input" ${puedeEditar ? '' : 'disabled'}
             value="${escapeAttr(espacio?.address || '')}" placeholder="Ej. Av San Martín 936, Ushuaia" />
         </label>
       </div>
@@ -94,8 +105,8 @@ export async function renderNovedadesView(container) {
         <span class="categories-label">🗓️ Horario semanal (opcional, se repite todas las semanas — si cargás esto, la página pública calcula sola la próxima misa y ya no usa el texto de arriba). "Hasta" es opcional: si lo cargás, en cuanto termine pasa a mostrar la próxima misa en vez de seguir en vivo</span>
         <div id="horario-rows"></div>
         <div class="form-actions">
-          <button type="button" class="btn" id="add-horario-row-btn" ${loggedIn ? '' : 'disabled'}>+ Agregar horario</button>
-          <button type="button" class="btn btn-accent" id="save-horario-btn" ${loggedIn ? '' : 'disabled'}>Guardar</button>
+          <button type="button" class="btn" id="add-horario-row-btn" ${puedeEditar ? '' : 'disabled'}>+ Agregar horario</button>
+          <button type="button" class="btn btn-accent" id="save-horario-btn" ${puedeEditar ? '' : 'disabled'}>Guardar</button>
         </div>
       </div>
 
@@ -103,7 +114,7 @@ export async function renderNovedadesView(container) {
         <span class="categories-label">⛪ Otras capillas de esta parroquia (solo informativo: nombre, dirección y horario — sin cancionero propio)</span>
         <ul class="song-list" id="capillas-list"></ul>
         <div class="form-actions">
-          <button type="button" class="btn" id="add-capilla-btn" ${loggedIn ? '' : 'disabled'}>+ Agregar capilla</button>
+          <button type="button" class="btn" id="add-capilla-btn" ${puedeEditar ? '' : 'disabled'}>+ Agregar capilla</button>
         </div>
       </div>
 
@@ -111,26 +122,26 @@ export async function renderNovedadesView(container) {
         <span class="categories-label">🔗 Redes sociales (se ve al fondo de "Inicio", y tiene su propio link para compartir)</span>
         <label>
           Instagram
-          <input type="url" id="instagram-input" ${loggedIn ? '' : 'disabled'}
+          <input type="url" id="instagram-input" ${puedeEditar ? '' : 'disabled'}
             value="${escapeAttr(espacio?.instagram || '')}" placeholder="Ej. https://instagram.com/tuparroquia" />
         </label>
         <label>
           Facebook
-          <input type="url" id="facebook-input" ${loggedIn ? '' : 'disabled'}
+          <input type="url" id="facebook-input" ${puedeEditar ? '' : 'disabled'}
             value="${escapeAttr(espacio?.facebook || '')}" placeholder="Ej. https://facebook.com/tuparroquia" />
         </label>
         <label>
           YouTube
-          <input type="url" id="youtube-input" ${loggedIn ? '' : 'disabled'}
+          <input type="url" id="youtube-input" ${puedeEditar ? '' : 'disabled'}
             value="${escapeAttr(espacio?.youtube || '')}" placeholder="Ej. https://youtube.com/@tuparroquia" />
         </label>
         <label>
           WhatsApp
-          <input type="url" id="whatsapp-input" ${loggedIn ? '' : 'disabled'}
+          <input type="url" id="whatsapp-input" ${puedeEditar ? '' : 'disabled'}
             value="${escapeAttr(espacio?.whatsapp || '')}" placeholder="Ej. https://wa.me/5490000000000" />
         </label>
         <div class="form-actions">
-          <button type="button" class="btn btn-accent" id="save-mass-btn" ${loggedIn ? '' : 'disabled'}>Guardar</button>
+          <button type="button" class="btn btn-accent" id="save-mass-btn" ${puedeEditar ? '' : 'disabled'}>Guardar</button>
         </div>
       </div>
 
@@ -142,7 +153,7 @@ export async function renderNovedadesView(container) {
         <p id="auto-lecturas-status" class="chord-editor-hint" hidden></p>
         <div class="form-actions">
           ${LECTURAS_TITULOS.map(
-            (titulo) => `<button type="button" class="btn" data-lectura="${escapeAttr(titulo)}" ${loggedIn ? '' : 'disabled'}>${escapeHtml(titulo)}</button>`
+            (titulo) => `<button type="button" class="btn" data-lectura="${escapeAttr(titulo)}" ${puedeEditar ? '' : 'disabled'}>${escapeHtml(titulo)}</button>`
           ).join('')}
         </div>
         <p class="chord-editor-hint">
@@ -163,15 +174,15 @@ export async function renderNovedadesView(container) {
           ni publica nada hasta que vos elijas "Usar esta".
         </p>
         <div class="misa-category-row">
-          <input type="date" id="consultar-fecha-input" value="${mananaIso()}" ${loggedIn ? '' : 'disabled'} />
-          <button type="button" class="btn" id="consultar-fecha-btn" ${loggedIn ? '' : 'disabled'}>Buscar</button>
+          <input type="date" id="consultar-fecha-input" value="${mananaIso()}" ${puedeEditar ? '' : 'disabled'} />
+          <button type="button" class="btn" id="consultar-fecha-btn" ${puedeEditar ? '' : 'disabled'}>Buscar</button>
         </div>
         <div id="consultar-fecha-resultado"></div>
       </div>
 
       <div id="novedad-form-wrap"></div>
       <div class="form-actions">
-        <button type="button" class="btn btn-accent" id="add-btn" ${loggedIn ? '' : 'disabled'}>
+        <button type="button" class="btn btn-accent" id="add-btn" ${puedeEditar ? '' : 'disabled'}>
           + Nuevo anuncio
         </button>
       </div>
@@ -225,13 +236,13 @@ export async function renderNovedadesView(container) {
   function horarioRowHtml(row, i) {
     return `
       <div class="misa-category-row horario-row-doble" data-idx="${i}">
-        <select class="horario-dia-select" data-idx="${i}" ${loggedIn ? '' : 'disabled'}>
+        <select class="horario-dia-select" data-idx="${i}" ${puedeEditar ? '' : 'disabled'}>
           ${DIAS_SEMANA.map((d, di) => `<option value="${di}" ${row.dia === di ? 'selected' : ''}>${d}</option>`).join('')}
         </select>
-        <input type="time" class="horario-hora-input" data-idx="${i}" value="${escapeAttr(row.hora || '11:00')}" ${loggedIn ? '' : 'disabled'} />
+        <input type="time" class="horario-hora-input" data-idx="${i}" value="${escapeAttr(row.hora || '11:00')}" ${puedeEditar ? '' : 'disabled'} />
         <span class="horario-hasta">hasta</span>
-        <input type="time" class="horario-horafin-input" data-idx="${i}" value="${escapeAttr(row.horaFin || '')}" ${loggedIn ? '' : 'disabled'} />
-        <button type="button" class="btn btn-danger btn-icon" data-del-horario="${i}" ${loggedIn ? '' : 'disabled'}>✕</button>
+        <input type="time" class="horario-horafin-input" data-idx="${i}" value="${escapeAttr(row.horaFin || '')}" ${puedeEditar ? '' : 'disabled'} />
+        <button type="button" class="btn btn-danger btn-icon" data-del-horario="${i}" ${puedeEditar ? '' : 'disabled'}>✕</button>
       </div>
     `;
   }
@@ -320,7 +331,7 @@ export async function renderNovedadesView(container) {
           <span class="song-artist">${escapeHtml([c.horario, c.direccion].filter(Boolean).join(' — '))}</span>
         </span>
         ${
-          loggedIn
+          puedeEditar
             ? `<button type="button" class="btn btn-icon" data-edit-capilla="${c.id}" title="Editar">✏️</button>
                <button type="button" class="btn btn-danger btn-icon" data-del-capilla="${c.id}" title="Eliminar">✕</button>`
             : ''
@@ -549,7 +560,7 @@ export async function renderNovedadesView(container) {
           <span class="song-artist">${escapeHtml(novedad.cuerpo)}</span>
         </span>
         ${
-          loggedIn
+          puedeEditar
             ? `<button type="button" class="btn btn-icon" data-edit="${novedad.id}" title="Editar">✏️</button>
                <button type="button" class="btn btn-danger btn-icon" data-delete="${novedad.id}" title="Eliminar">✕</button>`
             : ''

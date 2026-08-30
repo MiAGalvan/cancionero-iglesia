@@ -13,7 +13,7 @@
 // directo en el código de la página pública, como los rezos tradicionales
 // que son).
 import { getSession } from '../storage/auth.js';
-import { getCurrentSpaceKey, getSpaceLabel, getSpace, updateSpace } from '../storage/settings.js';
+import { getCurrentSpaceKey, getSpaceLabel, getSpace, updateSpace, getModoLectura } from '../storage/settings.js';
 import { pushSpace } from '../storage/spacesSync.js';
 import { PUBLIC_URL } from './qrView.js';
 
@@ -32,6 +32,8 @@ export async function renderAdoracionView(container) {
   const space = getCurrentSpaceKey();
   const session = await getSession();
   const loggedIn = Boolean(session);
+  const modoLectura = getModoLectura();
+  const puedeEditar = loggedIn && !modoLectura;
   const espacio = getSpace(space);
 
   let dia = typeof espacio?.adoracionDia === 'number' ? espacio.adoracionDia : null;
@@ -61,37 +63,39 @@ export async function renderAdoracionView(container) {
         con anticipación.
       </p>
       ${
-        loggedIn
-          ? ''
-          : `<div class="warning-box">
+        !loggedIn
+          ? `<div class="warning-box">
               Iniciá sesión para poder editar esto.
               <a href="#/login?returnTo=${encodeURIComponent('/adoracion')}">Ingresar</a>
             </div>`
+          : modoLectura
+          ? `<div class="warning-box">👁️ Modo lectura activado — se puede ver todo, pero no editar. Desactivalo desde Inicio.</div>`
+          : ''
       }
       <div id="adoracion-status" class="warning-box" hidden></div>
 
       <div class="categories-field">
         <span class="categories-label">🗓️ Día y horario</span>
         <div class="misa-category-row horario-row-doble">
-          <select id="adoracion-dia-select" ${loggedIn ? '' : 'disabled'}>
+          <select id="adoracion-dia-select" ${puedeEditar ? '' : 'disabled'}>
             <option value="">Sin configurar</option>
             ${DIAS_SEMANA.map((d, di) => `<option value="${di}" ${dia === di ? 'selected' : ''}>${d}</option>`).join('')}
           </select>
-          <input type="time" id="adoracion-hora-input" value="${escapeAttr(espacio?.adoracionHora || '18:00')}" ${loggedIn ? '' : 'disabled'} />
+          <input type="time" id="adoracion-hora-input" value="${escapeAttr(espacio?.adoracionHora || '18:00')}" ${puedeEditar ? '' : 'disabled'} />
           <span class="horario-hasta">hasta</span>
-          <input type="time" id="adoracion-horafin-input" value="${escapeAttr(espacio?.adoracionHoraFin || '')}" ${loggedIn ? '' : 'disabled'} />
+          <input type="time" id="adoracion-horafin-input" value="${escapeAttr(espacio?.adoracionHoraFin || '')}" ${puedeEditar ? '' : 'disabled'} />
         </div>
       </div>
 
       <div class="categories-field">
         <span class="categories-label">📍 Lugar (si es distinto a la dirección de la misa)</span>
-        <input type="text" id="adoracion-lugar-input" ${loggedIn ? '' : 'disabled'}
+        <input type="text" id="adoracion-lugar-input" ${puedeEditar ? '' : 'disabled'}
           value="${escapeAttr(espacio?.adoracionLugar || '')}" placeholder="${escapeAttr(espacio?.address || 'Ej. Capilla lateral')}" />
       </div>
 
       <div class="categories-field">
         <span class="categories-label">💬 Reflexión de invitación (lo primero que se ve al escanear el QR — cortito, invitando a ir)</span>
-        <textarea id="adoracion-invitacion-input" rows="3" ${loggedIn ? '' : 'disabled'}
+        <textarea id="adoracion-invitacion-input" rows="3" ${puedeEditar ? '' : 'disabled'}
           placeholder="${escapeAttr(INVITACION_SUGERIDA)}">${escapeHtml(espacio?.adoracionInvitacion || '')}</textarea>
       </div>
 
@@ -99,12 +103,12 @@ export async function renderAdoracionView(container) {
         <span class="categories-label">🎵 Cantos sugeridos (para intercalar durante la hora)</span>
         <ul class="song-list" id="adoracion-canciones-list"></ul>
         <div class="form-actions">
-          <button type="button" class="btn" id="add-cancion-btn" ${loggedIn ? '' : 'disabled'}>+ Agregar canto</button>
+          <button type="button" class="btn" id="add-cancion-btn" ${puedeEditar ? '' : 'disabled'}>+ Agregar canto</button>
         </div>
       </div>
 
       <div class="form-actions">
-        <button type="button" class="btn btn-accent" id="save-adoracion-btn" ${loggedIn ? '' : 'disabled'}>Guardar</button>
+        <button type="button" class="btn btn-accent" id="save-adoracion-btn" ${puedeEditar ? '' : 'disabled'}>Guardar</button>
       </div>
     </div>
   `;
@@ -133,7 +137,7 @@ export async function renderAdoracionView(container) {
           <span class="song-artist">${escapeHtml(tipoLabel(c.tipo))}</span>
         </span>
         ${
-          loggedIn
+          puedeEditar
             ? `<button type="button" class="btn btn-icon" data-edit-cancion="${c.id}" title="Editar">✏️</button>
                <button type="button" class="btn btn-danger btn-icon" data-del-cancion="${c.id}" title="Eliminar">✕</button>`
             : ''

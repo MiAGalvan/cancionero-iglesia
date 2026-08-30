@@ -18,10 +18,25 @@ import { recognizeTextFromImage } from '../ocr/ocrText.js';
 import { saveSong, updateSong, getSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
 import { getSession } from '../storage/auth.js';
-import { getAllCategories, getAllTags, addCustomTag, getCurrentSpaceKey, getDeviceGroup } from '../storage/settings.js';
+import { getAllCategories, getAllTags, addCustomTag, getCurrentSpaceKey, getDeviceGroup, getModoLectura } from '../storage/settings.js';
 import { pushCustomTag } from '../storage/labelsSync.js';
 
 export async function renderNewSongView(container, { editId, presetCategory, returnTo } = {}) {
+  if (getModoLectura()) {
+    const volver = returnTo || (editId ? `#/song/${editId}` : '#/library');
+    container.innerHTML = `
+      <div class="topbar">
+        <a class="btn" href="${volver}">← Volver</a>
+        <h2>Modo lectura</h2>
+        <span></span>
+      </div>
+      <div class="empty-state">
+        Este dispositivo está en modo lectura — no se pueden crear ni editar
+        canciones. Desactivalo desde Inicio si necesitás cargar o corregir algo.
+      </div>
+    `;
+    return;
+  }
   const existing = editId ? await getSong(Number(editId)) : null;
   const selectedCategories = existing ? existing.categories : presetCategory ? [presetCategory] : [];
   const categoryOptions = getAllCategories(existing?.space || getCurrentSpaceKey());
