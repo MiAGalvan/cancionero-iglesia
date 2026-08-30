@@ -67,12 +67,18 @@ export async function renderQrView(container) {
       <p class="qr-url" id="qr-url"></p>
       <div class="form-actions">
         <button type="button" class="btn btn-accent" id="share-btn">📤 Compartir el link</button>
+        <button type="button" class="btn" id="download-btn">🖨️ Descargar en alta calidad</button>
         <span class="qr-share-status" id="share-status" hidden></span>
       </div>
       <p class="chord-editor-hint">
         Por si alguien no puede escanear el QR (cámara rota, poca luz, etc.):
         mandale este link directo por WhatsApp, mail o como prefieras — abre
         la misma lista.
+      </p>
+      <p class="chord-editor-hint">
+        El QR de la pantalla es chico a propósito (se ve rápido) — para
+        imprimir un cartel usá "Descargar en alta calidad", que baja una
+        imagen bastante más grande y nítida.
       </p>
     </div>
   `;
@@ -82,6 +88,7 @@ export async function renderQrView(container) {
   const modoButtons = container.querySelectorAll('[data-modo-tab]');
   const tabButtons = container.querySelectorAll('[data-space-tab]');
   const shareBtn = container.querySelector('#share-btn');
+  const downloadBtn = container.querySelector('#download-btn');
   const shareStatusEl = container.querySelector('#share-status');
   let currentUrl = '';
 
@@ -126,6 +133,27 @@ export async function renderQrView(container) {
         shareStatusEl.hidden = false;
         shareStatusEl.textContent = 'No se pudo copiar. Copialo a mano de arriba.';
       }
+    };
+
+    downloadBtn.onclick = () => {
+      // Un canvas aparte, mucho más grande que el de pantalla (320px, chico
+      // a propósito para verse rápido) — 1600px da margen de sobra para
+      // imprimir un cartel grande sin que se vea pixelado (a 300dpi, unos
+      // 13,5cm de lado). dibujarEtiquetaCentral ya calcula todo en
+      // proporción a canvas.width, así que sirve igual para este tamaño sin
+      // tocarla.
+      const canvasGrande = document.createElement('canvas');
+      QRCode.toCanvas(canvasGrande, currentUrl, { width: 1600, margin: 2, errorCorrectionLevel: 'H' }, (err) => {
+        if (err) {
+          console.error('No se pudo generar el QR en alta calidad:', err);
+          return;
+        }
+        dibujarEtiquetaCentral(canvasGrande, spaceLabel);
+        const link = document.createElement('a');
+        link.download = `qr-${modo.key}-${selectedSpace}.png`;
+        link.href = canvasGrande.toDataURL('image/png');
+        link.click();
+      });
     };
   }
 
