@@ -25,6 +25,10 @@ import { updatePublishedSong } from '../liturgia/publicar.js';
 
 export async function renderSongView(container, { id, returnTo }) {
   const modoLectura = getModoLectura();
+  // Sin sesión, no se puede editar/borrar ni siquiera local — ver el mismo
+  // criterio en newSongView.js/libraryView.js/misaListView.js. El modo
+  // lectura es una restricción EXTRA para cuando sí hay sesión.
+  const puedeEditar = Boolean(await getSession()) && !modoLectura;
   const song = await getSong(Number(id));
   const backHref = returnTo || '#/library';
   const backLabel = returnTo ? '← Volver' : '← Biblioteca';
@@ -45,14 +49,14 @@ export async function renderSongView(container, { id, returnTo }) {
       <h2>${escapeHtml(song.title)}</h2>
       <div class="form-actions">
         ${
-          fromListaPublicada && !modoLectura
+          fromListaPublicada && puedeEditar
             ? `<button class="btn" id="update-published-btn">🔄 Actualizar en la lista publicada</button>`
             : ''
         }
         <button class="btn btn-icon" id="sidebar-toggle" title="Mostrar/ocultar controles">☰</button>
         <button class="btn btn-icon" id="fullscreen-toggle" title="Pantalla completa">⛶</button>
         ${
-          modoLectura
+          !puedeEditar
             ? ''
             : `<a class="btn" href="#/song/${song.id}/edit${returnToQuery}">Editar</a>
                <button class="btn btn-danger" id="delete-btn">Eliminar</button>`
@@ -124,7 +128,7 @@ export async function renderSongView(container, { id, returnTo }) {
           </div>
         </div>
         ${
-          modoLectura
+          !puedeEditar
             ? ''
             : `<div class="sidebar-group">
                 <h3>Grabación</h3>
@@ -262,7 +266,7 @@ export async function renderSongView(container, { id, returnTo }) {
   // sube con la clave espacio+grupo+canción, así volver a grabar la misma
   // canción con el mismo grupo reemplaza la grabación anterior en vez de
   // acumular archivos sueltos (ver storage/recordings.js).
-  if (!modoLectura) {
+  if (puedeEditar) {
     const recordBtn = container.querySelector('#record-toggle');
     const recordingStatusEl = container.querySelector('#recording-status');
     const recordingPlayerEl = container.querySelector('#recording-player');

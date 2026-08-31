@@ -11,6 +11,7 @@
 import { getSongsByCategory, getMisa, saveMisa, getAllMisas, getSongByUuid } from '../storage/db.js';
 import { getAllCategories, getAllTags, getCurrentSpaceKey, getSpaceLabel, getModoLectura } from '../storage/settings.js';
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
+import { getSession } from '../storage/auth.js';
 
 // Sin filtro, o si la canción no tiene ninguna etiqueta puesta ("sirve para
 // cualquier época"), siempre se muestra — el filtro solo ESCONDE canciones
@@ -35,7 +36,11 @@ function todayIso() {
 }
 
 export async function renderMisaListView(container, { fecha } = {}) {
-  const modoLectura = getModoLectura();
+  // Sin sesión, no se puede armar/guardar/publicar la lista de misa ni
+  // siquiera local — mismo criterio que newSongView.js/songView.js/
+  // libraryView.js. El modo lectura es una restricción EXTRA para cuando sí
+  // hay sesión pero se quiere prestar el dispositivo igual.
+  const puedeEditar = Boolean(await getSession()) && !getModoLectura();
   const selectedFecha = fecha || todayIso();
   const space = getCurrentSpaceKey();
   const categories = getAllCategories(space);
@@ -70,7 +75,7 @@ export async function renderMisaListView(container, { fecha } = {}) {
       </label>
 
       <div class="form-actions">
-        <button type="button" class="btn" id="import-published-btn" ${isSupabaseConfigured && !modoLectura ? '' : 'disabled'}>
+        <button type="button" class="btn" id="import-published-btn" ${isSupabaseConfigured && puedeEditar ? '' : 'disabled'}>
           ⬇️ Traer la última publicada
         </button>
       </div>
@@ -82,16 +87,26 @@ export async function renderMisaListView(container, { fecha } = {}) {
       </p>
       <div id="import-status" class="warning-box" hidden></div>
 
-      <p class="chord-editor-hint">
+      ${
+        puedeEditar
+          ? `<p class="chord-editor-hint">
         Escribí para buscar y tocá una canción para agregarla — se puede
         agregar más de una en la misma categoría (quedan una debajo de la
         otra, en el orden en que las agregaste).
-      </p>
+      </p>`
+          : `<div class="warning-box">${
+              getModoLectura()
+                ? '👁️ Modo lectura activado — se puede ver la lista, pero no armarla ni guardarla.'
+                : `Hace falta iniciar sesión para armar y guardar la lista de misa. <a href="#/login?returnTo=${encodeURIComponent(
+                    '/library'
+                  )}">Ingresar</a>`
+            }</div>`
+      }
       <div class="misa-categories" id="misa-categories-wrap"></div>
 
       <div class="form-actions">
-        <button class="btn btn-accent" id="save-btn" ${modoLectura ? 'disabled' : ''}>Guardar lista</button>
-        ${modoLectura ? '' : `<a class="btn" id="publish-link" href="#/publicar/${selectedFecha}">Ir a publicar →</a>`}
+        <button class="btn btn-accent" id="save-btn" ${puedeEditar ? '' : 'disabled'}>Guardar lista</button>
+        ${puedeEditar ? `<a class="btn" id="publish-link" href="#/publicar/${selectedFecha}">Ir a publicar →</a>` : ''}
       </div>
 
       ${allMisas.length ? renderMisasGuardadas(allMisas) : ''}
@@ -104,7 +119,7 @@ export async function renderMisaListView(container, { fecha } = {}) {
 
   function renderCategories(selections) {
     categoriesWrapEl.innerHTML = categories
-      .map((cat, i) => renderCategoryRow(cat, songsByCategory[i], toIdArray(selections[cat]), modoLectura))
+      .map((cat, i) => renderCategoryRow(cat, songsByCategory[i], toIdArray(selections[cat]), puedeEditar))
       .join('');
   }
 
@@ -247,6 +262,7 @@ export async function renderMisaListView(container, { fecha } = {}) {
   const importStatusEl = container.querySelector('#import-status');
 
   container.querySelector('#import-published-btn').addEventListener('click', async () => {
+    if (!puedeEditar) return;
     importStatusEl.hidden = true;
     const { data, error } = await supabase
       .from('lista_actual')
@@ -283,6 +299,7 @@ export async function renderMisaListView(container, { fecha } = {}) {
   });
 
   container.querySelector('#save-btn').addEventListener('click', async () => {
+    if (!puedeEditar) return;
     const newItems = readCurrentSelections();
     await saveMisa(space, fechaInput.value, newItems);
     // Re-renderizamos la misma pantalla en vez de solo cambiar el hash, para
@@ -292,7 +309,7 @@ export async function renderMisaListView(container, { fecha } = {}) {
   });
 }
 
-function renderCategoryRow(category, songs, selectedIds, modoLectura) {
+function renderCategoryRow(category, songs, selectedIds, puedeEditar) {
   const seleccionadas = selectedIds.map((id) => songs.find((s) => s.id === id)).filter(Boolean);
   return `
     <div class="misa-category-row misa-category-row-multi">
@@ -305,19 +322,19 @@ function renderCategoryRow(category, songs, selectedIds, modoLectura) {
             <span class="song-picker-chip">
               ${escapeHtml(songLabel(song))}
               <button type="button" class="song-picker-chip-remove" data-song-id="${song.id}" title="Quitar" ${
-                modoLectura ? 'hidden' : ''
+                puedeEditar ? '' : 'hidden'
               }>✕</button>
             </span>`
             )
             .join('')}
         </div>
         ${
-          modoLectura
-            ? seleccionadas.length === 0
-              ? `<p class="chord-editor-hint">— sin canciones —</p>`
-              : ''
-            : `<input type="text" class="song-picker-input" placeholder="+ Agregar canción..." autocomplete="off" />
+          puedeEditar
+            ? `<input type="text" class="song-picker-input" placeholder="+ Agregar canción..." autocomplete="off" />
                <div class="song-picker-dropdown" hidden></div>`
+            : seleccionadas.length === 0
+            ? `<p class="chord-editor-hint">— sin canciones —</p>`
+            : ''
         }
       </div>
     </div>

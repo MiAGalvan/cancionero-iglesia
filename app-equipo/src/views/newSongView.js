@@ -22,17 +22,28 @@ import { getAllCategories, getAllTags, addCustomTag, getCurrentSpaceKey, getDevi
 import { pushCustomTag } from '../storage/labelsSync.js';
 
 export async function renderNewSongView(container, { editId, presetCategory, returnTo } = {}) {
-  if (getModoLectura()) {
+  // Sin sesión, NO se puede crear/editar nada — ni siquiera local (antes sí
+  // se podía, sin login, algo que quedó como hueco de seguridad real: ver
+  // más abajo en songView.js/libraryView.js/misaListView.js el mismo
+  // criterio). El modo lectura es una restricción EXTRA para cuando sí hay
+  // sesión pero se quiere prestar el dispositivo igual.
+  const session = await getSession();
+  if (!session || getModoLectura()) {
     const volver = returnTo || (editId ? `#/song/${editId}` : '#/library');
     container.innerHTML = `
       <div class="topbar">
         <a class="btn" href="${volver}">← Volver</a>
-        <h2>Modo lectura</h2>
+        <h2>${session ? 'Modo lectura' : 'Iniciá sesión'}</h2>
         <span></span>
       </div>
       <div class="empty-state">
-        Este dispositivo está en modo lectura — no se pueden crear ni editar
-        canciones. Desactivalo desde Inicio si necesitás cargar o corregir algo.
+        ${
+          session
+            ? 'Este dispositivo está en modo lectura — no se pueden crear ni editar canciones. Desactivalo desde Inicio si necesitás cargar o corregir algo.'
+            : `Hace falta iniciar sesión para crear o editar canciones. <a href="#/login?returnTo=${encodeURIComponent(
+                '/library'
+              )}">Ingresar</a>`
+        }
       </div>
     `;
     return;
