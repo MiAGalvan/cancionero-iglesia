@@ -345,15 +345,6 @@ a {
   overflow-y: auto;
 }
 
-/* flex:1 + min-height:0 + overflow-y:auto a propósito: cuando .song-list
-   es hija directa de #app (ej. al entrar a UNA carpeta puntual, ver
-   renderCategoryView en libraryView.js), sin esto quedaba con la altura
-   de todo su contenido y el scroll lo bloqueaba #app (overflow:hidden,
-   ver más arriba) — con pocas canciones no se notaba, pero con una
-   carpeta larga (ej. después de importar el cancionero en papel) el
-   final de la lista quedaba inalcanzable, sin ninguna barra de scroll.
-   Cuando .song-list ya está adentro de otro contenedor que scrollea
-   (ej. #library-content) esto no rompe nada, simplemente no hace falta. */
 .song-list {
   list-style: none;
   margin: 0;
@@ -361,6 +352,26 @@ a {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* flex:1 + min-height:0 + overflow-y:auto a propósito, pero SOLO acá: este
+   #song-list puntual (ver renderCategoryView en libraryView.js, al entrar a
+   UNA carpeta) es hijo directo de #app — sin esto quedaba con la altura de
+   todo su contenido y el scroll lo bloqueaba #app (overflow:hidden, ver más
+   arriba) — con pocas canciones no se notaba, pero con una carpeta larga
+   (ej. después de importar el cancionero en papel) el final de la lista
+   quedaba inalcanzable, sin ninguna barra de scroll.
+   OJO: esto NO se puede poner en la clase genérica .song-list — varias
+   pantallas (novedadesView, misaListView, compartidasView, espaciosView,
+   adoracionView) usan .song-list ADENTRO de .form-view, que ya es display:
+   flex + overflow-y:auto. Si .song-list también lleva flex:1, se vuelve un
+   ítem flex más adentro de .form-view y el navegador le da solo el espacio
+   "que sobra" en vez de su alto real — queda con su propio scroll interno
+   minúsculo, casi invisible, y el scroll de .form-view (el de afuera) da
+   por terminado el contenido antes de llegar al final de la lista. Bug real
+   encontrado: en Novedades, la lista de avisos quedaba cortada justo arriba
+   de la barra de navegación inferior, sin forma de verla completa. */
+#song-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
