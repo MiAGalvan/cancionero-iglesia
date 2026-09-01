@@ -379,6 +379,7 @@ create table if not exists spaces (
   whatsapp text not null default '', -- ej. link de wa.me a un grupo o número de contacto
   horario_misas jsonb not null default '[]', -- [{dia: 0-6 (0=domingo, como Date.getDay()), hora: 'HH:MM'}], se repite cada semana
   capillas jsonb not null default '[]', -- [{id, nombre, direccion, horario}], informativas, sin cancionero propio
+  color text not null default '', -- hex (ej. '#2f8a7a'), para diferenciarlas de un vistazo en "Parroquias y capillas"
   adoracion_dia integer, -- 0-6 (como horario_misas), null = esta parroquia no hace Adoración
   adoracion_hora text,
   adoracion_hora_fin text,

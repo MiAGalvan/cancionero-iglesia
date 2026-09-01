@@ -3,10 +3,33 @@
 // ninguna lista fija: todo se puede reorganizar, porque a medida que esto
 // se usa en más lugares (otras ciudades, otras provincias) hace falta poder
 // diferenciarlas claramente por localidad y provincia.
-import { getSpaces, addSpace, updateSpace, deleteSpace, getCurrentSpaceKey, getModoLectura } from '../storage/settings.js';
+import {
+  getSpaces,
+  addSpace,
+  updateSpace,
+  deleteSpace,
+  setSpaceColor,
+  getCurrentSpaceKey,
+  getModoLectura,
+} from '../storage/settings.js';
 import { getSession, getAllowedSpaceKeys, isAdmin } from '../storage/auth.js';
 import { uploadSpaceLogo, getLogosForSpaces } from '../storage/logos.js';
 import { pushSpace, pushSpaceDeletion, syncSpacesNow } from '../storage/spacesSync.js';
+
+// Paleta chica a propósito (en vez de un selector de color libre): con
+// pocas opciones, elegidas para que se distingan bien entre sí, alcanza
+// para diferenciar de un vistazo unas pocas parroquias/capillas — y evita
+// que dos terminen con colores casi iguales por accidente.
+const PALETA_COLORES = [
+  '#2f8a7a', // verde azulado (el acento de siempre de la app)
+  '#3b6fa0', // azul
+  '#7c5cbf', // violeta
+  '#c15b8a', // rosa
+  '#c97a3a', // naranja
+  '#b79341', // dorado
+  '#4f8a4a', // verde
+  '#6b7280', // gris
+];
 
 export async function renderEspaciosView(container) {
   const loggedIn = Boolean(await getSession());
@@ -53,6 +76,11 @@ export async function renderEspaciosView(container) {
 
   const listEl = container.querySelector('#spaces-list');
   const statusEl = container.querySelector('#logo-status');
+  // Key de la parroquia con la paleta de colores abierta ahora mismo (una
+  // sola a la vez) — se cierra sola al elegir un color o al tocar 🎨 de
+  // vuelta. Vive acá afuera (no en el HTML) para sobrevivir a los
+  // repintados de render().
+  let colorPickerAbierto = null;
 
   function render() {
     const all = getSpaces();
@@ -67,26 +95,45 @@ export async function renderEspaciosView(container) {
   function spaceItemHtml(space) {
     const place = [space.locality, space.province].filter(Boolean).join(', ');
     const logoUrl = logos[space.key];
+    const abierta = colorPickerAbierto === space.key;
     return `
       <li class="song-item space-item" data-key="${escapeAttr(space.key)}">
-        <span class="space-info">
-          ${logoUrl ? `<img class="space-logo-thumb" src="${escapeAttr(logoUrl)}" alt="" />` : ''}
-          <span>
-            ${escapeHtml(space.label)}${space.key === getCurrentSpaceKey() ? ' <span class="category-tag">actual</span>' : ''}
-            <span class="song-artist">${escapeHtml(place || 'Sin localidad/provincia todavía')}</span>
+        <div class="space-item-row">
+          <span class="space-info">
+            ${space.color ? `<span class="space-color-dot" style="background:${escapeAttr(space.color)}"></span>` : ''}
+            ${logoUrl ? `<img class="space-logo-thumb" src="${escapeAttr(logoUrl)}" alt="" />` : ''}
+            <span>
+              ${escapeHtml(space.label)}${space.key === getCurrentSpaceKey() ? ' <span class="category-tag">actual</span>' : ''}
+              <span class="song-artist">${escapeHtml(place || 'Sin localidad/provincia todavía')}</span>
+            </span>
           </span>
-        </span>
-        ${
-          puedeEditar
-            ? `<label class="btn btn-icon" title="Subir o cambiar el logo">
-                🖼️
-                <input type="file" accept="image/*" data-logo-input="${escapeAttr(space.key)}" hidden />
-              </label>
-              <button type="button" class="btn btn-icon" data-edit="${escapeAttr(space.key)}" title="Editar">✏️</button>
-              <button type="button" class="btn btn-danger btn-icon" data-delete="${escapeAttr(space.key)}" title="Eliminar">✕</button>`
-            : ''
-        }
+          ${
+            puedeEditar
+              ? `<button type="button" class="btn btn-icon" data-toggle-color="${escapeAttr(space.key)}" title="Elegir color">🎨</button>
+                <label class="btn btn-icon" title="Subir o cambiar el logo">
+                  🖼️
+                  <input type="file" accept="image/*" data-logo-input="${escapeAttr(space.key)}" hidden />
+                </label>
+                <button type="button" class="btn btn-icon" data-edit="${escapeAttr(space.key)}" title="Editar">✏️</button>
+                <button type="button" class="btn btn-danger btn-icon" data-delete="${escapeAttr(space.key)}" title="Eliminar">✕</button>`
+              : ''
+          }
+        </div>
+        ${abierta ? colorPickerHtml(space) : ''}
       </li>`;
+  }
+
+  function colorPickerHtml(space) {
+    return `
+      <div class="color-picker-row">
+        ${PALETA_COLORES.map(
+          (color) => `
+          <button type="button" class="color-swatch${space.color === color ? ' active' : ''}" style="background:${color}"
+            data-set-color="${escapeAttr(space.key)}" data-color="${color}" title="${color}"></button>`
+        ).join('')}
+        <button type="button" class="color-swatch color-swatch-none${!space.color ? ' active' : ''}"
+          data-set-color="${escapeAttr(space.key)}" data-color="" title="Sin color">✕</button>
+      </div>`;
   }
 
   listEl.addEventListener('change', async (event) => {
@@ -129,6 +176,22 @@ export async function renderEspaciosView(container) {
   });
 
   listEl.addEventListener('click', (event) => {
+    const toggleColorKey = event.target.dataset.toggleColor;
+    if (toggleColorKey) {
+      colorPickerAbierto = colorPickerAbierto === toggleColorKey ? null : toggleColorKey;
+      render();
+      return;
+    }
+
+    const setColorKey = event.target.dataset.setColor;
+    if (setColorKey) {
+      const updated = setSpaceColor(setColorKey, event.target.dataset.color || '');
+      colorPickerAbierto = null;
+      render();
+      if (updated) pushSpace(updated);
+      return;
+    }
+
     const editKey = event.target.dataset.edit;
     const deleteKey = event.target.dataset.delete;
 
@@ -163,6 +226,7 @@ export async function renderEspaciosView(container) {
         whatsapp: space.whatsapp,
         horarioMisas: space.horarioMisas,
         capillas: space.capillas,
+        color: space.color,
       });
       render();
       if (updated) pushSpace(updated);

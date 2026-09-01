@@ -1,0 +1,97 @@
+// Sirve la MISMA index.html de siempre, pero con el título/descripción que
+// leen WhatsApp/Facebook/Instagram para armar la vista previa (og:title,
+// og:description, <meta name="description">) ajustados a la parroquia del
+// link compartido — antes eran fijos ("Rezar Cantando" para todas), así que
+// una publicación hecha desde San Cayetano se veía igual que una hecha
+// desde Merced, sin forma de saber de qué lugar era de un vistazo.
+//
+// Hace falta una función para esto (en vez de tocar solo index.html) porque
+// WhatsApp/Facebook NO ejecutan el JS de la página al armar la vista previa
+// — solo leen el HTML tal cual llega. `space` viaja en la URL (?space=...,
+// como siempre) pero ese dato solo lo tiene el navegador DESPUÉS de correr
+// app.js, así que sin este paso del lado del servidor no hay forma de que
+// la vista previa sepa de qué parroquia se trata.
+//
+// vercel.json redirige la ruta "/" acá (rewrite) — para cualquier persona
+// real es 100% transparente: recibe el mismo HTML de siempre, con el mismo
+// app.js, nada cambia salvo el texto de estas etiquetas puntuales. Solo se
+// toca la imagen NO — sigue siendo la misma para todas (ver el comentario
+// de más abajo).
+
+const SUPABASE_URL = 'https://mfmlbykzraejkcrdkjpw.supabase.co';
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mbWxieWt6cmFlamtjcmRranB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxMDUyMTAsImV4cCI6MjEwMDY4MTIxMH0.qb8QMD6zEy-Pk182-Q0qKa_EVwIMQTEw6KYiJhm77SM';
+
+const DESCRIPCION_GENERICA = 'Cantar y tocar es rezar. Mirá los cantos y las lecturas de la misa de hoy.';
+
+function escapeAttr(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
+
+async function buscarNombreParroquia(spaceKey) {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/spaces?key=eq.${encodeURIComponent(spaceKey)}&select=label,locality`;
+    const resp = await fetch(url, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+    });
+    if (!resp.ok) return null;
+    const rows = await resp.json();
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row?.label) return null;
+    return row.locality ? `${row.label} — ${row.locality}` : row.label;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = async (req, res) => {
+  const host = req.headers.host || 'cancionero-iglesia-qk5n.vercel.app';
+  const url = new URL(req.url, `https://${host}`);
+  const spaceKey = url.searchParams.get('space') || 'merced';
+
+  let html;
+  try {
+    // Se trae la index.html tal cual está publicada, en vez de duplicarla
+    // acá adentro — así esta función nunca queda desactualizada si el
+    // diseño de la página cambia; solo reemplaza las 3 líneas puntuales.
+    const resp = await fetch(`https://${host}/index.html`);
+    if (!resp.ok) throw new Error(`index.html respondió ${resp.status}`);
+    html = await resp.text();
+  } catch (err) {
+    // Si por lo que sea no se pudo traer la base, mandamos a la persona real
+    // directo al archivo estático de siempre — mejor una vista previa
+    // genérica que una página rota.
+    res.writeHead(302, { Location: `/index.html${url.search}` });
+    res.end();
+    return;
+  }
+
+  const nombreParroquia = await buscarNombreParroquia(spaceKey);
+
+  // El nombre de la app se mantiene como título grande (og:title, lo que
+  // WhatsApp/Facebook muestran en negrita) — el nombre de la parroquia va
+  // en la descripción, que se ve más chica debajo. La IMAGEN sigue siendo
+  // la misma genérica para todas a propósito: generar una por parroquia
+  // pediría una pieza nueva (ej. @vercel/og) para un beneficio chico al
+  // lado de este cambio, que ya resuelve lo pedido con solo texto.
+  const descripcion = nombreParroquia ? `${nombreParroquia} — ${DESCRIPCION_GENERICA}` : DESCRIPCION_GENERICA;
+
+  html = html
+    .replace(
+      /<meta name="description" content="[^"]*" \/>/,
+      `<meta name="description" content="${escapeAttr(descripcion)}" />`
+    )
+    .replace(
+      /<meta property="og:description" content="[^"]*" \/>/,
+      `<meta property="og:description" content="${escapeAttr(descripcion)}" />`
+    );
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  // Cacheado poco tiempo: si alguien cambia el nombre de la parroquia, no
+  // hace falta esperar horas a que las redes sociales vean el cambio.
+  res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=300, stale-while-revalidate=600');
+  res.status(200).send(html);
+};

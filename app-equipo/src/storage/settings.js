@@ -118,6 +118,7 @@ export function addSpace({
   whatsapp = '',
   horarioMisas = [],
   capillas = [],
+  color = '',
   adoracionDia = null,
   adoracionHora = '',
   adoracionHoraFin = '',
@@ -150,6 +151,7 @@ export function addSpace({
     whatsapp: whatsapp.trim(),
     horarioMisas,
     capillas,
+    color,
     adoracionDia,
     adoracionHora,
     adoracionHoraFin,
@@ -180,6 +182,7 @@ export function updateSpace(
     whatsapp = '',
     horarioMisas = [],
     capillas = [],
+    color = '',
     adoracionDia = null,
     adoracionHora = '',
     adoracionHoraFin = '',
@@ -208,6 +211,7 @@ export function updateSpace(
         whatsapp: whatsapp.trim(),
         horarioMisas,
         capillas,
+        color,
         adoracionDia,
         adoracionHora,
         adoracionHoraFin,
@@ -216,6 +220,25 @@ export function updateSpace(
         adoracionCanciones,
         updatedAt,
       };
+      return updatedSpace;
+    })
+  );
+  return updatedSpace;
+}
+
+// Color identificador de la parroquia/capilla (para diferenciarlas de un
+// vistazo en "Parroquias y capillas", elegido de una paleta chica — ver
+// espaciosView.js). Aparte de updateSpace a propósito: ese pide reescribir
+// TODOS los campos (útil para el flujo de edición completo, con sus
+// prompts), pero acá alcanza con tocar un solo campo con un toque, sin
+// reprocesar el resto.
+export function setSpaceColor(key, color) {
+  const updatedAt = new Date().toISOString();
+  let updatedSpace = null;
+  saveSpaces(
+    getSpaces().map((space) => {
+      if (space.key !== key) return space;
+      updatedSpace = { ...space, color, updatedAt };
       return updatedSpace;
     })
   );

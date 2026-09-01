@@ -8,5 +8,11 @@
       "path": "/api/sync-lecturas",
       "schedule": "0 21 * * 6"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/share-meta"
+    }
   ]
 }
