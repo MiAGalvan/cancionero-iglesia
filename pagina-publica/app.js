@@ -146,6 +146,7 @@ function hrefTo(route) {
 // práctica, pero al no ser una API con contrato firme, si algún día Google
 // lo bloquea, la página se queda mostrando español en vez de romperse.
 const LANGS = { es: 'Español', pt: 'Português', en: 'English' };
+const LANG_FLAGS = { es: '🇪🇸', pt: '🇧🇷', en: '🇺🇸' };
 const LANG_KEY = 'cancionero-iglesia:lang';
 let lang = localStorage.getItem(LANG_KEY) in LANGS ? localStorage.getItem(LANG_KEY) : 'es';
 
@@ -201,11 +202,17 @@ async function categoriaLabel(categoria) {
 function renderLangSwitcher() {
   return `
     <div class="lang-switcher">
-      ${Object.keys(LANGS)
-        .map(
-          (code) => `<button type="button" class="lang-btn${code === lang ? ' active' : ''}" data-lang="${code}">${code.toUpperCase()}</button>`
-        )
-        .join('')}
+      <p class="lang-switcher-label">🌐 Idioma / Language</p>
+      <div class="lang-switcher-buttons">
+        ${Object.keys(LANGS)
+          .map(
+            (code) =>
+              `<button type="button" class="lang-btn${
+                code === lang ? ' active' : ''
+              }" data-lang="${code}">${LANG_FLAGS[code]} ${LANGS[code]}</button>`
+          )
+          .join('')}
+      </div>
     </div>
   `;
 }
@@ -381,30 +388,74 @@ function renderEnteratePromo() {
 // servicio de traducción falla (sin red, o el endpoint no responde), ese
 // texto puntual se queda en español con un aviso chico, en vez de romper
 // toda la página.
+function cancionSeccionHtml(item, i) {
+  return `
+    <section class="cancion">
+      <h2 class="categoria" id="categoria-${i}">${escapeHtml(item.categoria)}</h2>
+      <h3 class="titulo" id="titulo-${i}">${escapeHtml(item.titulo_cancion)}</h3>
+      <p class="letra" id="letra-${i}">${escapeHtml(item.letra_sin_acordes)}</p>
+    </section>`;
+}
+
 function render({ fecha, items }, anuncios, logoUrl) {
+  const modoUnaCancion = getModoUnaCancion();
+  if (cancionActualIndex >= items.length) cancionActualIndex = Math.max(0, items.length - 1);
+  if (cancionActualIndex < 0) cancionActualIndex = 0;
+  const hayVarias = items.length > 0;
+
   app.innerHTML = `
     ${renderBanner(logoUrl)}
     ${renderLangSwitcher()}
     <h1>${UI_TEXT[lang].titulo}</h1>
     <p class="parroquia">${escapeHtml(nombreParroquia())}</p>
     <p class="fecha">${formatFecha(fecha)}</p>
-    ${items
-      .map(
-        (item, i) => `
-      <section class="cancion">
-        <h2 class="categoria" id="categoria-${i}">${escapeHtml(item.categoria)}</h2>
-        <h3 class="titulo" id="titulo-${i}">${escapeHtml(item.titulo_cancion)}</h3>
-        <p class="letra" id="letra-${i}">${escapeHtml(item.letra_sin_acordes)}</p>
-      </section>`
-      )
-      .join('')}
+    ${
+      hayVarias
+        ? `<button type="button" id="modo-una-cancion-btn" class="modo-una-cancion-toggle">${
+            modoUnaCancion ? '📜 Ver todas las canciones' : '👉 Ver de a una canción'
+          }</button>`
+        : ''
+    }
+    ${
+      modoUnaCancion && hayVarias
+        ? `
+      <p class="paso-seccion">Canción ${cancionActualIndex + 1} de ${items.length}</p>
+      ${cancionSeccionHtml(items[cancionActualIndex], cancionActualIndex)}
+      <div class="paso-nav">
+        <button type="button" id="cancion-anterior-btn" class="paso-nav-btn" ${
+          cancionActualIndex === 0 ? 'disabled' : ''
+        }>← Anterior</button>
+        <button type="button" id="cancion-siguiente-btn" class="paso-nav-btn paso-nav-btn-principal" ${
+          cancionActualIndex >= items.length - 1 ? 'disabled' : ''
+        }>Siguiente →</button>
+      </div>
+    `
+        : items.map((item, i) => cancionSeccionHtml(item, i)).join('')
+    }
     ${renderNovedades(separarLecturas(anuncios).otrosAvisos)}
     ${renderEnteratePromo()}
   `;
 
+  document.getElementById('modo-una-cancion-btn')?.addEventListener('click', () => {
+    setModoUnaCancion(!modoUnaCancion);
+    cancionActualIndex = 0;
+    render({ fecha, items }, anuncios, logoUrl);
+  });
+  document.getElementById('cancion-anterior-btn')?.addEventListener('click', () => {
+    cancionActualIndex = Math.max(0, cancionActualIndex - 1);
+    render({ fecha, items }, anuncios, logoUrl);
+    app.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  document.getElementById('cancion-siguiente-btn')?.addEventListener('click', () => {
+    cancionActualIndex = Math.min(items.length - 1, cancionActualIndex + 1);
+    render({ fecha, items }, anuncios, logoUrl);
+    app.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
   if (lang === 'es') return;
 
-  items.forEach((item, i) => {
+  const itemsATraducir = modoUnaCancion && hayVarias ? [[items[cancionActualIndex], cancionActualIndex]] : items.map((item, i) => [item, i]);
+  itemsATraducir.forEach(([item, i]) => {
     traducirYActualizar(`categoria-${i}`, categoriaLabel(item.categoria));
     traducirYActualizar(`titulo-${i}`, translateText(item.titulo_cancion, lang));
     traducirYActualizar(`letra-${i}`, translateText(item.letra_sin_acordes, lang));
@@ -712,6 +763,37 @@ function cantoSugeridoHtml(canciones) {
 // se entra de nuevo a esta pantalla desde otra (ver el listener de
 // 'hashchange' al final del archivo), no con cada refresco de datos.
 let pasoActualAdoracion = 0;
+
+// --- Lista de canciones: modo "de a una" (mismo patrón que el paso a paso
+// de Adoración, ver arriba) — en vez de la lista completa con scroll,
+// muestra una sola canción con botones Anterior/Siguiente. Útil para
+// proyectar en una pantalla durante la misa, canción por canción, en vez de
+// tener que scrollear. La preferencia (activado o no) se recuerda en este
+// celular/dispositivo, por parroquia, así no hay que volver a activarla en
+// cada visita.
+const MODO_UNA_CANCION_KEY = `cancionero-iglesia:modo-una-cancion:${space}`;
+
+function getModoUnaCancion() {
+  try {
+    return localStorage.getItem(MODO_UNA_CANCION_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function setModoUnaCancion(activo) {
+  try {
+    if (activo) localStorage.setItem(MODO_UNA_CANCION_KEY, '1');
+    else localStorage.removeItem(MODO_UNA_CANCION_KEY);
+  } catch {
+    // localStorage bloqueado — no es grave, simplemente no se recuerda.
+  }
+}
+
+// Mismo criterio que pasoActualAdoracion: vive afuera de render() para que
+// el refresco automático (cada REFRESH_MS) no reinicie a alguien que está
+// en medio de la lista canción por canción.
+let cancionActualIndex = 0;
 
 // Convierte las 5 partes en una lista plana de "pasos" (uno por línea de
 // Lector/Todos, más los títulos de sección, los cantos y la lectura/
@@ -1284,6 +1366,7 @@ function escapeHtml(text) {
 // interrumpe a nadie que esté en medio de la Adoración siguiendo la guía.
 window.addEventListener('hashchange', () => {
   if (currentRoute() === 'adoracion') pasoActualAdoracion = 0;
+  if (currentRoute() === '') cancionActualIndex = 0;
   renderTodo();
 });
 
