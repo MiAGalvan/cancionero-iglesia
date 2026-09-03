@@ -1,11 +1,11 @@
-// Sirve la MISMA index.html de siempre, pero con el título/descripción que
-// leen WhatsApp/Facebook/Instagram para armar la vista previa (og:title,
-// og:description, <meta name="description">) ajustados a la parroquia del
-// link compartido — antes eran fijos ("Rezar Cantando" para todas), así que
-// una publicación hecha desde San Cayetano se veía igual que una hecha
-// desde Merced, sin forma de saber de qué lugar era de un vistazo.
+// Sirve la MISMA app.html de siempre, pero con el título/descripción/imagen
+// que leen WhatsApp/Facebook/Instagram para armar la vista previa (og:title,
+// og:description, og:image, <meta name="description">) ajustados a la
+// parroquia del link compartido — antes eran fijos ("Rezar Cantando" para
+// todas), así que una publicación hecha desde San Cayetano se veía igual
+// que una hecha desde Merced, sin forma de saber de qué lugar era.
 //
-// Hace falta una función para esto (en vez de tocar solo index.html) porque
+// Hace falta una función para esto (en vez de tocar solo app.html) porque
 // WhatsApp/Facebook NO ejecutan el JS de la página al armar la vista previa
 // — solo leen el HTML tal cual llega. `space` viaja en la URL (?space=...,
 // como siempre) pero ese dato solo lo tiene el navegador DESPUÉS de correr
@@ -14,9 +14,15 @@
 //
 // vercel.json redirige la ruta "/" acá (rewrite) — para cualquier persona
 // real es 100% transparente: recibe el mismo HTML de siempre, con el mismo
-// app.js, nada cambia salvo el texto de estas etiquetas puntuales. Solo se
-// toca la imagen NO — sigue siendo la misma para todas (ver el comentario
-// de más abajo).
+// app.js, nada cambia salvo el texto/imagen de estas etiquetas puntuales.
+//
+// OJO con el nombre del archivo base: se llama "app.html" (no "index.html")
+// A PROPÓSITO — Vercel sirve un archivo estático llamado "index.html" en
+// "/" ANTES de mirar los rewrites de vercel.json, así que si existiera un
+// index.html en la carpeta, esta función nunca se llegaría a ejecutar (el
+// rewrite quedaría siempre "tapado" por el archivo). Renombrarlo saca ese
+// conflicto: "/" ya no tiene ningún archivo estático que lo sirva directo,
+// así que el rewrite es la única forma de resolverlo.
 
 const SUPABASE_URL = 'https://mfmlbykzraejkcrdkjpw.supabase.co';
 const SUPABASE_ANON_KEY =
@@ -54,17 +60,17 @@ module.exports = async (req, res) => {
 
   let html;
   try {
-    // Se trae la index.html tal cual está publicada, en vez de duplicarla
+    // Se trae la app.html tal cual está publicada, en vez de duplicarla
     // acá adentro — así esta función nunca queda desactualizada si el
-    // diseño de la página cambia; solo reemplaza las 3 líneas puntuales.
-    const resp = await fetch(`https://${host}/index.html`);
-    if (!resp.ok) throw new Error(`index.html respondió ${resp.status}`);
+    // diseño de la página cambia; solo reemplaza las líneas puntuales.
+    const resp = await fetch(`https://${host}/app.html`);
+    if (!resp.ok) throw new Error(`app.html respondió ${resp.status}`);
     html = await resp.text();
   } catch (err) {
     // Si por lo que sea no se pudo traer la base, mandamos a la persona real
     // directo al archivo estático de siempre — mejor una vista previa
     // genérica que una página rota.
-    res.writeHead(302, { Location: `/index.html${url.search}` });
+    res.writeHead(302, { Location: `/app.html${url.search}` });
     res.end();
     return;
   }
