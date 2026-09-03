@@ -13,6 +13,7 @@ import {
   clampChordOffset,
   preserveChords,
 } from './chordProBuilder.js';
+import { openFullscreenTextEditor } from './fullscreenTextEditor.js';
 
 export function renderChordEditor(container, { initialChordpro, onChordProChange }) {
   const hasInitial = Boolean(initialChordpro && initialChordpro.trim());
@@ -46,10 +47,13 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
 
   function renderLyricsPhase() {
     container.innerHTML = `
-      <p class="chord-editor-hint">
-        Escribí la letra, sin acordes. Dejá una línea en blanco donde vaya una
-        intro o un interludio (ahí después se pueden poner acordes sueltos).
-      </p>
+      <div class="textarea-field-header">
+        <p class="chord-editor-hint">
+          Escribí la letra, sin acordes. Dejá una línea en blanco donde vaya una
+          intro o un interludio (ahí después se pueden poner acordes sueltos).
+        </p>
+        <button type="button" class="btn btn-icon expand-textarea-btn" id="expand-lyrics-btn" title="Editar en pantalla completa">⛶</button>
+      </div>
       <textarea id="plain-lyrics-input" rows="10" placeholder="Perdón, oh Dios, mi Padre y Señor...">${escapeHtml(
         state.plainLyricsText
       )}</textarea>
@@ -58,15 +62,29 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
       </div>
     `;
 
+    const plainLyricsInput = container.querySelector('#plain-lyrics-input');
+
     // Sincroniza en cada tecla, no solo al tocar "Poner acordes →": así, si
     // alguien corrige un error de tipeo acá y va derecho al botón general
     // "Guardar" (sin pasar por la pantalla de acordes), la corrección igual
     // queda en el ChordPro que se guarda. Antes se perdía en silencio.
-    container.querySelector('#plain-lyrics-input').addEventListener('input', (event) => {
+    plainLyricsInput.addEventListener('input', (event) => {
       const text = event.target.value;
       state.editorLines = preserveChords(buildEditorLines(text), state.editorLines);
       state.plainLyricsText = text;
       notifyChange();
+    });
+
+    container.querySelector('#expand-lyrics-btn').addEventListener('click', () => {
+      openFullscreenTextEditor({
+        title: 'Letra',
+        initialValue: plainLyricsInput.value,
+        placeholder: plainLyricsInput.placeholder,
+        onSave: (value) => {
+          plainLyricsInput.value = value;
+          plainLyricsInput.dispatchEvent(new Event('input', { bubbles: true }));
+        },
+      });
     });
 
     container.querySelector('#go-chords-btn').addEventListener('click', () => {

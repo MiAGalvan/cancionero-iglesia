@@ -14,6 +14,7 @@
 // no un <select> de una sola opción.
 import { pastedTextToChordPro } from '../parser/chordProParser.js';
 import { renderChordEditor } from '../editor/chordEditorWidget.js';
+import { openFullscreenTextEditor } from '../editor/fullscreenTextEditor.js';
 import { recognizeTextFromImage } from '../ocr/ocrText.js';
 import { saveSong, updateSong, getSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
@@ -110,10 +111,11 @@ export async function renderNewSongView(container, { editId, presetCategory, ret
       </div>
       <div id="mode-content"></div>
 
-      <label>
-        ChordPro (se arma solo con lo de arriba; revisá o corregí acá si hace falta)
-        <textarea id="chordpro-input" rows="12">${existing ? escapeHtml(existing.chordpro) : ''}</textarea>
-      </label>
+      <div class="textarea-field-header">
+        <label for="chordpro-input">ChordPro (se arma solo con lo de arriba; revisá o corregí acá si hace falta)</label>
+        <button type="button" class="btn btn-icon expand-textarea-btn" data-expand-target="chordpro-input" data-expand-title="ChordPro" title="Editar en pantalla completa">⛶</button>
+      </div>
+      <textarea id="chordpro-input" rows="12">${existing ? escapeHtml(existing.chordpro) : ''}</textarea>
 
       <div class="form-actions">
         <button class="btn btn-accent" id="save-btn">Guardar</button>
@@ -126,6 +128,29 @@ export async function renderNewSongView(container, { editId, presetCategory, ret
   const tabButtons = container.querySelectorAll('[data-mode-tab]');
   const tagsCheckboxesEl = container.querySelector('#tags-checkboxes');
   let currentTags = [...selectedTags];
+
+  // Delegado en `container` (no en cada textarea puntual) porque
+  // #paste-input se vuelve a crear cada vez que se repinta #mode-content
+  // (cambiar de pestaña, sacar/poner la foto) — un listener puesto directo
+  // ahí quedaría huérfano en el próximo repintado.
+  container.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-expand-target]');
+    if (!btn) return;
+    const targetId = btn.dataset.expandTarget;
+    const textarea = container.querySelector(`#${targetId}`);
+    if (!textarea) return;
+    openFullscreenTextEditor({
+      title: btn.dataset.expandTitle || '',
+      initialValue: textarea.value,
+      placeholder: textarea.placeholder,
+      onSave: (value) => {
+        textarea.value = value;
+        // Por si algo escucha 'input' en esta caja (ninguna lo hace hoy,
+        // pero es gratis y evita un bug sutil si mañana se agrega uno).
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      },
+    });
+  });
 
   function renderTagCheckboxes() {
     tagsCheckboxesEl.innerHTML = getAllTags()
@@ -176,10 +201,11 @@ export async function renderNewSongView(container, { editId, presetCategory, ret
           </div>
           <div id="ocr-status" class="warning-box" hidden></div>
         </div>
-        <label>
-          Pegá acá la letra con acordes (tal cual la copiaste de la web, o el texto de una foto)
-          <textarea id="paste-input" rows="10" placeholder="Am          E7&#10;Perdón, oh Dios, perdón e indulgencia..."></textarea>
-        </label>
+        <div class="textarea-field-header">
+          <label for="paste-input">Pegá acá la letra con acordes (tal cual la copiaste de la web, o el texto de una foto)</label>
+          <button type="button" class="btn btn-icon expand-textarea-btn" data-expand-target="paste-input" data-expand-title="Letra pegada" title="Editar en pantalla completa">⛶</button>
+        </div>
+        <textarea id="paste-input" rows="10" placeholder="Am          E7&#10;Perdón, oh Dios, perdón e indulgencia..."></textarea>
         <div class="form-actions">
           <button type="button" class="btn" id="convert-btn">Convertir a ChordPro</button>
         </div>
