@@ -189,9 +189,33 @@ const CATEGORY_LABELS = {
 };
 
 const UI_TEXT = {
-  es: { titulo: 'Cantos de la misa', avisoError: '' },
-  pt: { titulo: 'Cânticos da missa', avisoError: '(não foi possível traduzir esta parte)' },
-  en: { titulo: 'Songs of the Mass', avisoError: '(this part could not be translated)' },
+  es: {
+    titulo: 'Cantos de la misa',
+    avisoError: '',
+    verUnaCancion: '👉 Ver de a una canción',
+    verTodas: '📜 Ver todas las canciones',
+    anterior: '← Anterior',
+    siguiente: 'Siguiente →',
+    cancionContador: (n, total) => `Canción ${n} de ${total}`,
+  },
+  pt: {
+    titulo: 'Cânticos da missa',
+    avisoError: '(não foi possível traduzir esta parte)',
+    verUnaCancion: '👉 Ver uma canção por vez',
+    verTodas: '📜 Ver todas as canções',
+    anterior: '← Anterior',
+    siguiente: 'Próxima →',
+    cancionContador: (n, total) => `Música ${n} de ${total}`,
+  },
+  en: {
+    titulo: 'Songs of the Mass',
+    avisoError: '(this part could not be translated)',
+    verUnaCancion: '👉 View one song at a time',
+    verTodas: '📜 View all songs',
+    anterior: '← Previous',
+    siguiente: 'Next →',
+    cancionContador: (n, total) => `Song ${n} of ${total}`,
+  },
 };
 
 async function categoriaLabel(categoria) {
@@ -412,22 +436,22 @@ function render({ fecha, items }, anuncios, logoUrl) {
     ${
       hayVarias
         ? `<button type="button" id="modo-una-cancion-btn" class="modo-una-cancion-toggle">${
-            modoUnaCancion ? '📜 Ver todas las canciones' : '👉 Ver de a una canción'
+            modoUnaCancion ? UI_TEXT[lang].verTodas : UI_TEXT[lang].verUnaCancion
           }</button>`
         : ''
     }
     ${
       modoUnaCancion && hayVarias
         ? `
-      <p class="paso-seccion">Canción ${cancionActualIndex + 1} de ${items.length}</p>
+      <p class="paso-seccion">${UI_TEXT[lang].cancionContador(cancionActualIndex + 1, items.length)}</p>
       ${cancionSeccionHtml(items[cancionActualIndex], cancionActualIndex)}
       <div class="paso-nav">
         <button type="button" id="cancion-anterior-btn" class="paso-nav-btn" ${
           cancionActualIndex === 0 ? 'disabled' : ''
-        }>← Anterior</button>
+        }>${UI_TEXT[lang].anterior}</button>
         <button type="button" id="cancion-siguiente-btn" class="paso-nav-btn paso-nav-btn-principal" ${
           cancionActualIndex >= items.length - 1 ? 'disabled' : ''
-        }>Siguiente →</button>
+        }>${UI_TEXT[lang].siguiente}</button>
       </div>
     `
         : items.map((item, i) => cancionSeccionHtml(item, i)).join('')
