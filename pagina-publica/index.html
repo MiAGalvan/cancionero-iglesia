@@ -4,18 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Rezar Cantando</title>
-    <meta name="description" content="Cantar y tocar es rezar. Mirá los cantos y las lecturas de la misa de hoy." />
+    <meta name="description" content="Cantar y tocar es rezar. Mirá las lecturas de la misa de hoy." />
     <!-- Sin esto, compartir el link en WhatsApp/Instagram/Facebook mostraba
          un recuadro gris vacío con solo la URL — estas etiquetas son las que
          leen esas apps (no ejecutan el JS de la página) para armar la vista
-         previa. Es una sola tarjeta fija, no una por parroquia/día: como acá
-         no hay build ni servidor que arme HTML por pedido, ir más lejos que
-         esto (ej. una imagen con la lectura del día) pediría una función
-         propia que genere la imagen al vuelo — de más para lo que hace falta
-         hoy. -->
+         previa. Esta es solo la tarjeta de RESPALDO (genérica, sin color ni
+         nombre de parroquia): la de verdad, personalizada por parroquia y
+         con su color, la arma api/share-meta.js al vuelo — esta acá abajo
+         solo se usa si por algún motivo esa función fallara. -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Rezar Cantando" />
-    <meta property="og:description" content="Cantar y tocar es rezar. Mirá los cantos y las lecturas de la misa de hoy." />
+    <meta property="og:description" content="Cantar y tocar es rezar. Mirá las lecturas de la misa de hoy." />
     <meta property="og:image" content="https://cancionero-iglesia-qk5n.vercel.app/icons/og-image.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="stylesheet" href="./styles.css" />

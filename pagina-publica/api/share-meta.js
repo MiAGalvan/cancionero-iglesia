@@ -22,7 +22,7 @@ const SUPABASE_URL = 'https://mfmlbykzraejkcrdkjpw.supabase.co';
 const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1mbWxieWt6cmFlamtjcmRranB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxMDUyMTAsImV4cCI6MjEwMDY4MTIxMH0.qb8QMD6zEy-Pk182-Q0qKa_EVwIMQTEw6KYiJhm77SM';
 
-const DESCRIPCION_GENERICA = 'Cantar y tocar es rezar. Mirá los cantos y las lecturas de la misa de hoy.';
+const DESCRIPCION_GENERICA = 'Cantar y tocar es rezar. Mirá las lecturas de la misa de hoy.';
 
 function escapeAttr(text) {
   return String(text)
@@ -73,11 +73,13 @@ module.exports = async (req, res) => {
 
   // El nombre de la app se mantiene como título grande (og:title, lo que
   // WhatsApp/Facebook muestran en negrita) — el nombre de la parroquia va
-  // en la descripción, que se ve más chica debajo. La IMAGEN sigue siendo
-  // la misma genérica para todas a propósito: generar una por parroquia
-  // pediría una pieza nueva (ej. @vercel/og) para un beneficio chico al
-  // lado de este cambio, que ya resuelve lo pedido con solo texto.
+  // en la descripción, que se ve más chica debajo. OJO: muchas apps (sobre
+  // todo Facebook, en el formato compacto de "compartir un link") ni
+  // siquiera muestran la descripción — por eso la imagen (og:image) ahora
+  // también lleva el nombre y el color de la parroquia adentro (ver
+  // api/og-image.js), que es lo único que esas apps SIEMPRE muestran.
   const descripcion = nombreParroquia ? `${nombreParroquia} — ${DESCRIPCION_GENERICA}` : DESCRIPCION_GENERICA;
+  const imagenUrl = `https://${host}/api/og-image?space=${encodeURIComponent(spaceKey)}`;
 
   html = html
     .replace(
@@ -87,6 +89,10 @@ module.exports = async (req, res) => {
     .replace(
       /<meta property="og:description" content="[^"]*" \/>/,
       `<meta property="og:description" content="${escapeAttr(descripcion)}" />`
+    )
+    .replace(
+      /<meta property="og:image" content="[^"]*" \/>/,
+      `<meta property="og:image" content="${escapeAttr(imagenUrl)}" />\n    <meta property="og:image:width" content="1200" />\n    <meta property="og:image:height" content="630" />`
     );
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
