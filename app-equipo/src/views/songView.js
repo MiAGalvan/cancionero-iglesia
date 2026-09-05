@@ -2,6 +2,7 @@
 // diagramas de acordes al tocar uno. Los controles viven en un panel lateral
 // (se puede ocultar del todo) para que la letra tenga el máximo de espacio.
 import { getSong, deleteSong } from '../storage/db.js';
+import { getPublicSongByUuid } from '../storage/publicCancionero.js';
 import { propagateDelete, syncNow } from '../storage/sync.js';
 import { parseChordPro, renderSong } from '../viewer/songViewer.js';
 import { createAutoScroller } from '../scroll/autoScroll.js';
@@ -29,7 +30,22 @@ export async function renderSongView(container, { id, returnTo }) {
   // criterio en newSongView.js/libraryView.js/misaListView.js. El modo
   // lectura es una restricción EXTRA para cuando sí hay sesión.
   const puedeEditar = Boolean(await getSession()) && !modoLectura;
-  const song = await getSong(Number(id));
+  // Primero se busca local (dispositivo del equipo, ya sincronizado). Si no
+  // aparece ahí, puede ser un link a una canción del cancionero público
+  // (ver publicCancionero.js — sin sesión, libraryView.js linkea con el
+  // uuid de Supabase en vez del id numérico local): se prueba de nuevo por
+  // ese lado antes de dar por perdida la canción.
+  // OJO: Number(id) da NaN para un uuid (ej. "a1b2c3...") — pedirle a
+  // IndexedDB una key NaN no devuelve "no encontrado", tira una excepción
+  // (DataError). Por eso el chequeo de Number.isFinite antes de ir a lo
+  // local: sin él, cualquier canción pública rompía la pantalla entera en
+  // vez de mostrarla.
+  const numericId = Number(id);
+  let song = Number.isFinite(numericId) ? await getSong(numericId) : null;
+  if (!song) {
+    const publicSong = await getPublicSongByUuid(id);
+    if (publicSong) song = { ...publicSong, id: publicSong.uuid };
+  }
   const backHref = returnTo || '#/library';
   const backLabel = returnTo ? '← Volver' : '← Biblioteca';
   if (!song) {

@@ -10,6 +10,8 @@ import { searchSongs, deleteSong, getAllSongs, getSongsByCategory, getSong, upda
 import { propagateDelete, syncNow } from '../storage/sync.js';
 import { pushCustomCategoryDeletion } from '../storage/labelsSync.js';
 import { getVisibleSpaces, getSession } from '../storage/auth.js';
+import { getPublicSongsForSpace } from '../storage/publicCancionero.js';
+import { CATEGORIES } from '../storage/constants.js';
 import {
   getAllCategories,
   isCustomCategory,
@@ -29,11 +31,36 @@ export async function renderLibraryView(container, { category } = {}) {
   }
 }
 
+// Sin sesión no hay ningún orden de carpetas guardado a mano para mirar
+// (eso vive en el localStorage de CADA dispositivo del equipo, ver
+// settings.js) — mejor esfuerzo: las 12 fijas en su orden de siempre,
+// y cualquier otra carpeta que el equipo haya agregado (ej. "NAVIDAD",
+// del cancionero en papel importado), alfabética al final.
+function categoriasDesdeCanciones(songs) {
+  const presentes = new Set();
+  for (const song of songs) {
+    for (const cat of song.categories || []) presentes.add(cat);
+  }
+  const fijas = CATEGORIES.filter((cat) => presentes.has(cat));
+  const extras = [...presentes].filter((cat) => !CATEGORIES.includes(cat)).sort((a, b) => a.localeCompare(b, 'es'));
+  return [...fijas, ...extras];
+}
+
+function avisoSinSesionHtml(returnTo) {
+  return `<div class="warning-box">
+    Estás viendo el cancionero sin iniciar sesión: podés buscar y ver canciones, pero no crear, editar ni borrar nada.
+    <a href="#/login?returnTo=${encodeURIComponent(returnTo)}">Ingresar</a>
+  </div>`;
+}
+
 async function renderFoldersView(container) {
   // Sin sesión, no se puede crear/editar/borrar ni siquiera local — es la
   // base de seguridad; el modo lectura es una restricción EXTRA para
-  // cuando sí hay sesión pero se quiere prestar el dispositivo igual.
-  const puedeEditar = Boolean(await getSession()) && !getModoLectura();
+  // cuando sí hay sesión pero se quiere prestar el dispositivo igual. Sin
+  // sesión SÍ se puede buscar y ver (más abajo, getPublicSongsForSpace) —
+  // antes ni eso: un dispositivo que nunca sincronizó veía todo vacío.
+  const loggedIn = Boolean(await getSession());
+  const puedeEditar = loggedIn && !getModoLectura();
   const visibleSpaces = await getVisibleSpaces();
   // Si el espacio actual ya no está entre los permitidos, lo corregimos
   // solo a la primera parroquia que sí puede tocar (ver misma lógica en
@@ -49,6 +76,7 @@ async function renderFoldersView(container) {
       <h2>Cancionero</h2>
       ${puedeEditar ? `<a class="btn btn-accent" href="#/song/new">+ Nueva canción</a>` : '<span></span>'}
     </div>
+    ${loggedIn ? '' : avisoSinSesionHtml('/library')}
     <div class="library-search">
       <input type="text" id="search-input" placeholder="Buscar en todas las categorías..." />
     </div>
@@ -57,6 +85,10 @@ async function renderFoldersView(container) {
 
   const searchInput = container.querySelector('#search-input');
   const contentEl = container.querySelector('#library-content');
+  // Sin sesión, se trae UNA vez de la nube (no hay nada local en un
+  // dispositivo nuevo) y de ahí se arma todo en memoria — con sesión sigue
+  // exactamente como siempre, todo local/IndexedDB, sin tocar la red acá.
+  const publicSongsPromise = loggedIn ? null : getPublicSongsForSpace(getCurrentSpaceKey());
 
   // Un solo listener delegado: sirve para los botones "eliminar" de
   // canciones, carpetas y resultados de búsqueda, sin importar cuántas
@@ -99,6 +131,43 @@ async function renderFoldersView(container) {
   async function renderResultsOrFolders() {
     const query = searchInput.value.trim();
     try {
+      if (!loggedIn) {
+        const songs = await publicSongsPromise;
+        if (!query) {
+          const counts = {};
+          for (const song of songs) {
+            for (const cat of song.categories || []) counts[cat] = (counts[cat] || 0) + 1;
+          }
+          const cats = categoriasDesdeCanciones(songs);
+          contentEl.innerHTML = `
+            <ul class="folder-list">
+              ${cats
+                .map(
+                  (cat) => `
+                <li>
+                  <a class="folder-item" href="#/library/${encodeURIComponent(cat)}">
+                    <span class="folder-icon">📁</span>
+                    <span class="folder-name">${escapeHtml(cat)}</span>
+                    <span class="folder-count">${counts[cat] || 0}</span>
+                  </a>
+                </li>`
+                )
+                .join('')}
+            </ul>
+          `;
+          return;
+        }
+        const needle = query.toLowerCase();
+        const filtered = songs.filter(
+          (song) =>
+            song.title.toLowerCase().includes(needle) ||
+            (song.artist || '').toLowerCase().includes(needle) ||
+            (song.tags || []).some((tag) => tag.toLowerCase().includes(needle))
+        );
+        contentEl.innerHTML = songSearchResultsHtml(filtered, false);
+        return;
+      }
+
       if (!query) {
         const songs = await getAllSongs(getCurrentSpaceKey());
         const counts = {};
@@ -153,13 +222,15 @@ async function renderFoldersView(container) {
 }
 
 async function renderCategoryView(container, category) {
-  const puedeEditar = Boolean(await getSession()) && !getModoLectura();
+  const loggedIn = Boolean(await getSession());
+  const puedeEditar = loggedIn && !getModoLectura();
   container.innerHTML = `
     <div class="topbar">
       <a class="btn" href="#/library">← Categorías</a>
       <h2>${escapeHtml(category)}</h2>
       ${puedeEditar ? `<a class="btn btn-accent" href="#/song/new/${encodeURIComponent(category)}">+ Nueva</a>` : '<span></span>'}
     </div>
+    ${loggedIn ? '' : avisoSinSesionHtml('/library')}
     <div class="library-search">
       <input type="text" id="search-input" placeholder="Buscar en ${escapeHtml(category)}..." />
     </div>
@@ -168,6 +239,7 @@ async function renderCategoryView(container, category) {
 
   const searchInput = container.querySelector('#search-input');
   const listEl = container.querySelector('#song-list');
+  const publicSongsPromise = loggedIn ? null : getPublicSongsForSpace(getCurrentSpaceKey());
 
   listEl.addEventListener('click', async (event) => {
     if (!puedeEditar) return;
@@ -187,13 +259,15 @@ async function renderCategoryView(container, category) {
   });
 
   async function refresh(query = '') {
-    const songs = await getSongsByCategory(category, getCurrentSpaceKey());
+    const songs = loggedIn
+      ? await getSongsByCategory(category, getCurrentSpaceKey())
+      : (await publicSongsPromise).filter((song) => (song.categories || []).includes(category));
     const needle = query.trim().toLowerCase();
     const filtered = needle
       ? songs.filter(
           (song) =>
             song.title.toLowerCase().includes(needle) ||
-            song.artist.toLowerCase().includes(needle) ||
+            (song.artist || '').toLowerCase().includes(needle) ||
             (song.tags || []).some((tag) => tag.toLowerCase().includes(needle))
         )
       : songs;
@@ -217,20 +291,25 @@ function songSearchResultsHtml(songs, puedeEditar) {
 }
 
 function songItemHtml(song, puedeEditar) {
+  // Sin sesión, las canciones vienen de la nube (ver publicCancionero.js)
+  // con su uuid, no con el id numérico local — el link a #/song/:id tiene
+  // que servir para los dos casos (songView.js prueba primero local por
+  // número, y si no encuentra nada, prueba de nuevo como uuid público).
+  const songId = song.id ?? song.uuid;
   return `
-    <li class="song-item" data-id="${song.id}">
-      <a href="#/song/${song.id}">
+    <li class="song-item" data-id="${escapeAttr(songId)}">
+      <a href="#/song/${encodeURIComponent(songId)}">
         ${escapeHtml(song.title || '(sin título)')}
         <span class="song-artist">
           ${escapeHtml(song.artist || '')}
-          ${song.categories.map((cat) => `<span class="category-tag">${escapeHtml(cat)}</span>`).join('')}
+          ${(song.categories || []).map((cat) => `<span class="category-tag">${escapeHtml(cat)}</span>`).join('')}
           ${(song.tags || []).map((tag) => `<span class="liturgical-tag">🕊️ ${escapeHtml(tag)}</span>`).join('')}
         </span>
       </a>
       ${
         puedeEditar
-          ? `<button class="btn btn-icon" data-move="${song.id}" title="Mover a otra carpeta">📁</button>
-             <button class="btn btn-danger btn-icon" data-delete="${song.id}" title="Eliminar">✕</button>`
+          ? `<button class="btn btn-icon" data-move="${songId}" title="Mover a otra carpeta">📁</button>
+             <button class="btn btn-danger btn-icon" data-delete="${songId}" title="Eliminar">✕</button>`
           : ''
       }
     </li>`;

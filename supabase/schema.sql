@@ -150,6 +150,17 @@ create policy "equipo lee canciones compartidas de otras parroquias"
   to authenticated
   using (shared = true);
 
+-- Mismo criterio que la política de arriba, pero para CUALQUIERA sin
+-- sesión iniciada — así el equipo/coro puede buscar y ver letra+acordes
+-- desde un celular que nunca se logueó, sin que eso habilite ninguna
+-- edición (ver storage/publicCancionero.js). Las canciones marcadas
+-- "no compartir" quedan afuera también acá.
+create policy "lectura publica del cancionero compartido"
+  on songs
+  for select
+  to anon
+  using (shared = true and deleted_at is null);
+
 -- --- espacio_logos: URL del logo de cada parroquia/capilla -------------
 -- El archivo en sí vive en Supabase Storage (bucket "logos", creado a
 -- mano desde el dashboard — ver supabase/SETUP.md); acá solo se guarda la
