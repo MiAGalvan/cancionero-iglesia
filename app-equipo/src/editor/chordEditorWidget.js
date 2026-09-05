@@ -36,13 +36,27 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
   // innerHTML — en una canción larga, si se estaba con el scroll bajado
   // para poner un acorde en el estribillo, eso volvía a subir la pantalla
   // al principio cada vez, obligando a bajar de nuevo para el siguiente
-  // acorde. Guardamos y restauramos el scroll del panel para que la
-  // pantalla se quede donde estaba.
+  // acorde.
+  //
+  // OJO: hay DOS scrolls distintos para guardar, no uno solo. ".form-view"
+  // es el scroll de la pantalla entera — pero ".chord-editor-lines" (la
+  // caja de las líneas) tiene su PROPIO scroll interno aparte (está topeada
+  // a 45vh, con overflow-y:auto propio, ver styles.css). En una canción
+  // larga, el scroll que realmente importa es el de esa caja interna: como
+  // se reconstruye entera con innerHTML, su scroll interno se resetea a 0
+  // cada vez si no se restaura a mano — eso era el bug real (guardar solo
+  // el de ".form-view" no alcanzaba, esa nunca se movía).
   function rerenderPreservingScroll() {
-    const scrollEl = container.closest('.form-view') || document.scrollingElement;
-    const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
+    const outerScrollEl = container.closest('.form-view') || document.scrollingElement;
+    const outerScrollTop = outerScrollEl ? outerScrollEl.scrollTop : 0;
+    const innerScrollEl = container.querySelector('.chord-editor-lines');
+    const innerScrollTop = innerScrollEl ? innerScrollEl.scrollTop : 0;
+
     render();
-    if (scrollEl) scrollEl.scrollTop = scrollTop;
+
+    if (outerScrollEl) outerScrollEl.scrollTop = outerScrollTop;
+    const newInnerScrollEl = container.querySelector('.chord-editor-lines');
+    if (newInnerScrollEl) newInnerScrollEl.scrollTop = innerScrollTop;
   }
 
   function renderLyricsPhase() {
@@ -113,7 +127,7 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
       render();
     });
 
-    container.querySelectorAll('[data-word-slot]').forEach((el) => {
+    container.querySelectorAll('[data-word-slot]').forEach((el, wordIndex) => {
       el.addEventListener('click', () => {
         const lineIndex = Number(el.dataset.lineIndex);
         const wordStart = Number(el.dataset.wordStart);
@@ -131,6 +145,17 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
             }
             rerenderPreservingScroll();
             notifyChange();
+          },
+          // Tab (o Shift+Tab): confirma el acorde tipeado, como si se
+          // tocara "Guardar", y de paso abre el popover de la palabra
+          // siguiente (o anterior) — para cargar una canción entera de
+          // corrido con el teclado, sin soltar el mouse en cada palabra.
+          // `wordIndex` es la posición entre TODAS las palabras (no solo
+          // las de esta línea), así que +1/-1 cruza de línea sola.
+          onTab(direction) {
+            const slotsAhora = container.querySelectorAll('[data-word-slot]');
+            const siguiente = slotsAhora[wordIndex + direction];
+            if (siguiente) siguiente.click();
           },
           onNudge(direction) {
             const current = line.chords[wordStart];
@@ -237,10 +262,12 @@ function linesToPlainText(lines) {
 
 // `info` es { entry, wordLength } para una palabra ({chord, offset}) o solo
 // { entry } (un acorde suelto, sin offset) para una línea instrumental.
-// `handlers` es { onSubmit(chord), onNudge(direction) } — onNudge es
-// opcional, solo se pasa (y solo se muestran las flechas) cuando tiene
-// sentido correr el acorde, es decir sobre una palabra de más de una letra.
-function openChordPopover(anchorEl, { entry, wordLength }, { onSubmit, onNudge }) {
+// `handlers` es { onSubmit(chord), onNudge(direction), onTab(direction) } —
+// onNudge es opcional, solo se pasa (y solo se muestran las flechas) cuando
+// tiene sentido correr el acorde, es decir sobre una palabra de más de una
+// letra. onTab también es opcional (solo lo pasan las palabras de la letra,
+// no los acordes sueltos de una línea instrumental).
+function openChordPopover(anchorEl, { entry, wordLength }, { onSubmit, onNudge, onTab }) {
   const currentChord = entry ? entry.chord : '';
   const canNudge = Boolean(onNudge && entry && wordLength > 1);
   const rect = anchorEl.getBoundingClientRect();
@@ -290,8 +317,23 @@ function openChordPopover(anchorEl, { entry, wordLength }, { onSubmit, onNudge }
 
   popover.querySelector('#chord-popover-save').addEventListener('click', submit);
   input.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') submit();
-    if (event.key === 'Escape') close();
+    if (event.key === 'Enter') {
+      submit();
+    } else if (event.key === 'Escape') {
+      close();
+    } else if (event.key === 'Tab' && onTab) {
+      // preventDefault a propósito: en vez de que el navegador mueva el
+      // foco a "lo que sea que venga después" en el HTML (el botón
+      // Guardar, el de abajo de todo...), confirmamos este acorde y
+      // abrimos nosotros el popover de la palabra siguiente (o anterior
+      // con Shift+Tab) — así se puede cargar toda la canción de corrido
+      // sin soltar el teclado ni tocar el mouse.
+      event.preventDefault();
+      const normalized = normalizeTypedChord(input.value);
+      close();
+      onSubmit(normalized);
+      onTab(event.shiftKey ? -1 : 1);
+    }
   });
 
   const removeBtn = popover.querySelector('#chord-popover-remove');
