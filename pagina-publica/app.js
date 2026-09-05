@@ -289,7 +289,15 @@ async function cargarYMostrar() {
     return;
   }
 
-  ultimaData = data && data.length > 0 ? data[0] : null;
+  // Si nadie publicó una lista nueva, la última publicada se queda ahí para
+  // siempre (esto pasó de verdad: una semana entera mostrando los cantos
+  // del domingo anterior porque nadie tocó "Publicar"). Al otro día de la
+  // fecha para la que era esa lista, dejamos de mostrarla como si fuera la
+  // de hoy — mejor la pantalla de "todavía no se publicó nada" (más
+  // llamativa, invita a avisarle al equipo) que una lista vieja pasando
+  // por actual sin que nadie lo note.
+  const filaLista = data && data.length > 0 ? data[0] : null;
+  ultimaData = filaLista && filaLista.fecha >= hoyIso() ? filaLista : null;
   ultimosAnuncios = anuncios;
   ultimoLogoUrl = logoUrl;
   ultimoEspacio = espacio;
