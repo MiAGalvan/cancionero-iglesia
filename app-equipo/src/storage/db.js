@@ -120,7 +120,7 @@ function getDb() {
 // una carpeta agregada, ver storage/settings.js). `space` es de qué
 // parroquia es (ver storage/constants.js) — cada espacio tiene su propio
 // cancionero, separado del de las demás.
-export async function saveSong({ title, artist, categories, chordpro, space, shared = false, tags = [], updatedBy = null }) {
+export async function saveSong({ title, artist, categories, chordpro, space, shared = true, tags = [], updatedBy = null }) {
   const db = await getDb();
   const now = new Date().toISOString();
   const id = await db.add(SONGS_STORE, {
@@ -149,7 +149,7 @@ export async function updateSong(id, { title, artist, categories, chordpro, shar
     artist: artist.trim(),
     categories: categories && categories.length ? categories : [],
     chordpro,
-    shared: shared ?? existing.shared ?? false,
+    shared: shared ?? existing.shared ?? true,
     tags: tags && tags.length ? tags : [],
     updatedBy: updatedBy ?? existing.updatedBy ?? null,
     updatedAt: new Date().toISOString(),
