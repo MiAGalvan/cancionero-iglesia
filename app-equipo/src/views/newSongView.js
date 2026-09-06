@@ -119,7 +119,21 @@ export async function renderNewSongView(container, { editId, presetCategory, ret
 
       <div class="form-actions">
         <button class="btn btn-accent" id="save-btn">Guardar</button>
+        ${
+          existing
+            ? `<button type="button" class="btn" id="save-copy-btn">Guardar como copia</button>`
+            : ''
+        }
       </div>
+      ${
+        existing
+          ? `<p class="chord-editor-hint">
+              "Guardar" corrige esta canción para todos. "Guardar como copia" crea una canción
+              nueva e independiente con estos cambios (útil, por ejemplo, cuando un grupo la
+              canta distinto — con otra letra, otro estribillo — y no querés tocar la original).
+            </p>`
+          : ''
+      }
     </div>
   `;
 
@@ -269,7 +283,11 @@ export async function renderNewSongView(container, { editId, presetCategory, ret
   updateTabsUI();
   renderModeContent();
 
-  container.querySelector('#save-btn').addEventListener('click', async () => {
+  // Leída tanto por "Guardar" como por "Guardar como copia" — las dos
+  // parten de exactamente lo mismo que hay tipeado en el formulario ahora
+  // mismo, solo cambia qué se hace con eso (pisar la canción de origen o
+  // crear una nueva independiente).
+  function leerFormulario() {
     const title = container.querySelector('#title-input').value.trim();
     const artist = container.querySelector('#artist-input').value.trim();
     const categories = Array.from(
@@ -277,41 +295,64 @@ export async function renderNewSongView(container, { editId, presetCategory, ret
     ).map((input) => input.value);
     const chordpro = chordproInput.value.trim();
     const shared = container.querySelector('#shared-input').checked;
+    return { title, artist, categories, chordpro, shared };
+  }
 
+  function formularioValido({ title, chordpro, categories }) {
     if (!title || !chordpro) {
       alert('Falta el título o el contenido de la canción.');
-      return;
+      return false;
     }
     if (categories.length === 0) {
       alert('Elegí al menos una categoría litúrgica.');
-      return;
+      return false;
     }
+    return true;
+  }
 
+  async function obtenerUpdatedBy() {
     // El grupo del dispositivo (ej. "CORO SÁBADO") es más útil que el
     // email cuando varios grupos comparten un solo login de parroquia. Sin
     // grupo configurado ni sesión, queda sin autoría — no bloquea guardar,
     // es solo un dato informativo para el equipo.
     const session = await getSession();
-    const updatedBy = getDeviceGroup() || session?.user?.email || null;
+    return getDeviceGroup() || session?.user?.email || null;
+  }
+
+  container.querySelector('#save-btn').addEventListener('click', async () => {
+    const datos = leerFormulario();
+    if (!formularioValido(datos)) return;
+    const updatedBy = await obtenerUpdatedBy();
 
     const saved = existing
-      ? await updateSong(existing.id, { title, artist, categories, chordpro, shared, tags: currentTags, updatedBy })
-      : await saveSong({
-          title,
-          artist,
-          categories,
-          chordpro,
-          shared,
-          tags: currentTags,
-          updatedBy,
-          space: getCurrentSpaceKey(),
-        });
+      ? await updateSong(existing.id, { ...datos, tags: currentTags, updatedBy })
+      : await saveSong({ ...datos, tags: currentTags, updatedBy, space: getCurrentSpaceKey() });
 
     window.location.hash = `#/song/${saved.id}${returnToQuery}`;
     // En segundo plano, sin bloquear la navegación: si hay sesión y
     // conexión, esto ya sube la canción para que aparezca en los demás
     // dispositivos del equipo. Si no, no hace nada — se sube la próxima
     // vez que alguien sincronice desde un dispositivo logueado.
+    syncNow();
+  });
+
+  // Crea una canción NUEVA e independiente con lo que hay tipeado ahora —
+  // la de origen (`existing`) queda intacta. Pensado para cuando un grupo
+  // canta una canción distinto (otra letra, otro estribillo) y no
+  // corresponde pisar la versión que usan los demás.
+  container.querySelector('#save-copy-btn')?.addEventListener('click', async () => {
+    const datos = leerFormulario();
+    if (!formularioValido(datos)) return;
+    const updatedBy = await obtenerUpdatedBy();
+
+    const saved = await saveSong({
+      ...datos,
+      tags: currentTags,
+      updatedBy,
+      space: existing.space || getCurrentSpaceKey(),
+    });
+
+    window.location.hash = `#/song/${saved.id}${returnToQuery}`;
     syncNow();
   });
 }
