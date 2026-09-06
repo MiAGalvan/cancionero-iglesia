@@ -331,7 +331,13 @@ function saveCustomCategories(spaceKey, categories) {
   saveCustomCategoriesMap(map);
 }
 
-function getCategoryOrderMap() {
+// Antes el orden vivía acá, aparte, sin sincronizarse nunca entre
+// dispositivos del equipo — cada uno podía terminar viendo un orden
+// distinto de carpetas sin que nadie lo notara (justo el bug real que hizo
+// falta este cambio para arreglar). Se deja SOLO para migrar ese valor
+// viejo la primera vez que haga falta (ver getCategoryOrder) — nada nuevo
+// escribe acá.
+function getCategoryOrderMapLegacy() {
   try {
     const saved = JSON.parse(localStorage.getItem(CATEGORY_ORDER_KEY));
     if (!saved || Array.isArray(saved) || typeof saved !== 'object') return {};
@@ -341,19 +347,39 @@ function getCategoryOrderMap() {
   }
 }
 
-function saveCategoryOrderMap(map) {
-  localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(map));
-}
-
+// El orden ahora vive en el mismo lugar que color/horario/capillas de la
+// parroquia (ver storage/spacesSync.js) — así, a diferencia de antes, SÍ
+// se sincroniza entre todos los dispositivos del equipo.
 function getCategoryOrder(spaceKey) {
-  const order = getCategoryOrderMap()[spaceKey];
-  return Array.isArray(order) ? order : null;
+  const order = getSpace(spaceKey)?.categoryOrder;
+  if (Array.isArray(order) && order.length) return order;
+
+  // Migración de una sola vez: si este dispositivo tenía un orden guardado
+  // a la vieja usanza (solo acá, nunca sincronizado), se traslada al
+  // espacio ahora que sí sincroniza, en vez de perderlo silenciosamente.
+  const legacyOrder = getCategoryOrderMapLegacy()[spaceKey];
+  if (Array.isArray(legacyOrder) && legacyOrder.length) {
+    saveCategoryOrder(spaceKey, legacyOrder);
+    return legacyOrder;
+  }
+  return null;
 }
 
+// Devuelve el espacio ya actualizado (o null si esa key no existe), para
+// que quien llama pueda subirlo a Supabase con pushSpace — igual que
+// setSpaceColor, no pasa por updateSpace porque alcanza con tocar un solo
+// campo sin reprocesar el resto.
 function saveCategoryOrder(spaceKey, order) {
-  const map = getCategoryOrderMap();
-  map[spaceKey] = order;
-  saveCategoryOrderMap(map);
+  const updatedAt = new Date().toISOString();
+  let updatedSpace = null;
+  saveSpaces(
+    getSpaces().map((space) => {
+      if (space.key !== spaceKey) return space;
+      updatedSpace = { ...space, categoryOrder: order, updatedAt };
+      return updatedSpace;
+    })
+  );
+  return updatedSpace;
 }
 
 // Arranca con las 12 litúrgicas fijas en su orden, más las carpetas
@@ -380,18 +406,20 @@ export function getAllCategories(spaceKey) {
 }
 
 // Intercambia una carpeta con la de al lado (arriba o abajo) y guarda ese
-// orden. No hace nada si ya está en la punta correspondiente. Devuelve la
-// lista ya actualizada, lista para volver a pintar la pantalla.
+// orden. No hace nada si ya está en la punta correspondiente. Devuelve
+// `{ order, space }` — `order` para repintar ya mismo, `space` (el espacio
+// ya actualizado, o null si no se movió nada) para que quien llama lo suba
+// a Supabase con pushSpace y el resto del equipo lo vea también.
 export function moveCategory(spaceKey, name, direction) {
   const order = getAllCategories(spaceKey);
   const index = order.indexOf(name);
   const targetIndex = direction === 'up' ? index - 1 : index + 1;
-  if (index === -1 || targetIndex < 0 || targetIndex >= order.length) return order;
+  if (index === -1 || targetIndex < 0 || targetIndex >= order.length) return { order, space: null };
 
   const newOrder = [...order];
   [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
-  saveCategoryOrder(spaceKey, newOrder);
-  return newOrder;
+  const space = saveCategoryOrder(spaceKey, newOrder);
+  return { order: newOrder, space };
 }
 
 export function isCustomCategory(name) {

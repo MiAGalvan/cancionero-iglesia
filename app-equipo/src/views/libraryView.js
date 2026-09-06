@@ -9,6 +9,7 @@
 import { searchSongs, deleteSong, getAllSongs, getSongsByCategory, getSong, updateSong } from '../storage/db.js';
 import { propagateDelete, syncNow } from '../storage/sync.js';
 import { pushCustomCategoryDeletion } from '../storage/labelsSync.js';
+import { pushSpace } from '../storage/spacesSync.js';
 import { getVisibleSpaces, getSession } from '../storage/auth.js';
 import { getPublicSongsForSpace } from '../storage/publicCancionero.js';
 import { CATEGORIES } from '../storage/constants.js';
@@ -120,11 +121,13 @@ async function renderFoldersView(container) {
         pushCustomCategoryDeletion(spaceKey, deleteCategory); // en segundo plano
       }
     } else if (moveUp) {
-      moveCategory(getCurrentSpaceKey(), moveUp, 'up');
+      const { space } = moveCategory(getCurrentSpaceKey(), moveUp, 'up');
       renderResultsOrFolders();
+      if (space) pushSpace(space); // en segundo plano, para que el resto del equipo vea el mismo orden
     } else if (moveDown) {
-      moveCategory(getCurrentSpaceKey(), moveDown, 'down');
+      const { space } = moveCategory(getCurrentSpaceKey(), moveDown, 'down');
       renderResultsOrFolders();
+      if (space) pushSpace(space);
     }
   });
 
