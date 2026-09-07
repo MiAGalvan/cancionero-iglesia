@@ -363,7 +363,7 @@ function renderTodo() {
       ${renderBanner(ultimoLogoUrl)}
       ${renderLangSwitcher()}
       <p class="empty">Todavía no se publicó ninguna lista para ${escapeHtml(nombreParroquia())}.</p>
-      ${renderNovedades(ultimosAnuncios)}
+      ${renderNovedades(separarLecturas(ultimosAnuncios).otrosAvisos)}
       ${renderEnteratePromo()}
     `;
   } else {
