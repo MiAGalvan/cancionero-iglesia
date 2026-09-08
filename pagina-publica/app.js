@@ -194,6 +194,7 @@ const UI_TEXT = {
     avisoError: '',
     verUnaCancion: '👉 Ver de a una canción',
     verTodas: '📜 Ver todas las canciones',
+    verDiapositiva: '📺 Diapositiva',
     anterior: '← Anterior',
     siguiente: 'Siguiente →',
     cancionContador: (n, total) => `Canción ${n} de ${total}`,
@@ -203,6 +204,7 @@ const UI_TEXT = {
     avisoError: '(não foi possível traduzir esta parte)',
     verUnaCancion: '👉 Ver uma canção por vez',
     verTodas: '📜 Ver todas as canções',
+    verDiapositiva: '📺 Slide',
     anterior: '← Anterior',
     siguiente: 'Próxima →',
     cancionContador: (n, total) => `Música ${n} de ${total}`,
@@ -212,6 +214,7 @@ const UI_TEXT = {
     avisoError: '(this part could not be translated)',
     verUnaCancion: '👉 View one song at a time',
     verTodas: '📜 View all songs',
+    verDiapositiva: '📺 Slideshow',
     anterior: '← Previous',
     siguiente: 'Next →',
     cancionContador: (n, total) => `Song ${n} of ${total}`,
@@ -430,10 +433,19 @@ function cancionSeccionHtml(item, i) {
 }
 
 function render({ fecha, items }, anuncios, logoUrl) {
-  const modoUnaCancion = getModoUnaCancion();
+  const modoVista = getModoVista();
+  const hayVarias = items.length > 0;
+
+  // Modo diapositiva: pantalla propia, sin el resto de la página (banner,
+  // idioma, novedades) — pensada para quedarse fija en un TV/proyector.
+  if (modoVista === 'diapositiva' && hayVarias) {
+    renderDiapositiva({ fecha, items }, anuncios, logoUrl);
+    return;
+  }
+
   if (cancionActualIndex >= items.length) cancionActualIndex = Math.max(0, items.length - 1);
   if (cancionActualIndex < 0) cancionActualIndex = 0;
-  const hayVarias = items.length > 0;
+  const modoUnaCancion = modoVista === 'una';
 
   app.innerHTML = `
     ${renderBanner(logoUrl)}
@@ -441,15 +453,9 @@ function render({ fecha, items }, anuncios, logoUrl) {
     <h1>${UI_TEXT[lang].titulo}</h1>
     <p class="parroquia">${escapeHtml(nombreParroquia())}</p>
     <p class="fecha">${formatFecha(fecha)}</p>
+    ${hayVarias ? renderSelectorVista(modoVista) : ''}
     ${
-      hayVarias
-        ? `<button type="button" id="modo-una-cancion-btn" class="modo-una-cancion-toggle">${
-            modoUnaCancion ? UI_TEXT[lang].verTodas : UI_TEXT[lang].verUnaCancion
-          }</button>`
-        : ''
-    }
-    ${
-      modoUnaCancion && hayVarias
+      modoUnaCancion
         ? `
       <p class="paso-seccion">${UI_TEXT[lang].cancionContador(cancionActualIndex + 1, items.length)}</p>
       ${cancionSeccionHtml(items[cancionActualIndex], cancionActualIndex)}
@@ -468,10 +474,13 @@ function render({ fecha, items }, anuncios, logoUrl) {
     ${renderEnteratePromo()}
   `;
 
-  document.getElementById('modo-una-cancion-btn')?.addEventListener('click', () => {
-    setModoUnaCancion(!modoUnaCancion);
-    cancionActualIndex = 0;
-    render({ fecha, items }, anuncios, logoUrl);
+  document.querySelectorAll('[data-modo-vista]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setModoVista(btn.dataset.modoVista);
+      cancionActualIndex = 0;
+      diapositivaIndex = 0;
+      render({ fecha, items }, anuncios, logoUrl);
+    });
   });
   document.getElementById('cancion-anterior-btn')?.addEventListener('click', () => {
     cancionActualIndex = Math.max(0, cancionActualIndex - 1);
@@ -486,12 +495,108 @@ function render({ fecha, items }, anuncios, logoUrl) {
 
   if (lang === 'es') return;
 
-  const itemsATraducir = modoUnaCancion && hayVarias ? [[items[cancionActualIndex], cancionActualIndex]] : items.map((item, i) => [item, i]);
+  const itemsATraducir = modoUnaCancion ? [[items[cancionActualIndex], cancionActualIndex]] : items.map((item, i) => [item, i]);
   itemsATraducir.forEach(([item, i]) => {
     traducirYActualizar(`categoria-${i}`, categoriaLabel(item.categoria));
     traducirYActualizar(`titulo-${i}`, translateText(item.titulo_cancion, lang));
     traducirYActualizar(`letra-${i}`, translateText(item.letra_sin_acordes, lang));
   });
+}
+
+function renderSelectorVista(modoVista) {
+  const opciones = [
+    { key: 'todas', label: UI_TEXT[lang].verTodas },
+    { key: 'una', label: UI_TEXT[lang].verUnaCancion },
+    { key: 'diapositiva', label: UI_TEXT[lang].verDiapositiva },
+  ];
+  return `
+    <div class="selector-vista">
+      ${opciones
+        .map(
+          (op) => `
+        <button type="button" class="selector-vista-btn${modoVista === op.key ? ' active' : ''}" data-modo-vista="${op.key}">
+          ${op.label}
+        </button>`
+        )
+        .join('')}
+    </div>
+  `;
+}
+
+// Referencia al listener de teclado ACTUALMENTE puesto (o null si no hay
+// ninguno) — hace falta guardarla acá afuera porque cada llamada a
+// renderDiapositiva define una función nueva (closure nueva), y
+// removeEventListener solo saca la que sea LA MISMA referencia que se usó
+// en addEventListener. Sin esto, cada repintado (siguiente/anterior, o el
+// refresco automático cada 20s) dejaba un listener más pegado sin sacar el
+// anterior — a los pocos repintados, una sola flecha del teclado avanzaba
+// varias páginas de un tirón en vez de una.
+let diapositivaKeyDownHandler = null;
+
+function sacarListenerDiapositiva() {
+  if (diapositivaKeyDownHandler) {
+    window.removeEventListener('keydown', diapositivaKeyDownHandler);
+    diapositivaKeyDownHandler = null;
+  }
+}
+
+// Pantalla de diapositivas: fondo negro, letra grande, sin acordes — para
+// dejar fija en un TV/proyector conectado por Chromecast o con su propio
+// navegador (no hace falta ninguna compu con HDMI). Se sale con el botón
+// ✕ (vuelve a "Ver todas") o la tecla Escape.
+function renderDiapositiva({ fecha, items }, anuncios, logoUrl) {
+  const paginas = armarDiapositivas(items);
+  if (diapositivaIndex >= paginas.length) diapositivaIndex = Math.max(0, paginas.length - 1);
+  if (diapositivaIndex < 0) diapositivaIndex = 0;
+  const pagina = paginas[diapositivaIndex];
+
+  app.innerHTML = `
+    <div class="diapositiva-screen">
+      <button type="button" class="diapositiva-exit" id="diapositiva-exit-btn" title="Salir">✕</button>
+      ${
+        pagina.esInicioDeCancion
+          ? `
+      <div class="diapositiva-categoria">${escapeHtml(pagina.categoria)}</div>
+      <div class="diapositiva-titulo">${escapeHtml(pagina.titulo)}${
+              pagina.parte ? ` <span class="diapositiva-parte">· parte ${pagina.parte}/${pagina.totalPartes}</span>` : ''
+            }</div>`
+          : ''
+      }
+      <div class="diapositiva-letra ${pagina.tamanioLetra}">${escapeHtml(pagina.letra)}</div>
+      <div class="diapositiva-nav">
+        <button type="button" class="diapositiva-nav-btn" id="diapositiva-prev-btn" ${
+          diapositivaIndex === 0 ? 'disabled' : ''
+        }>‹</button>
+        <span class="diapositiva-contador">${diapositivaIndex + 1} / ${paginas.length}</span>
+        <button type="button" class="diapositiva-nav-btn" id="diapositiva-next-btn" ${
+          diapositivaIndex >= paginas.length - 1 ? 'disabled' : ''
+        }>›</button>
+      </div>
+    </div>
+  `;
+
+  function goTo(nuevoIndex) {
+    if (nuevoIndex < 0 || nuevoIndex >= paginas.length) return;
+    diapositivaIndex = nuevoIndex;
+    renderDiapositiva({ fecha, items }, anuncios, logoUrl);
+  }
+
+  document.getElementById('diapositiva-exit-btn').addEventListener('click', () => {
+    setModoVista('todas');
+    sacarListenerDiapositiva();
+    render({ fecha, items }, anuncios, logoUrl);
+  });
+  document.getElementById('diapositiva-prev-btn').addEventListener('click', () => goTo(diapositivaIndex - 1));
+  document.getElementById('diapositiva-next-btn').addEventListener('click', () => goTo(diapositivaIndex + 1));
+
+  function onDiapositivaKeyDown(event) {
+    if (event.key === 'ArrowRight' || event.key === ' ') goTo(diapositivaIndex + 1);
+    else if (event.key === 'ArrowLeft') goTo(diapositivaIndex - 1);
+    else if (event.key === 'Escape') document.getElementById('diapositiva-exit-btn')?.click();
+  }
+  sacarListenerDiapositiva(); // saca el de la vez anterior antes de poner este
+  diapositivaKeyDownHandler = onDiapositivaKeyDown;
+  window.addEventListener('keydown', diapositivaKeyDownHandler);
 }
 
 async function traducirYActualizar(elementId, translationPromise) {
@@ -796,36 +901,122 @@ function cantoSugeridoHtml(canciones) {
 // 'hashchange' al final del archivo), no con cada refresco de datos.
 let pasoActualAdoracion = 0;
 
-// --- Lista de canciones: modo "de a una" (mismo patrón que el paso a paso
-// de Adoración, ver arriba) — en vez de la lista completa con scroll,
-// muestra una sola canción con botones Anterior/Siguiente. Útil para
-// proyectar en una pantalla durante la misa, canción por canción, en vez de
-// tener que scrollear. La preferencia (activado o no) se recuerda en este
-// celular/dispositivo, por parroquia, así no hay que volver a activarla en
-// cada visita.
-const MODO_UNA_CANCION_KEY = `cancionero-iglesia:modo-una-cancion:${space}`;
+// --- Lista de canciones: 3 formas de verla ---------------------------
+// 'todas' (de siempre, con scroll), 'una' (una canción a la vez, con
+// Anterior/Siguiente — mismo patrón que el paso a paso de Adoración, ver
+// abajo) y 'diapositiva' (pensada para TV/proyector: letra grande, fondo
+// negro, y las canciones largas se cortan solas en bloques de pocas
+// líneas, igual que "Modo proyección" de la app del equipo). Cuál está
+// elegida se recuerda en ESTE celular/TV/dispositivo, por parroquia — cada
+// pantalla que escanea el QR tiene su propia elección, sin pisar la de
+// nadie más (ni la de "la sesión general" de la TV de la iglesia, ni la de
+// alguien mirando desde su propio celular).
+const MODO_VISTA_KEY = `cancionero-iglesia:modo-vista:${space}`;
+const MODO_UNA_CANCION_KEY_VIEJA = `cancionero-iglesia:modo-una-cancion:${space}`; // solo para migrar, ver getModoVista
 
-function getModoUnaCancion() {
+function getModoVista() {
   try {
-    return localStorage.getItem(MODO_UNA_CANCION_KEY) === '1';
+    const guardado = localStorage.getItem(MODO_VISTA_KEY);
+    if (guardado === 'una' || guardado === 'diapositiva') return guardado;
+    // Migración de una sola vez: si este dispositivo ya tenía activado el
+    // toggle viejo (booleano, de antes de que existiera "diapositiva"), no
+    // lo reseteamos a "todas" sin avisar.
+    if (localStorage.getItem(MODO_UNA_CANCION_KEY_VIEJA) === '1') return 'una';
+    return 'todas';
   } catch {
-    return false;
+    return 'todas';
   }
 }
 
-function setModoUnaCancion(activo) {
+function setModoVista(modo) {
   try {
-    if (activo) localStorage.setItem(MODO_UNA_CANCION_KEY, '1');
-    else localStorage.removeItem(MODO_UNA_CANCION_KEY);
+    if (modo === 'todas') localStorage.removeItem(MODO_VISTA_KEY);
+    else localStorage.setItem(MODO_VISTA_KEY, modo);
+    localStorage.removeItem(MODO_UNA_CANCION_KEY_VIEJA); // ya migrado, no hace falta más
   } catch {
     // localStorage bloqueado — no es grave, simplemente no se recuerda.
   }
 }
 
-// Mismo criterio que pasoActualAdoracion: vive afuera de render() para que
+// Mismo criterio que pasoActualAdoracion: viven afuera de render() para que
 // el refresco automático (cada REFRESH_MS) no reinicie a alguien que está
-// en medio de la lista canción por canción.
+// en medio de la lista canción por canción o de las diapositivas.
 let cancionActualIndex = 0;
+let diapositivaIndex = 0;
+
+// --- Diapositivas: cortar canciones largas en bloques de pocas líneas,
+// pensado para una iglesia grande (parroquias de unos 30 metros) — con
+// pocas líneas por pantalla, cada una puede mostrarse bien grande y
+// legible desde el fondo. Mismo espíritu que "Modo proyección"
+// (app-equipo/src/views/proyeccionView.js, pensada para una pantalla más
+// chica/cercana con 8 líneas), pero portado y ajustado acá aparte para no
+// depender de la app del equipo.
+const MAX_LINEAS_POR_DIAPOSITIVA = 5;
+
+function dividirEnDiapositivas(letra) {
+  const bloques = (letra || '')
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+  if (bloques.length === 0) return [letra || ''];
+
+  const paginas = [];
+  let actual = [];
+  let lineasActuales = 0;
+  for (const bloque of bloques) {
+    const lineasBloque = bloque.split('\n').length;
+    if (actual.length > 0 && lineasActuales + lineasBloque > MAX_LINEAS_POR_DIAPOSITIVA) {
+      paginas.push(actual.join('\n\n'));
+      actual = [];
+      lineasActuales = 0;
+    }
+    actual.push(bloque);
+    lineasActuales += lineasBloque;
+  }
+  if (actual.length > 0) paginas.push(actual.join('\n\n'));
+  return paginas;
+}
+
+// Cuántas líneas tiene de verdad el texto de una diapositiva (para elegir
+// el tamaño de letra — ver tamanioLetraDiapositiva) — cuenta las líneas con
+// contenido, ignora las en blanco que separan estrofas.
+function contarLineas(texto) {
+  return texto.split('\n').filter((l) => l.trim()).length;
+}
+
+// Con tamaño de letra fijo, una canción de 2 líneas queda perdida en un
+// mar de negro y una de 5 casi no entra — mejor que cada diapositiva use
+// el tamaño más grande que le entra a SU cantidad de líneas, no una talla
+// única para todas. Los 3 tamaños son clases CSS (ver styles.css).
+function tamanioLetraDiapositiva(cantidadLineas) {
+  if (cantidadLineas <= 2) return 'diapositiva-letra-xl';
+  if (cantidadLineas <= 3) return 'diapositiva-letra-l';
+  return 'diapositiva-letra-m'; // hasta MAX_LINEAS_POR_DIAPOSITIVA
+}
+
+// El título/categoría solo se muestra en la PRIMERA diapositiva de cada
+// canción (esInicioDeCancion) — de ahí en más, hasta la próxima canción,
+// pasan derecho mostrando solo la letra, sin repetir el encabezado cada
+// vez (así se aprovecha toda la pantalla para la letra, y el título no
+// "parpadea" en cada avance dentro de la misma canción).
+function armarDiapositivas(items) {
+  const paginas = [];
+  for (const item of items) {
+    const partes = dividirEnDiapositivas(item.letra_sin_acordes);
+    partes.forEach((letra, i) => {
+      paginas.push({
+        categoria: item.categoria,
+        titulo: item.titulo_cancion,
+        letra,
+        tamanioLetra: tamanioLetraDiapositiva(contarLineas(letra)),
+        parte: partes.length > 1 ? i + 1 : null,
+        totalPartes: partes.length > 1 ? partes.length : null,
+        esInicioDeCancion: i === 0,
+      });
+    });
+  }
+  return paginas;
+}
 
 // Convierte las 5 partes en una lista plana de "pasos" (uno por línea de
 // Lector/Todos, más los títulos de sección, los cantos y la lectura/
@@ -1398,7 +1589,10 @@ function escapeHtml(text) {
 // interrumpe a nadie que esté en medio de la Adoración siguiendo la guía.
 window.addEventListener('hashchange', () => {
   if (currentRoute() === 'adoracion') pasoActualAdoracion = 0;
-  if (currentRoute() === '') cancionActualIndex = 0;
+  if (currentRoute() === '') {
+    cancionActualIndex = 0;
+    diapositivaIndex = 0;
+  }
   renderTodo();
 });
 
