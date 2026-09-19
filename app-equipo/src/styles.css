@@ -1375,6 +1375,18 @@ a {
   padding: 8px 10px;
 }
 
+.textarea-field-header-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.textarea-field-header-actions .btn-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 8px 10px;
+}
+
 .fullscreen-editor {
   position: fixed;
   inset: 0;
@@ -1400,6 +1412,12 @@ a {
   text-align: center;
   flex: 1;
   color: var(--text-dim);
+}
+
+.fullscreen-editor-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .fullscreen-editor-textarea {

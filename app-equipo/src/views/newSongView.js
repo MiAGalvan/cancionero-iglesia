@@ -15,6 +15,7 @@
 import { pastedTextToChordPro } from '../parser/chordProParser.js';
 import { renderChordEditor } from '../editor/chordEditorWidget.js';
 import { openFullscreenTextEditor } from '../editor/fullscreenTextEditor.js';
+import { wrapSelectionInBold } from '../editor/textareaBold.js';
 import { recognizeTextFromImage } from '../ocr/ocrText.js';
 import { saveSong, updateSong, getSong } from '../storage/db.js';
 import { syncNow } from '../storage/sync.js';
@@ -113,7 +114,10 @@ export async function renderNewSongView(container, { editId, presetCategory, ret
 
       <div class="textarea-field-header">
         <label for="chordpro-input">ChordPro (se arma solo con lo de arriba; revisá o corregí acá si hace falta)</label>
-        <button type="button" class="btn btn-icon expand-textarea-btn" data-expand-target="chordpro-input" data-expand-title="ChordPro" title="Editar en pantalla completa">⛶</button>
+        <div class="textarea-field-header-actions">
+          <button type="button" class="btn btn-icon" data-bold-target="chordpro-input" title="Resaltar en negrita lo seleccionado (ej. el estribillo)"><strong>B</strong></button>
+          <button type="button" class="btn btn-icon expand-textarea-btn" data-expand-target="chordpro-input" data-expand-title="ChordPro" title="Editar en pantalla completa">⛶</button>
+        </div>
       </div>
       <textarea id="chordpro-input" rows="12">${existing ? escapeHtml(existing.chordpro) : ''}</textarea>
 
@@ -148,6 +152,13 @@ export async function renderNewSongView(container, { editId, presetCategory, ret
   // (cambiar de pestaña, sacar/poner la foto) — un listener puesto directo
   // ahí quedaría huérfano en el próximo repintado.
   container.addEventListener('click', (event) => {
+    const boldBtn = event.target.closest('[data-bold-target]');
+    if (boldBtn) {
+      const textarea = container.querySelector(`#${boldBtn.dataset.boldTarget}`);
+      if (textarea) wrapSelectionInBold(textarea);
+      return;
+    }
+
     const btn = event.target.closest('[data-expand-target]');
     if (!btn) return;
     const targetId = btn.dataset.expandTarget;

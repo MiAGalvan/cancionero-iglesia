@@ -14,6 +14,7 @@ import {
   preserveChords,
 } from './chordProBuilder.js';
 import { openFullscreenTextEditor } from './fullscreenTextEditor.js';
+import { wrapSelectionInBold } from './textareaBold.js';
 
 export function renderChordEditor(container, { initialChordpro, onChordProChange }) {
   const hasInitial = Boolean(initialChordpro && initialChordpro.trim());
@@ -66,7 +67,10 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
           Escribí la letra, sin acordes. Dejá una línea en blanco donde vaya una
           intro o un interludio (ahí después se pueden poner acordes sueltos).
         </p>
-        <button type="button" class="btn btn-icon expand-textarea-btn" id="expand-lyrics-btn" title="Editar en pantalla completa">⛶</button>
+        <div class="textarea-field-header-actions">
+          <button type="button" class="btn btn-icon" id="bold-lyrics-btn" title="Resaltar en negrita lo seleccionado (ej. el estribillo)"><strong>B</strong></button>
+          <button type="button" class="btn btn-icon expand-textarea-btn" id="expand-lyrics-btn" title="Editar en pantalla completa">⛶</button>
+        </div>
       </div>
       <textarea id="plain-lyrics-input" rows="10" placeholder="Perdón, oh Dios, mi Padre y Señor...">${escapeHtml(
         state.plainLyricsText
@@ -88,6 +92,8 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
       state.plainLyricsText = text;
       notifyChange();
     });
+
+    container.querySelector('#bold-lyrics-btn').addEventListener('click', () => wrapSelectionInBold(plainLyricsInput));
 
     container.querySelector('#expand-lyrics-btn').addEventListener('click', () => {
       openFullscreenTextEditor({

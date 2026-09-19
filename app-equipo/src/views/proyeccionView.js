@@ -164,7 +164,7 @@ export async function renderProyeccionView(container) {
         <div class="proyeccion-titulo">${escapeHtml(page.titulo_cancion)}${
       page.parte ? ` <span class="proyeccion-parte">· parte ${page.parte}/${page.totalPartes}</span>` : ''
     }</div>
-        <div class="proyeccion-letra">${escapeHtml(page.letra)}</div>
+        <div class="proyeccion-letra">${resaltarNegrita(escapeHtml(page.letra))}</div>
         <div class="proyeccion-nav">
           <button type="button" class="proyeccion-nav-btn" id="prev-btn" ${
             state.index === 0 ? 'disabled' : ''
@@ -231,4 +231,13 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text ?? '';
   return div.innerHTML;
+}
+
+// El equipo marca el estribillo (o cualquier parte) escribiendo **así** en
+// la letra, tal como en WhatsApp — se aplica DESPUÉS de escapeHtml (los
+// asteriscos no son caracteres especiales de HTML, así que no hay riesgo de
+// inyectar nada; lo que entra ya viene escapado). Mismo criterio que en
+// pagina-publica/app.js (no hay módulo compartido entre los dos proyectos).
+function resaltarNegrita(textoEscapado) {
+  return textoEscapado.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
 }

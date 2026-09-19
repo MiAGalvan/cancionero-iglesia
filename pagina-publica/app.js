@@ -428,7 +428,7 @@ function cancionSeccionHtml(item, i) {
     <section class="cancion">
       <h2 class="categoria" id="categoria-${i}">${escapeHtml(item.categoria)}</h2>
       <h3 class="titulo" id="titulo-${i}">${escapeHtml(item.titulo_cancion)}</h3>
-      <p class="letra" id="letra-${i}">${escapeHtml(item.letra_sin_acordes)}</p>
+      <p class="letra" id="letra-${i}">${resaltarNegrita(escapeHtml(item.letra_sin_acordes))}</p>
     </section>`;
 }
 
@@ -562,7 +562,7 @@ function renderDiapositiva({ fecha, items }, anuncios, logoUrl) {
             }</div>`
           : ''
       }
-      <div class="diapositiva-letra ${pagina.tamanioLetra}">${escapeHtml(pagina.letra)}</div>
+      <div class="diapositiva-letra ${pagina.tamanioLetra}">${resaltarNegrita(escapeHtml(pagina.letra))}</div>
       <div class="diapositiva-nav">
         <button type="button" class="diapositiva-nav-btn" id="diapositiva-prev-btn" ${
           diapositivaIndex === 0 ? 'disabled' : ''
@@ -1580,6 +1580,14 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text ?? '';
   return div.innerHTML;
+}
+
+// El equipo marca el estribillo (o cualquier parte) escribiendo **así** en
+// la letra, tal como en WhatsApp — se aplica DESPUÉS de escapeHtml (los
+// asteriscos no son caracteres especiales de HTML, así que no hay riesgo de
+// inyectar nada; lo que entra ya viene escapado).
+function resaltarNegrita(textoEscapado) {
+  return textoEscapado.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
 }
 
 // Al entrar de nuevo a Adoración desde otra pantalla, se reinicia el paso a
