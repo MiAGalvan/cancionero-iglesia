@@ -267,3 +267,15 @@ export async function getAllMisas(space) {
   const misas = await db.getAllFromIndex(MISAS_STORE, 'space', space);
   return misas.sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
 }
+
+// Escribe (crea o actualiza) una lista de misa a partir de una fila que
+// vino de Supabase durante una sincronización — a diferencia de saveMisa,
+// acá `items` ya viene resuelto a ids locales (ver storage/misasSync.js,
+// que los recibe como uuid y los convierte a los de ESTE dispositivo) y
+// `updatedAt` ya viene puesto por quien la guardó originalmente: no se pisa
+// con la hora actual, para no perder la referencia de cuál es más nueva la
+// próxima vez que se sincronice.
+export async function applyRemoteMisa({ space, fecha, items, updatedAt }) {
+  const db = await getDb();
+  await db.put(MISAS_STORE, { id: `${space}|${fecha}`, space, fecha, items, updatedAt });
+}

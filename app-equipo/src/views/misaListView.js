@@ -12,6 +12,7 @@ import { getSongsByCategory, getMisa, saveMisa, getAllMisas, getSongByUuid } fro
 import { getAllCategories, getAllTags, getCurrentSpaceKey, getSpaceLabel, getModoLectura } from '../storage/settings.js';
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSession } from '../storage/auth.js';
+import { syncMisasNow } from '../storage/misasSync.js';
 
 // Sin filtro, o si la canción no tiene ninguna etiqueta puesta ("sirve para
 // cualquier época"), siempre se muestra — el filtro solo ESCONDE canciones
@@ -319,7 +320,20 @@ export async function renderMisaListView(container, { fecha } = {}) {
     // que "Misas guardadas" se actualice ya mismo aunque la fecha no haya
     // cambiado (un cambio de hash a la misma ruta no dispara el router).
     await renderMisaListView(container, { fecha: fechaInput.value });
+    syncMisasNow(); // en segundo plano, para que le llegue rápido al resto del equipo
   });
+
+  // Al entrar a esta pantalla, se sincroniza en segundo plano — así, si
+  // alguien del equipo armó o cambió una lista desde otro dispositivo,
+  // aparece acá sin que haga falta tocar nada. Si trajo algo nuevo,
+  // repintamos "Misas guardadas" para que se note sin recargar la página.
+  if (puedeEditar) {
+    syncMisasNow().then((result) => {
+      if (result.synced && result.pulled > 0) {
+        renderMisaListView(container, { fecha: selectedFecha });
+      }
+    });
+  }
 }
 
 function renderCategoryRow(category, songs, selectedIds, puedeEditar) {

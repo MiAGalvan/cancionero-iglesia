@@ -4,6 +4,7 @@
 // pantalla de inicio de una app, en vez de una fila larga de botones. Las
 // carpetas y canciones en sí viven en libraryView.js, no acá.
 import { syncNow } from '../storage/sync.js';
+import { syncMisasNow } from '../storage/misasSync.js';
 import { syncSpacesNow } from '../storage/spacesSync.js';
 import { syncLabelsNow, pushCustomCategory } from '../storage/labelsSync.js';
 import { getSession, signOut, getVisibleSpaces } from '../storage/auth.js';
@@ -281,7 +282,12 @@ export async function renderHomeView(container) {
       syncStatusEl.hidden = false;
       syncStatusEl.textContent = 'Sincronizando...';
     }
-    const [result, spacesResult, labelsResult] = await Promise.all([syncNow(), syncSpacesNow(), syncLabelsNow()]);
+    const [result, misasResult, spacesResult, labelsResult] = await Promise.all([
+      syncNow(),
+      syncMisasNow(),
+      syncSpacesNow(),
+      syncLabelsNow(),
+    ]);
     if (!silent) syncBtn.disabled = false;
 
     // Si cambió la lista de parroquias (una nueva, un nombre editado desde
@@ -294,8 +300,13 @@ export async function renderHomeView(container) {
 
     if (result.synced) {
       if (!silent) {
+        // Se suman las de misas guardadas a las del cancionero: para quien
+        // usa la app, es "todo lo que se sincronizó", no dos cosas
+        // separadas que tenga que entender por qué van aparte.
+        const pulled = result.pulled + (misasResult.pulled || 0);
+        const pushed = result.pushed + (misasResult.pushed || 0);
         syncStatusEl.hidden = false;
-        syncStatusEl.textContent = `✓ Sincronizado (${result.pulled} bajadas, ${result.pushed} subidas).`;
+        syncStatusEl.textContent = `✓ Sincronizado (${pulled} bajadas, ${pushed} subidas).`;
       }
     } else if (!silent) {
       syncStatusEl.hidden = false;

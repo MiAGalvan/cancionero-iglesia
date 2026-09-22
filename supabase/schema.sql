@@ -161,6 +161,74 @@ create policy "lectura publica del cancionero compartido"
   to anon
   using (shared = true and deleted_at is null);
 
+-- --- misas: listas de misa guardadas (borradores, publicados o no) ------
+-- Antes vivían solo en el IndexedDB de CADA dispositivo del equipo — así,
+-- alguien armaba la lista del domingo que viene en la tablet de la
+-- iglesia, y en el celular de otra persona del equipo no aparecía por
+-- ningún lado: terminaba armando otra por su cuenta, o publicando sin
+-- darse cuenta de que ya había una lista hecha (y pisándola). Tabla
+-- PRIVADA, igual que `songs` — nunca pública, a diferencia de
+-- `lista_actual` (que es la FOTO ya publicada, sin acordes).
+--
+-- `items` acá viaja como { categoria: [uuid_cancion, ...] } — por uuid, no
+-- por el id local de la canción (autoincremental, distinto en cada
+-- dispositivo) — mismo criterio que lista_actual/publicar.js. Ver
+-- storage/misasSync.js.
+create table if not exists misas (
+  id text primary key, -- "{space}|{fecha}", igual que la clave local en IndexedDB
+  space text not null,
+  fecha date not null,
+  items jsonb not null default '{}',
+  updated_by text,
+  updated_at timestamptz not null default now(),
+  unique (space, fecha)
+);
+
+alter table misas enable row level security;
+
+create policy "equipo autorizado lee sus misas guardadas"
+  on misas
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or misas.space = any(tm.spaces))
+    )
+  );
+
+create policy "equipo autorizado crea misas guardadas"
+  on misas
+  for insert
+  to authenticated
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or misas.space = any(tm.spaces))
+    )
+  );
+
+create policy "equipo autorizado actualiza misas guardadas"
+  on misas
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or misas.space = any(tm.spaces))
+    )
+  )
+  with check (
+    exists (
+      select 1 from team_members tm
+      where tm.user_id = auth.uid()
+        and (tm.is_admin or misas.space = any(tm.spaces))
+    )
+  );
+
 -- --- espacio_logos: URL del logo de cada parroquia/capilla -------------
 -- El archivo en sí vive en Supabase Storage (bucket "logos", creado a
 -- mano desde el dashboard — ver supabase/SETUP.md); acá solo se guarda la
