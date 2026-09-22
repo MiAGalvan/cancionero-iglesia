@@ -35,6 +35,18 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// Para poder marcar cada misa guardada como "publicada ahora" / "ya
+// publicada" / "por publicar" (ver renderMisasGuardadas) hace falta saber
+// qué fechas de esta parroquia ya se subieron a Supabase — sin conexión, o
+// si todavía no se configuró, ninguna se marca como publicada (mejor eso
+// que romper la pantalla entera por esto).
+async function getFechasPublicadas(space) {
+  if (!isSupabaseConfigured) return new Set();
+  const { data, error } = await supabase.from('lista_actual').select('fecha').eq('space', space);
+  if (error || !data) return new Set();
+  return new Set(data.map((row) => row.fecha));
+}
+
 export async function renderMisaListView(container, { fecha } = {}) {
   // Sin sesión, no se puede armar/guardar/publicar la lista de misa ni
   // siquiera local — mismo criterio que newSongView.js/songView.js/
@@ -45,10 +57,11 @@ export async function renderMisaListView(container, { fecha } = {}) {
   const space = getCurrentSpaceKey();
   const categories = getAllCategories(space);
 
-  const [existing, songsByCategory, allMisas] = await Promise.all([
+  const [existing, songsByCategory, allMisas, fechasPublicadas] = await Promise.all([
     getMisa(space, selectedFecha),
     Promise.all(categories.map((cat) => getSongsByCategory(cat, space))),
     getAllMisas(space),
+    getFechasPublicadas(space),
   ]);
   const items = existing ? existing.items : {};
 
@@ -109,7 +122,7 @@ export async function renderMisaListView(container, { fecha } = {}) {
         ${puedeEditar ? `<a class="btn" id="publish-link" href="#/publicar/${selectedFecha}">Ir a publicar →</a>` : ''}
       </div>
 
-      ${allMisas.length ? renderMisasGuardadas(allMisas) : ''}
+      ${allMisas.length ? renderMisasGuardadas(allMisas, fechasPublicadas, todayIso()) : ''}
     </div>
   `;
 
@@ -341,23 +354,38 @@ function renderCategoryRow(category, songs, selectedIds, puedeEditar) {
   `;
 }
 
-function renderMisasGuardadas(misas) {
+function renderMisasGuardadas(misas, fechasPublicadas, hoy) {
   return `
     <div class="sidebar-group">
       <h3>Misas guardadas</h3>
       <ul class="song-list">
         ${misas
-          .map(
-            (misa) => `
+          .map((misa) => {
+            const estado = estadoPublicacion(misa.fecha, fechasPublicadas, hoy);
+            return `
           <li class="song-item">
-            <a href="#/misa/${misa.fecha}">${formatFecha(misa.fecha)}</a>
+            <div class="misa-guardada-info">
+              <a href="#/misa/${misa.fecha}">${formatFecha(misa.fecha)}</a>
+              <span class="estado-badge ${estado.clase}">${estado.label}</span>
+            </div>
             <a class="btn" href="#/publicar/${misa.fecha}">Publicar</a>
-          </li>`
-          )
+          </li>`;
+          })
           .join('')}
       </ul>
     </div>
   `;
+}
+
+// "Publicada ahora": es HOY y está publicada — es la que ve la gente ahora
+// mismo si escanea el QR. "Ya publicada": se publicó en algún momento (esta
+// fecha existe en Supabase) pero no es hoy — quedó como historial, ya no se
+// muestra sola (ver el .eq('fecha', ...) de publicar.js/app.js). "Por
+// publicar": armada y guardada acá, pero todavía nunca se subió.
+function estadoPublicacion(fecha, fechasPublicadas, hoy) {
+  if (!fechasPublicadas.has(fecha)) return { label: 'Por publicar', clase: 'badge-por-publicar' };
+  if (fecha === hoy) return { label: '🟢 Publicada ahora', clase: 'badge-publicada-ahora' };
+  return { label: '✓ Ya publicada', clase: 'badge-ya-publicada' };
 }
 
 function formatFecha(fecha) {

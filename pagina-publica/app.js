@@ -261,11 +261,17 @@ async function cargarYMostrar() {
   }
 
   const [listaResult, anunciosResult, logoResult, espacioResult] = await Promise.all([
+    // Se pide la fila de HOY puntual (no "la última que se tocó") a
+    // propósito: así, el equipo puede publicar la lista del domingo que
+    // viene con días de anticipación sin miedo a que se muestre antes de
+    // tiempo — hasta que no sea ese día, esta consulta no la encuentra, y
+    // el día que llega, aparece sola sin que nadie tenga que hacer nada.
+    // Ver hoyIso() más abajo.
     supabase
       .from('lista_actual')
       .select('fecha, items, space_name')
       .eq('space', space)
-      .order('updated_at', { ascending: false })
+      .eq('fecha', hoyIso())
       .limit(1),
     // Si la tabla `anuncios` (o `espacio_logos`/`spaces`, más abajo) todavía
     // no existe porque falta correr alguna migración, esto da error — no es
@@ -292,15 +298,11 @@ async function cargarYMostrar() {
     return;
   }
 
-  // Si nadie publicó una lista nueva, la última publicada se queda ahí para
-  // siempre (esto pasó de verdad: una semana entera mostrando los cantos
-  // del domingo anterior porque nadie tocó "Publicar"). Al otro día de la
-  // fecha para la que era esa lista, dejamos de mostrarla como si fuera la
-  // de hoy — mejor la pantalla de "todavía no se publicó nada" (más
-  // llamativa, invita a avisarle al equipo) que una lista vieja pasando
-  // por actual sin que nadie lo note.
-  const filaLista = data && data.length > 0 ? data[0] : null;
-  ultimaData = filaLista && filaLista.fecha >= hoyIso() ? filaLista : null;
+  // Al no traer más que la fila de HOY (ver el .eq('fecha', ...) de arriba),
+  // esto ya viene resuelto solo: si nadie publicó nada para hoy, data queda
+  // vacío y se muestra "todavía no se publicó nada" — nunca se cuela una
+  // lista vieja de otro día, ni una futura publicada con anticipación.
+  ultimaData = data && data.length > 0 ? data[0] : null;
   ultimosAnuncios = anuncios;
   ultimoLogoUrl = logoUrl;
   ultimoEspacio = espacio;

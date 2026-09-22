@@ -446,6 +446,37 @@ a {
   padding: 14px 16px;
 }
 
+.misa-guardada-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.estado-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.badge-publicada-ahora {
+  background: rgba(127, 216, 196, 0.18);
+  color: var(--accent);
+}
+
+.badge-ya-publicada {
+  background: var(--border);
+  color: var(--text-dim);
+}
+
+.badge-por-publicar {
+  background: rgba(230, 168, 63, 0.18);
+  color: #c98a1f;
+}
+
 /* --- Afinador --- */
 .tuner-strings {
   display: flex;

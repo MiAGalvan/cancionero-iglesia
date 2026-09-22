@@ -10,6 +10,11 @@ import { getVisibleSpaces } from '../storage/auth.js';
 
 const REFRESH_MS = 45000;
 
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // Antes esto se armaba a mano en PowerPoint: una diapositiva por pedazo de
 // canción (título + 2 estrofas más o menos), para poder avanzar pantalla
 // por pantalla sin scrollear en vivo intentando llevar el ritmo del canto.
@@ -143,11 +148,16 @@ export async function renderProyeccionView(container) {
 
   async function loadItems() {
     if (!isSupabaseConfigured) return false;
+    // Se pide la fila de HOY puntual (no "la última que se tocó") a
+    // propósito: así, el equipo puede publicar la lista de una fecha futura
+    // con anticipación sin que se muestre antes de tiempo acá — aparece
+    // sola el día que corresponde, sin que nadie tenga que publicar de
+    // nuevo esa mañana. Mismo criterio que pagina-publica/app.js.
     const { data, error } = await supabase
       .from('lista_actual')
       .select('items')
       .eq('space', state.space)
-      .order('updated_at', { ascending: false })
+      .eq('fecha', todayIso())
       .limit(1);
     if (error || !data || data.length === 0 || !data[0].items.length) return false;
     state.items = data[0].items;
