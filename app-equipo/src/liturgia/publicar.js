@@ -50,6 +50,7 @@ export async function publishMisa(misa) {
       space: misa.space,
       space_name: getSpaceFullLabel(misa.space),
       fecha: misa.fecha,
+      hora: misa.hora || '',
       items,
       // El grupo del dispositivo (ej. "CORO SÁBADO") es más útil que el
       // email cuando varios grupos comparten un solo login de parroquia —
@@ -57,7 +58,7 @@ export async function publishMisa(misa) {
       published_by: getDeviceGroup() || session?.user?.email || null,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: 'space,fecha' }
+    { onConflict: 'space,fecha,hora' }
   );
   if (error) throw error;
 }
@@ -67,43 +68,49 @@ export async function publishMisa(misa) {
 // lista ya publicada (a propósito: evita subir algo a medio escribir cada
 // vez que se guarda). Esto es el atajo para cuando SÍ hace falta que
 // llegue ya mismo (un error que se nota en el momento, durante la misa):
-// busca la lista publicada más reciente de la parroquia de esta canción y
-// le actualiza SOLO el/los renglones de esta canción puntual (matcheando
-// por uuid), sin tocar el resto de la lista.
+// busca las listas publicadas más recientes de la parroquia de esta
+// canción y le actualiza SOLO el/los renglones de esta canción puntual
+// (matcheando por uuid) en CADA UNA donde aparezca, sin tocar el resto —
+// con horarios separados, la misma canción puede estar publicada a la vez
+// en más de una lista del mismo día (ej. 12hs y 19hs).
 export async function updatePublishedSong(song) {
   if (!isSupabaseConfigured) {
     throw new Error('Falta configurar Supabase en src/storage/supabaseClient.js');
   }
   const { data, error: fetchError } = await supabase
     .from('lista_actual')
-    .select('fecha, items')
+    .select('fecha, hora, items')
     .eq('space', song.space)
     .order('updated_at', { ascending: false })
-    .limit(1);
+    .limit(5);
   if (fetchError) throw fetchError;
   if (!data || data.length === 0) return { updated: false };
 
-  const { fecha, items } = data[0];
-  let matched = false;
-  const updatedItems = items.map((item) => {
-    if (item.song_uuid !== song.uuid) return item;
-    matched = true;
-    return { ...item, titulo_cancion: song.title, letra_sin_acordes: chordProToPlainLyrics(song.chordpro) };
-  });
-  if (!matched) return { updated: false };
-
   const session = await getSession();
-  const { error } = await supabase.from('lista_actual').upsert(
-    {
-      space: song.space,
-      space_name: getSpaceFullLabel(song.space),
-      fecha,
-      items: updatedItems,
-      published_by: getDeviceGroup() || session?.user?.email || null,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'space,fecha' }
-  );
-  if (error) throw error;
-  return { updated: true };
+  let updated = false;
+  for (const fila of data) {
+    let matched = false;
+    const updatedItems = fila.items.map((item) => {
+      if (item.song_uuid !== song.uuid) return item;
+      matched = true;
+      return { ...item, titulo_cancion: song.title, letra_sin_acordes: chordProToPlainLyrics(song.chordpro) };
+    });
+    if (!matched) continue;
+
+    const { error } = await supabase.from('lista_actual').upsert(
+      {
+        space: song.space,
+        space_name: getSpaceFullLabel(song.space),
+        fecha: fila.fecha,
+        hora: fila.hora,
+        items: updatedItems,
+        published_by: getDeviceGroup() || session?.user?.email || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'space,fecha,hora' }
+    );
+    if (error) throw error;
+    updated = true;
+  }
+  return { updated };
 }

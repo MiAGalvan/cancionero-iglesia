@@ -254,6 +254,38 @@ let ultimosAnuncios = [];
 let ultimoLogoUrl = null;
 let ultimoEspacio = null;
 
+// Con horarios separados, puede haber más de una lista publicada para HOY
+// (ej. 12hs y 19hs) — cada una se "activa" sola 1 hora antes de su horario
+// y sigue vigente hasta que la reemplaza la siguiente del mismo día, sin
+// que el equipo tenga que hacer nada especial (nada de programar un
+// "horario de subida" a mano: alcanza con publicar cuando quieran, con
+// anticipación incluso, y esto decide sola cuál corresponde mostrar en
+// cada momento). Una fila sin horario (hora='', parroquia con una sola
+// misa por día) se usa como respaldo si todavía no entró en vigencia
+// ninguna de las que sí tienen horario.
+const MINUTOS_ANTICIPACION = 60;
+
+function elegirListaVigente(filas) {
+  if (filas.length === 0) return null;
+  if (filas.length === 1) return filas[0];
+
+  const ahora = new Date();
+  const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+
+  let mejor = null;
+  let sinHorario = null;
+  for (const fila of filas) {
+    if (!fila.hora) {
+      sinHorario = fila;
+      continue;
+    }
+    const [hh, mm] = fila.hora.split(':').map(Number);
+    const inicioVigencia = hh * 60 + mm - MINUTOS_ANTICIPACION;
+    if (minutosAhora >= inicioVigencia && (!mejor || fila.hora > mejor.hora)) mejor = fila;
+  }
+  return mejor || sinHorario || null;
+}
+
 async function cargarYMostrar() {
   if (!isConfigured) {
     app.innerHTML = `<p class="error">Falta configurar Supabase en app.js (SUPABASE_URL / SUPABASE_ANON_KEY).</p>`;
@@ -261,18 +293,19 @@ async function cargarYMostrar() {
   }
 
   const [listaResult, anunciosResult, logoResult, espacioResult] = await Promise.all([
-    // Se pide la fila de HOY puntual (no "la última que se tocó") a
+    // Se piden las filas de HOY puntual (no "la última que se tocó") a
     // propósito: así, el equipo puede publicar la lista del domingo que
     // viene con días de anticipación sin miedo a que se muestre antes de
-    // tiempo — hasta que no sea ese día, esta consulta no la encuentra, y
-    // el día que llega, aparece sola sin que nadie tenga que hacer nada.
-    // Ver hoyIso() más abajo.
+    // tiempo — hasta que no sea ese día, esta consulta no las encuentra, y
+    // el día que llega, aparecen solas sin que nadie tenga que hacer nada.
+    // Puede haber más de una fila para hoy (varios horarios: 12hs, 19hs) —
+    // ver elegirListaVigente() más abajo, que elige cuál mostrar según la
+    // hora actual. Ver hoyIso() más abajo.
     supabase
       .from('lista_actual')
-      .select('fecha, items, space_name')
+      .select('fecha, hora, items, space_name')
       .eq('space', space)
-      .eq('fecha', hoyIso())
-      .limit(1),
+      .eq('fecha', hoyIso()),
     // Si la tabla `anuncios` (o `espacio_logos`/`spaces`, más abajo) todavía
     // no existe porque falta correr alguna migración, esto da error — no es
     // grave, la página igual muestra los cantos.
@@ -298,11 +331,12 @@ async function cargarYMostrar() {
     return;
   }
 
-  // Al no traer más que la fila de HOY (ver el .eq('fecha', ...) de arriba),
+  // Al no traer más que filas de HOY (ver el .eq('fecha', ...) de arriba),
   // esto ya viene resuelto solo: si nadie publicó nada para hoy, data queda
   // vacío y se muestra "todavía no se publicó nada" — nunca se cuela una
-  // lista vieja de otro día, ni una futura publicada con anticipación.
-  ultimaData = data && data.length > 0 ? data[0] : null;
+  // lista vieja de otro día, ni una futura publicada con anticipación. Si
+  // hay más de una (varios horarios), elegirListaVigente() decide cuál.
+  ultimaData = elegirListaVigente(data || []);
   ultimosAnuncios = anuncios;
   ultimoLogoUrl = logoUrl;
   ultimoEspacio = espacio;
@@ -434,14 +468,14 @@ function cancionSeccionHtml(item, i) {
     </section>`;
 }
 
-function render({ fecha, items }, anuncios, logoUrl) {
+function render({ fecha, hora, items }, anuncios, logoUrl) {
   const modoVista = getModoVista();
   const hayVarias = items.length > 0;
 
   // Modo diapositiva: pantalla propia, sin el resto de la página (banner,
   // idioma, novedades) — pensada para quedarse fija en un TV/proyector.
   if (modoVista === 'diapositiva' && hayVarias) {
-    renderDiapositiva({ fecha, items }, anuncios, logoUrl);
+    renderDiapositiva({ fecha, hora, items }, anuncios, logoUrl);
     return;
   }
 
@@ -454,7 +488,7 @@ function render({ fecha, items }, anuncios, logoUrl) {
     ${renderLangSwitcher()}
     <h1>${UI_TEXT[lang].titulo}</h1>
     <p class="parroquia">${escapeHtml(nombreParroquia())}</p>
-    <p class="fecha">${formatFecha(fecha)}</p>
+    <p class="fecha">${formatFecha(fecha)}${hora ? ` · ${escapeHtml(hora)} hs` : ''}</p>
     ${hayVarias ? renderSelectorVista(modoVista) : ''}
     ${
       modoUnaCancion
@@ -481,17 +515,17 @@ function render({ fecha, items }, anuncios, logoUrl) {
       setModoVista(btn.dataset.modoVista);
       cancionActualIndex = 0;
       diapositivaIndex = 0;
-      render({ fecha, items }, anuncios, logoUrl);
+      render({ fecha, hora, items }, anuncios, logoUrl);
     });
   });
   document.getElementById('cancion-anterior-btn')?.addEventListener('click', () => {
     cancionActualIndex = Math.max(0, cancionActualIndex - 1);
-    render({ fecha, items }, anuncios, logoUrl);
+    render({ fecha, hora, items }, anuncios, logoUrl);
     app.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   document.getElementById('cancion-siguiente-btn')?.addEventListener('click', () => {
     cancionActualIndex = Math.min(items.length - 1, cancionActualIndex + 1);
-    render({ fecha, items }, anuncios, logoUrl);
+    render({ fecha, hora, items }, anuncios, logoUrl);
     app.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
@@ -546,7 +580,7 @@ function sacarListenerDiapositiva() {
 // dejar fija en un TV/proyector conectado por Chromecast o con su propio
 // navegador (no hace falta ninguna compu con HDMI). Se sale con el botón
 // ✕ (vuelve a "Ver todas") o la tecla Escape.
-function renderDiapositiva({ fecha, items }, anuncios, logoUrl) {
+function renderDiapositiva({ fecha, hora, items }, anuncios, logoUrl) {
   const paginas = armarDiapositivas(items);
   if (diapositivaIndex >= paginas.length) diapositivaIndex = Math.max(0, paginas.length - 1);
   if (diapositivaIndex < 0) diapositivaIndex = 0;
@@ -580,13 +614,13 @@ function renderDiapositiva({ fecha, items }, anuncios, logoUrl) {
   function goTo(nuevoIndex) {
     if (nuevoIndex < 0 || nuevoIndex >= paginas.length) return;
     diapositivaIndex = nuevoIndex;
-    renderDiapositiva({ fecha, items }, anuncios, logoUrl);
+    renderDiapositiva({ fecha, hora, items }, anuncios, logoUrl);
   }
 
   document.getElementById('diapositiva-exit-btn').addEventListener('click', () => {
     setModoVista('todas');
     sacarListenerDiapositiva();
-    render({ fecha, items }, anuncios, logoUrl);
+    render({ fecha, hora, items }, anuncios, logoUrl);
   });
   document.getElementById('diapositiva-prev-btn').addEventListener('click', () => goTo(diapositivaIndex - 1));
   document.getElementById('diapositiva-next-btn').addEventListener('click', () => goTo(diapositivaIndex + 1));

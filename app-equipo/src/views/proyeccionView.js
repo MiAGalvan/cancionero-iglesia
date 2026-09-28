@@ -15,6 +15,33 @@ function todayIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Con horarios separados, puede haber más de una lista publicada para HOY
+// (ej. 12hs y 19hs) — cada una se "activa" sola 1 hora antes de su horario
+// y sigue vigente hasta que la reemplaza la siguiente del mismo día. Mismo
+// criterio que pagina-publica/app.js (elegirListaVigente).
+const MINUTOS_ANTICIPACION = 60;
+
+function elegirListaVigente(filas) {
+  if (filas.length === 0) return null;
+  if (filas.length === 1) return filas[0];
+
+  const ahora = new Date();
+  const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+
+  let mejor = null;
+  let sinHorario = null;
+  for (const fila of filas) {
+    if (!fila.hora) {
+      sinHorario = fila;
+      continue;
+    }
+    const [hh, mm] = fila.hora.split(':').map(Number);
+    const inicioVigencia = hh * 60 + mm - MINUTOS_ANTICIPACION;
+    if (minutosAhora >= inicioVigencia && (!mejor || fila.hora > mejor.hora)) mejor = fila;
+  }
+  return mejor || sinHorario || null;
+}
+
 // Antes esto se armaba a mano en PowerPoint: una diapositiva por pedazo de
 // canción (título + 2 estrofas más o menos), para poder avanzar pantalla
 // por pantalla sin scrollear en vivo intentando llevar el ritmo del canto.
@@ -148,19 +175,18 @@ export async function renderProyeccionView(container) {
 
   async function loadItems() {
     if (!isSupabaseConfigured) return false;
-    // Se pide la fila de HOY puntual (no "la última que se tocó") a
+    // Se piden las filas de HOY puntual (no "la última que se tocó") a
     // propósito: así, el equipo puede publicar la lista de una fecha futura
-    // con anticipación sin que se muestre antes de tiempo acá — aparece
-    // sola el día que corresponde, sin que nadie tenga que publicar de
-    // nuevo esa mañana. Mismo criterio que pagina-publica/app.js.
-    const { data, error } = await supabase
-      .from('lista_actual')
-      .select('items')
-      .eq('space', state.space)
-      .eq('fecha', todayIso())
-      .limit(1);
-    if (error || !data || data.length === 0 || !data[0].items.length) return false;
-    state.items = data[0].items;
+    // con anticipación sin que se muestre antes de tiempo acá — aparecen
+    // solas el día que corresponde, sin que nadie tenga que publicar de
+    // nuevo esa mañana. Puede haber más de una (varios horarios) —
+    // elegirListaVigente() decide cuál según la hora actual. Mismo
+    // criterio que pagina-publica/app.js.
+    const { data, error } = await supabase.from('lista_actual').select('items, hora').eq('space', state.space).eq('fecha', todayIso());
+    if (error) return false;
+    const vigente = elegirListaVigente(data || []);
+    if (!vigente || !vigente.items.length) return false;
+    state.items = vigente.items;
     state.pages = buildPages(state.items);
     return true;
   }

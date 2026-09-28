@@ -8,18 +8,20 @@ import { buildPublishPayload, publishMisa } from '../liturgia/publicar.js';
 import { getSession } from '../storage/auth.js';
 import { isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
+import { tituloMisa } from './misaListView.js';
 
-export async function renderPublicarView(container, { fecha }) {
-  const misa = await getMisa(getCurrentSpaceKey(), fecha);
+export async function renderPublicarView(container, { fecha, hora = '' }) {
+  const misa = await getMisa(getCurrentSpaceKey(), fecha, hora);
+  const volverHref = `#/misa/${fecha}/${encodeURIComponent(hora)}`;
 
   if (!misa) {
     container.innerHTML = `
       <div class="topbar">
-        <a class="btn" href="#/misa/${fecha}">← Lista de misa</a>
+        <a class="btn" href="${volverHref}">← Lista de misa</a>
         <h2>Publicar</h2>
         <span></span>
       </div>
-      <div class="empty-state">Todavía no armaste la lista de esta fecha. <a href="#/misa/${fecha}">Armarla ahora</a>.</div>
+      <div class="empty-state">Todavía no armaste esta lista. <a href="${volverHref}">Armarla ahora</a>.</div>
     `;
     return;
   }
@@ -29,8 +31,8 @@ export async function renderPublicarView(container, { fecha }) {
 
   container.innerHTML = `
     <div class="topbar">
-      <a class="btn" href="#/misa/${fecha}">← Lista de misa</a>
-      <h2>Publicar — ${formatFecha(fecha)} — ${escapeHtml(getSpaceLabel(getCurrentSpaceKey()))}</h2>
+      <a class="btn" href="${volverHref}">← Lista de misa</a>
+      <h2>Publicar — ${escapeHtml(tituloMisa(fecha, hora))} — ${escapeHtml(getSpaceLabel(getCurrentSpaceKey()))}</h2>
       <span></span>
     </div>
     <div class="form-view publicar-view">
@@ -40,7 +42,7 @@ export async function renderPublicarView(container, { fecha }) {
           : !loggedIn
           ? `<div class="warning-box">
               Iniciá sesión para poder publicar.
-              <a href="#/login?returnTo=${encodeURIComponent(`/publicar/${fecha}`)}">Ingresar</a>
+              <a href="#/login?returnTo=${encodeURIComponent(`/publicar/${fecha}/${hora}`)}">Ingresar</a>
             </div>`
           : ''
       }
@@ -98,11 +100,6 @@ export async function renderPublicarView(container, { fecha }) {
       publishBtn.textContent = 'Publicar lista de hoy';
     }
   });
-}
-
-function formatFecha(fecha) {
-  const [y, m, d] = fecha.split('-');
-  return `${d}/${m}/${y}`;
 }
 
 function escapeHtml(text) {

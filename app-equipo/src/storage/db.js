@@ -246,26 +246,34 @@ export async function getSongsByCategory(category, space) {
 
 // --- Listas de misa ---
 // Cada lista queda guardada en IndexedDB con clave = "espacio|fecha" (dos
-// parroquias pueden tener listas distintas el mismo día). `items` es un
-// objeto { [categoria]: songId | null } — una sola canción por categoría, o
-// vacío si ese día no aplica (ej. no siempre hay "Entrada de la Palabra").
+// parroquias pueden tener listas distintas el mismo día) o, si se usa
+// horario, "espacio|fecha|hora" (para separar, ej., la misa de las 12 de la
+// de las 19 del mismo día). `hora` es OPCIONAL a propósito — una parroquia
+// con una sola misa por día puede seguir sin usarlo, exactamente como
+// funcionaba antes de que existiera esto. `items` es un objeto
+// { [categoria]: songId | null } — una sola canción por categoría, o vacío
+// si ese día no aplica (ej. no siempre hay "Entrada de la Palabra").
 
-export async function saveMisa(space, fecha, items) {
+function misaId(space, fecha, hora) {
+  return hora ? `${space}|${fecha}|${hora}` : `${space}|${fecha}`;
+}
+
+export async function saveMisa(space, fecha, hora, items) {
   const db = await getDb();
-  const misa = { id: `${space}|${fecha}`, space, fecha, items, updatedAt: new Date().toISOString() };
+  const misa = { id: misaId(space, fecha, hora), space, fecha, hora: hora || '', items, updatedAt: new Date().toISOString() };
   await db.put(MISAS_STORE, misa);
   return misa;
 }
 
-export async function getMisa(space, fecha) {
+export async function getMisa(space, fecha, hora) {
   const db = await getDb();
-  return db.get(MISAS_STORE, `${space}|${fecha}`);
+  return db.get(MISAS_STORE, misaId(space, fecha, hora));
 }
 
 export async function getAllMisas(space) {
   const db = await getDb();
   const misas = await db.getAllFromIndex(MISAS_STORE, 'space', space);
-  return misas.sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+  return misas.sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : (a.hora || '').localeCompare(b.hora || '')));
 }
 
 // Escribe (crea o actualiza) una lista de misa a partir de una fila que
@@ -275,7 +283,7 @@ export async function getAllMisas(space) {
 // `updatedAt` ya viene puesto por quien la guardó originalmente: no se pisa
 // con la hora actual, para no perder la referencia de cuál es más nueva la
 // próxima vez que se sincronice.
-export async function applyRemoteMisa({ space, fecha, items, updatedAt }) {
+export async function applyRemoteMisa({ space, fecha, hora, items, updatedAt }) {
   const db = await getDb();
-  await db.put(MISAS_STORE, { id: `${space}|${fecha}`, space, fecha, items, updatedAt });
+  await db.put(MISAS_STORE, { id: misaId(space, fecha, hora), space, fecha, hora: hora || '', items, updatedAt });
 }

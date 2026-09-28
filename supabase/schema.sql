@@ -44,10 +44,11 @@ create table if not exists lista_actual (
   space text not null default 'merced',
   space_name text, -- "Nombre — Localidad, Provincia" tal cual se ve en la app al publicar
   fecha date not null,
+  hora text not null default '', -- opcional: '' = una sola lista para todo el día (como antes); si se usa, separa ej. "12:00" de "19:00" del mismo día
   items jsonb not null,
   published_by text, -- email de quién tocó "Publicar" por última vez (solo visible dentro de la app, no en la página pública)
   updated_at timestamptz not null default now(),
-  unique (space, fecha)
+  unique (space, fecha, hora)
 );
 
 -- Row Level Security: sin esto, cualquiera con la anon key (que queda
@@ -175,13 +176,13 @@ create policy "lectura publica del cancionero compartido"
 -- dispositivo) — mismo criterio que lista_actual/publicar.js. Ver
 -- storage/misasSync.js.
 create table if not exists misas (
-  id text primary key, -- "{space}|{fecha}", igual que la clave local en IndexedDB
+  id text primary key, -- "{space}|{fecha}" o "{space}|{fecha}|{hora}" si se usa horario, igual que la clave local en IndexedDB
   space text not null,
   fecha date not null,
+  hora text not null default '', -- opcional: '' = una sola lista para todo el día (como antes)
   items jsonb not null default '{}',
   updated_by text,
-  updated_at timestamptz not null default now(),
-  unique (space, fecha)
+  updated_at timestamptz not null default now()
 );
 
 alter table misas enable row level security;

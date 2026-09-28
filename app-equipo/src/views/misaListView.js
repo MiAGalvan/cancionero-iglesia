@@ -36,33 +36,48 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Para poder marcar cada misa guardada como "publicada ahora" / "ya
-// publicada" / "por publicar" (ver renderMisasGuardadas) hace falta saber
-// qué fechas de esta parroquia ya se subieron a Supabase — sin conexión, o
-// si todavía no se configuró, ninguna se marca como publicada (mejor eso
-// que romper la pantalla entera por esto).
-async function getFechasPublicadas(space) {
-  if (!isSupabaseConfigured) return new Set();
-  const { data, error } = await supabase.from('lista_actual').select('fecha').eq('space', space);
-  if (error || !data) return new Set();
-  return new Set(data.map((row) => row.fecha));
+// "Lista de Sábado 19 hs" en vez de pedirle a alguien que la titule a mano
+// — se arma sola a partir de la fecha + el horario, así se ve igual en
+// "Misas guardadas", al publicar y en la pantalla de ensayo (más adelante).
+// Sin horario (parroquia con una sola misa por día), se deja el formato de
+// siempre (solo la fecha).
+const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+export function tituloMisa(fecha, hora) {
+  if (!hora) return formatFecha(fecha);
+  const dia = DIAS_SEMANA[new Date(`${fecha}T00:00:00`).getDay()];
+  const diaCapitalizado = dia.charAt(0).toUpperCase() + dia.slice(1);
+  return `Lista de ${diaCapitalizado} ${hora} hs`;
 }
 
-export async function renderMisaListView(container, { fecha } = {}) {
+// Para poder marcar cada misa guardada como "publicada ahora" / "ya
+// publicada" / "por publicar" (ver renderMisasGuardadas) hace falta saber
+// qué combinaciones fecha+horario de esta parroquia ya se subieron a
+// Supabase — sin conexión, o si todavía no se configuró, ninguna se marca
+// como publicada (mejor eso que romper la pantalla entera por esto).
+async function getFechasHorasPublicadas(space) {
+  if (!isSupabaseConfigured) return new Set();
+  const { data, error } = await supabase.from('lista_actual').select('fecha, hora').eq('space', space);
+  if (error || !data) return new Set();
+  return new Set(data.map((row) => `${row.fecha}|${row.hora || ''}`));
+}
+
+export async function renderMisaListView(container, { fecha, hora } = {}) {
   // Sin sesión, no se puede armar/guardar/publicar la lista de misa ni
   // siquiera local — mismo criterio que newSongView.js/songView.js/
   // libraryView.js. El modo lectura es una restricción EXTRA para cuando sí
   // hay sesión pero se quiere prestar el dispositivo igual.
   const puedeEditar = Boolean(await getSession()) && !getModoLectura();
   const selectedFecha = fecha || todayIso();
+  const selectedHora = hora || '';
   const space = getCurrentSpaceKey();
   const categories = getAllCategories(space);
 
-  const [existing, songsByCategory, allMisas, fechasPublicadas] = await Promise.all([
-    getMisa(space, selectedFecha),
+  const [existing, songsByCategory, allMisas, fechasHorasPublicadas] = await Promise.all([
+    getMisa(space, selectedFecha, selectedHora),
     Promise.all(categories.map((cat) => getSongsByCategory(cat, space))),
     getAllMisas(space),
-    getFechasPublicadas(space),
+    getFechasHorasPublicadas(space),
   ]);
   const items = existing ? existing.items : {};
 
@@ -77,6 +92,12 @@ export async function renderMisaListView(container, { fecha } = {}) {
         Fecha de la misa
         <input type="date" id="fecha-input" value="${selectedFecha}" />
       </label>
+
+      <label>
+        Horario (opcional — dejalo vacío si tu parroquia tiene una sola misa por día)
+        <input type="time" id="hora-input" value="${escapeAttr(selectedHora)}" />
+      </label>
+      ${selectedHora ? `<p class="chord-editor-hint misa-titulo-generado">📋 ${escapeHtml(tituloMisa(selectedFecha, selectedHora))}</p>` : ''}
 
       <label>
         Filtrar por tiempo/tema litúrgico (acota las opciones de cada categoría)
@@ -120,10 +141,14 @@ export async function renderMisaListView(container, { fecha } = {}) {
 
       <div class="form-actions">
         <button class="btn btn-accent" id="save-btn" ${puedeEditar ? '' : 'disabled'}>Guardar lista</button>
-        ${puedeEditar ? `<a class="btn" id="publish-link" href="#/publicar/${selectedFecha}">Ir a publicar →</a>` : ''}
+        ${
+          puedeEditar
+            ? `<a class="btn" id="publish-link" href="#/publicar/${selectedFecha}/${encodeURIComponent(selectedHora)}">Ir a publicar →</a>`
+            : ''
+        }
       </div>
 
-      ${allMisas.length ? renderMisasGuardadas(allMisas, fechasPublicadas, todayIso()) : ''}
+      ${allMisas.length ? renderMisasGuardadas(allMisas, fechasHorasPublicadas, todayIso()) : ''}
     </div>
   `;
 
@@ -269,8 +294,12 @@ export async function renderMisaListView(container, { fecha } = {}) {
   });
 
   const fechaInput = container.querySelector('#fecha-input');
+  const horaInput = container.querySelector('#hora-input');
   fechaInput.addEventListener('change', () => {
-    window.location.hash = `#/misa/${fechaInput.value}`;
+    window.location.hash = `#/misa/${fechaInput.value}/${encodeURIComponent(horaInput.value)}`;
+  });
+  horaInput.addEventListener('change', () => {
+    window.location.hash = `#/misa/${fechaInput.value}/${encodeURIComponent(horaInput.value)}`;
   });
 
   const importStatusEl = container.querySelector('#import-status');
@@ -282,13 +311,14 @@ export async function renderMisaListView(container, { fecha } = {}) {
       .from('lista_actual')
       .select('items')
       .eq('space', space)
-      .order('updated_at', { ascending: false })
+      .eq('fecha', selectedFecha)
+      .eq('hora', selectedHora)
       .limit(1);
 
     if (error || !data || data.length === 0) {
       importStatusEl.textContent = error
         ? 'No se pudo traer la lista publicada (revisá la conexión).'
-        : 'Todavía no se publicó ninguna lista para esta parroquia.';
+        : `Todavía no se publicó ninguna lista para ${tituloMisa(selectedFecha, selectedHora)}.`;
       importStatusEl.hidden = false;
       return;
     }
@@ -315,11 +345,11 @@ export async function renderMisaListView(container, { fecha } = {}) {
   container.querySelector('#save-btn').addEventListener('click', async () => {
     if (!puedeEditar) return;
     const newItems = readCurrentSelections();
-    await saveMisa(space, fechaInput.value, newItems);
+    await saveMisa(space, fechaInput.value, horaInput.value, newItems);
     // Re-renderizamos la misma pantalla en vez de solo cambiar el hash, para
     // que "Misas guardadas" se actualice ya mismo aunque la fecha no haya
     // cambiado (un cambio de hash a la misma ruta no dispara el router).
-    await renderMisaListView(container, { fecha: fechaInput.value });
+    await renderMisaListView(container, { fecha: fechaInput.value, hora: horaInput.value });
     syncMisasNow(); // en segundo plano, para que le llegue rápido al resto del equipo
   });
 
@@ -330,7 +360,7 @@ export async function renderMisaListView(container, { fecha } = {}) {
   if (puedeEditar) {
     syncMisasNow().then((result) => {
       if (result.synced && result.pulled > 0) {
-        renderMisaListView(container, { fecha: selectedFecha });
+        renderMisaListView(container, { fecha: selectedFecha, hora: selectedHora });
       }
     });
   }
@@ -368,21 +398,22 @@ function renderCategoryRow(category, songs, selectedIds, puedeEditar) {
   `;
 }
 
-function renderMisasGuardadas(misas, fechasPublicadas, hoy) {
+function renderMisasGuardadas(misas, fechasHorasPublicadas, hoy) {
   return `
     <div class="sidebar-group">
       <h3>Misas guardadas</h3>
       <ul class="song-list">
         ${misas
           .map((misa) => {
-            const estado = estadoPublicacion(misa.fecha, fechasPublicadas, hoy);
+            const estado = estadoPublicacion(misa.fecha, misa.hora, fechasHorasPublicadas, hoy);
+            const horaSegment = encodeURIComponent(misa.hora || '');
             return `
           <li class="song-item">
             <div class="misa-guardada-info">
-              <a href="#/misa/${misa.fecha}">${formatFecha(misa.fecha)}</a>
+              <a href="#/misa/${misa.fecha}/${horaSegment}">${escapeHtml(tituloMisa(misa.fecha, misa.hora))}</a>
               <span class="estado-badge ${estado.clase}">${estado.label}</span>
             </div>
-            <a class="btn" href="#/publicar/${misa.fecha}">Publicar</a>
+            <a class="btn" href="#/publicar/${misa.fecha}/${horaSegment}">Publicar</a>
           </li>`;
           })
           .join('')}
@@ -391,13 +422,14 @@ function renderMisasGuardadas(misas, fechasPublicadas, hoy) {
   `;
 }
 
-// "Publicada ahora": es HOY y está publicada — es la que ve la gente ahora
-// mismo si escanea el QR. "Ya publicada": se publicó en algún momento (esta
-// fecha existe en Supabase) pero no es hoy — quedó como historial, ya no se
-// muestra sola (ver el .eq('fecha', ...) de publicar.js/app.js). "Por
-// publicar": armada y guardada acá, pero todavía nunca se subió.
-function estadoPublicacion(fecha, fechasPublicadas, hoy) {
-  if (!fechasPublicadas.has(fecha)) return { label: 'Por publicar', clase: 'badge-por-publicar' };
+// "Publicada ahora": es HOY (ese mismo horario incluido) y está publicada —
+// es la que ve la gente ahora mismo si escanea el QR. "Ya publicada": se
+// publicó en algún momento (esta fecha+horario existe en Supabase) pero no
+// es hoy — quedó como historial. "Por publicar": armada y guardada acá,
+// pero todavía nunca se subió.
+function estadoPublicacion(fecha, hora, fechasHorasPublicadas, hoy) {
+  const clave = `${fecha}|${hora || ''}`;
+  if (!fechasHorasPublicadas.has(clave)) return { label: 'Por publicar', clase: 'badge-por-publicar' };
   if (fecha === hoy) return { label: '🟢 Publicada ahora', clase: 'badge-publicada-ahora' };
   return { label: '✓ Ya publicada', clase: 'badge-ya-publicada' };
 }

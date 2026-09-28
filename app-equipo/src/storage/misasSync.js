@@ -73,32 +73,34 @@ export async function syncMisasNow() {
     // existe localmente).
     let pulled = 0;
     for (const remote of remoteMisas) {
-      const local = await getMisa(space, remote.fecha);
+      const local = await getMisa(space, remote.fecha, remote.hora);
       const remoteIsNewer = !local || new Date(remote.updated_at) > new Date(local.updatedAt);
       if (!remoteIsNewer) continue;
       const items = await itemsDeUuidALocal(remote.items);
-      await applyRemoteMisa({ space, fecha: remote.fecha, items, updatedAt: remote.updated_at });
+      await applyRemoteMisa({ space, fecha: remote.fecha, hora: remote.hora, items, updatedAt: remote.updated_at });
       pulled += 1;
     }
 
     // Subir lo local que sea más nuevo que lo que hay en la nube (o que
     // todavía no existe ahí) — típicamente, lo que se acaba de guardar en
-    // este dispositivo.
-    const remoteByFecha = new Map(remoteMisas.map((misa) => [misa.fecha, misa]));
+    // este dispositivo. Se combina fecha+hora para la clave: dos horarios
+    // del mismo día son misas distintas, no se pueden pisar entre sí.
+    const remoteByFechaHora = new Map(remoteMisas.map((misa) => [`${misa.fecha}|${misa.hora}`, misa]));
     const localMisas = await getAllMisas(space);
 
     let pushed = 0;
     for (const misa of localMisas) {
-      const remote = remoteByFecha.get(misa.fecha);
+      const remote = remoteByFechaHora.get(`${misa.fecha}|${misa.hora || ''}`);
       const localIsNewer = !remote || new Date(misa.updatedAt) > new Date(remote.updated_at);
       if (!localIsNewer) continue;
 
       const items = await itemsALocalAUuid(misa.items);
       const { error } = await supabase.from('misas').upsert(
         {
-          id: `${space}|${misa.fecha}`,
+          id: misa.id,
           space,
           fecha: misa.fecha,
+          hora: misa.hora || '',
           items,
           updated_by: getDeviceGroup() || session.user?.email || null,
           updated_at: misa.updatedAt,

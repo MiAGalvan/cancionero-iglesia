@@ -75,9 +75,9 @@ function router() {
   } else if (parts[0] === 'misa' && parts[1] === 'nueva') {
     renderMisaListView(app, {});
   } else if (parts[0] === 'misa' && parts[1]) {
-    renderMisaListView(app, { fecha: parts[1] });
+    renderMisaListView(app, { fecha: parts[1], hora: parts[2] || '' });
   } else if (parts[0] === 'publicar' && parts[1]) {
-    renderPublicarView(app, { fecha: parts[1] });
+    renderPublicarView(app, { fecha: parts[1], hora: parts[2] || '' });
   } else if (parts[0] === 'qr') {
     renderQrView(app);
   } else if (parts[0] === 'lista-publicada') {
