@@ -44,7 +44,7 @@ function esTituloDeLectura(titulo) {
 // guardar como número y usarse tal cual del lado de la página pública.
 const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-export async function renderNovedadesView(container) {
+export async function renderNovedadesView(container, { fecha: fechaAConsultar } = {}) {
   const space = getCurrentSpaceKey();
   const session = await getSession();
   const loggedIn = Boolean(session);
@@ -174,7 +174,7 @@ export async function renderNovedadesView(container) {
           ni publica nada hasta que vos elijas "Usar esta".
         </p>
         <div class="misa-category-row">
-          <input type="date" id="consultar-fecha-input" value="${mananaIso()}" ${puedeEditar ? '' : 'disabled'} />
+          <input type="date" id="consultar-fecha-input" value="${escapeAttr(fechaAConsultar || mananaIso())}" ${puedeEditar ? '' : 'disabled'} />
           <button type="button" class="btn" id="consultar-fecha-btn" ${puedeEditar ? '' : 'disabled'}>Buscar</button>
         </div>
         <div id="consultar-fecha-resultado"></div>
@@ -399,8 +399,9 @@ export async function renderNovedadesView(container) {
   // para preparar cantos de una misa de dentro de varios días. Ver
   // pagina-publica/api/consultar-lecturas.js.
   const resultadoConsultaEl = container.querySelector('#consultar-fecha-resultado');
-  container.querySelector('#consultar-fecha-btn')?.addEventListener('click', async () => {
-    const fecha = container.querySelector('#consultar-fecha-input').value;
+  const consultarFechaInputEl = container.querySelector('#consultar-fecha-input');
+
+  async function buscarLecturasDeFecha(fecha) {
     if (!fecha) return;
     resultadoConsultaEl.innerHTML = `<p class="chord-editor-hint">Buscando...</p>`;
     try {
@@ -419,6 +420,7 @@ export async function renderNovedadesView(container) {
 
       resultadoConsultaEl.innerHTML = `
         ${data.tituloDia ? `<p class="chord-editor-hint"><strong>${escapeHtml(data.tituloDia)}</strong></p>` : ''}
+        <p class="chord-editor-hint">⚠️ Esta fuente no trae el Salmo — si hace falta, cargalo a mano con el botón "Salmo" de arriba, con esta misma fecha.</p>
         ${items
           .map(
             (item, i) => `
@@ -448,7 +450,16 @@ export async function renderNovedadesView(container) {
     } catch {
       resultadoConsultaEl.innerHTML = `<p class="chord-editor-hint">No se pudo consultar (revisá la conexión).</p>`;
     }
+  }
+
+  container.querySelector('#consultar-fecha-btn')?.addEventListener('click', () => {
+    buscarLecturasDeFecha(consultarFechaInputEl.value);
   });
+
+  // Si se entró acá desde el Cronograma (con una fecha puntual, ver
+  // main.js), buscamos derecho para ese finde en vez de esperar a que
+  // alguien toque "Buscar" — un paso menos.
+  if (fechaAConsultar && puedeEditar) buscarLecturasDeFecha(fechaAConsultar);
 
   // Arma una invitación (no solo un aviso) a partir del Evangelio ya
   // cargado: la idea es que quien va a cantar lo lea antes de venir a

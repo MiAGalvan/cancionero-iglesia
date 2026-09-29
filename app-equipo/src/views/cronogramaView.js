@@ -14,7 +14,6 @@ import { pushMiembro, pushMiembroDeletion } from '../storage/labelsSync.js';
 import { syncMisasNow } from '../storage/misasSync.js';
 import { getSession } from '../storage/auth.js';
 import { tituloMisa } from './misaListView.js';
-import { PUBLIC_URL } from './qrView.js';
 
 // Mismo criterio que el resto de la app: sin sesión (o en modo lectura) se
 // puede VER el cronograma, pero no tocar nada.
@@ -225,12 +224,18 @@ function renderMiembrosSection(miembros, puedeEditar) {
 }
 
 function renderFinDeSemana(fin, miembros, misaPorClave, puedeEditar) {
-  const lecturasHref = `${PUBLIC_URL}?space=${encodeURIComponent(getCurrentSpaceKey())}#/lecturas`;
+  // El domingo, no el sábado: la vigilia del sábado a la noche toma las
+  // MISMAS lecturas que el domingo (mismo día litúrgico), así que alcanza
+  // con consultar una vez por finde, no una por horario. Lleva a la
+  // pantalla de "Consultar lecturas de una fecha" (Novedades) con esa
+  // fecha ya cargada — no a la página pública, que solo muestra lo de HOY,
+  // nunca lo de un finde futuro que todavía no se cargó.
+  const lecturasHref = `#/novedades?fecha=${fin.domingo}`;
   return `
     <div class="sidebar-group cronograma-finde">
       <div class="cronograma-finde-header">
         <h3>Fin de semana del ${formatFechaCorta(fin.sabado)} al ${formatFechaCorta(fin.domingo)}</h3>
-        <a class="btn" href="${lecturasHref}" target="_blank" rel="noopener">📖 Ver lecturas</a>
+        <a class="btn" href="${lecturasHref}">📖 Ver / preparar lecturas</a>
       </div>
       ${fin.slots.map((slot) => renderSlot(slot, miembros, misaPorClave, puedeEditar)).join('')}
     </div>

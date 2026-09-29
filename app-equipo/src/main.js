@@ -91,7 +91,7 @@ function router() {
   } else if (parts[0] === 'espacios') {
     renderEspaciosView(app);
   } else if (parts[0] === 'novedades') {
-    renderNovedadesView(app);
+    renderNovedadesView(app, { fecha: params.get('fecha') || undefined });
   } else if (parts[0] === 'adoracion') {
     renderAdoracionView(app);
   } else if (parts[0] === 'importar-cancionero') {
