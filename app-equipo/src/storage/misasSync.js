@@ -57,6 +57,28 @@ async function itemsDeUuidALocal(items) {
   return result;
 }
 
+// Lee UNA misa puntual directo de Supabase, SIN pedir sesión — para el
+// Modo ensayo (ver ensayoView.js): alguien del equipo la arma y sincroniza
+// con su sesión de siempre, y el resto del equipo, sin loguearse, puede
+// VERLA (nunca escribirla) en su propio celular. Necesita la política de
+// lectura pública de supabase/migracion-lectura-publica-misas.sql corrida
+// una vez — sin eso, esto siempre devuelve null (no rompe, solo no
+// encuentra nada). Los uuids de `items` se resuelven a canciones en
+// ensayoView.js: local primero, y si el dispositivo nunca sincronizó esa
+// canción, del cancionero público (storage/publicCancionero.js) — mismo
+// criterio de dos pasos que ya usa songView.js.
+export async function getMisaSinSesion(space, fecha, hora) {
+  if (!isSupabaseConfigured) return null;
+  const id = hora ? `${space}|${fecha}|${hora}` : `${space}|${fecha}`;
+  // select('*') a propósito, no select('items, asignados') — PostgREST
+  // cachea el esquema, y nombrar una columna agregada hace poco (como
+  // `asignados`) puede fallar con "column does not exist" hasta que ese
+  // caché se actualice solo; select('*') no depende de esa lista.
+  const { data, error } = await supabase.from('misas').select('*').eq('id', id).maybeSingle();
+  if (error || !data) return null;
+  return data;
+}
+
 export async function syncMisasNow() {
   if (!isSupabaseConfigured) return { synced: false, reason: 'not-configured' };
 

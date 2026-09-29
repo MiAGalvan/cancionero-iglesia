@@ -200,6 +200,16 @@ create policy "equipo autorizado lee sus misas guardadas"
     )
   );
 
+-- Lectura pública (sin sesión), para el Modo ensayo: el resto del equipo
+-- puede VER (nunca escribir) una lista ya armada por alguien con sesión,
+-- desde su propio celular sin loguearse. Ver storage/misasSync.js
+-- (getMisaSinSesion) y ensayoView.js.
+create policy "lectura publica de misas guardadas (para ensayar)"
+  on misas
+  for select
+  to anon
+  using (true);
+
 create policy "equipo autorizado crea misas guardadas"
   on misas
   for insert

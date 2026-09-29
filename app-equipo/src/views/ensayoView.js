@@ -7,37 +7,68 @@
 // QR, que los saca): sirve también para quien no tiene sesión iniciada —
 // ver el cancionero completo con acordes normalmente pide estar logueado,
 // esto no.
-import { getMisa, getSong } from '../storage/db.js';
+//
+// Dos fuentes posibles, en este orden:
+//  1) Local (IndexedDB de este dispositivo) — lo de siempre, con ids
+//     locales de canción.
+//  2) Si acá no hay nada (ej. este dispositivo nunca inició sesión y nunca
+//     sincronizó, pero OTRO del equipo sí armó y sincronizó esta lista):
+//     se busca en Supabase SIN sesión (getMisaSinSesion, solo lectura) —
+//     ahí los ids vienen como uuid, se resuelven primero contra el
+//     cancionero LOCAL (por si ya lo tiene sincronizado) y si no, contra el
+//     cancionero PÚBLICO (storage/publicCancionero.js, también sin
+//     sesión) — mismo criterio de dos pasos que ya usa songView.js.
+import { getMisa, getSong, getSongByUuid } from '../storage/db.js';
 import { getAllCategories, getCurrentSpaceKey, getSpaceLabel } from '../storage/settings.js';
+import { getMisaSinSesion } from '../storage/misasSync.js';
+import { getPublicSongByUuid } from '../storage/publicCancionero.js';
 import { parseChordPro, renderSong } from '../viewer/songViewer.js';
 import { tituloMisa } from './misaListView.js';
+
+function toArray(value) {
+  if (Array.isArray(value)) return value;
+  return value ? [value] : [];
+}
 
 export async function renderEnsayoView(container, { fecha, hora = '' }) {
   const space = getCurrentSpaceKey();
   const volverHref = `#/misa/${fecha}/${encodeURIComponent(hora)}`;
-  const misa = await getMisa(space, fecha, hora);
+  const categories = getAllCategories(space);
 
-  if (!misa || Object.keys(misa.items || {}).length === 0) {
+  const misaLocal = await getMisa(space, fecha, hora);
+  let asignados = misaLocal?.asignados || [];
+  const secciones = [];
+
+  if (misaLocal && Object.keys(misaLocal.items || {}).length > 0) {
+    for (const categoria of categories) {
+      for (const songId of toArray(misaLocal.items[categoria])) {
+        const song = await getSong(songId);
+        if (song) secciones.push({ categoria, song });
+      }
+    }
+  } else {
+    const remota = await getMisaSinSesion(space, fecha, hora);
+    if (remota) {
+      asignados = remota.asignados || [];
+      for (const categoria of categories) {
+        for (const uuid of toArray(remota.items?.[categoria])) {
+          const song = (await getSongByUuid(uuid)) || (await getPublicSongByUuid(uuid));
+          if (song) secciones.push({ categoria, song });
+        }
+      }
+    }
+  }
+
+  if (!misaLocal && secciones.length === 0) {
     container.innerHTML = `
       <div class="topbar">
         <a class="btn" href="${volverHref}">← Lista de misa</a>
         <h2>Ensayo</h2>
         <span></span>
       </div>
-      <div class="empty-state">Todavía no armaste esta lista. <a href="${volverHref}">Armarla ahora</a>.</div>
+      <div class="empty-state">Todavía no hay ninguna canción elegida para esta lista. <a href="${volverHref}">Armarla ahora</a>.</div>
     `;
     return;
-  }
-
-  const categories = getAllCategories(space);
-  const secciones = [];
-  for (const categoria of categories) {
-    const valor = misa.items[categoria];
-    const songIds = Array.isArray(valor) ? valor : valor ? [valor] : [];
-    for (const songId of songIds) {
-      const song = await getSong(songId);
-      if (song) secciones.push({ categoria, song });
-    }
   }
 
   container.innerHTML = `
@@ -47,11 +78,7 @@ export async function renderEnsayoView(container, { fecha, hora = '' }) {
       <span></span>
     </div>
     <div class="form-view ensayo-view">
-      ${
-        misa.asignados?.length
-          ? `<p class="chord-editor-hint">👥 ${escapeHtml(misa.asignados.join(', '))}</p>`
-          : ''
-      }
+      ${asignados.length ? `<p class="chord-editor-hint">👥 ${escapeHtml(asignados.join(', '))}</p>` : ''}
       ${
         secciones.length === 0
           ? `<div class="empty-state">No hay ninguna canción elegida todavía en esta lista.</div>`

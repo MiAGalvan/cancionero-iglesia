@@ -9,7 +9,7 @@
 // guardadas antes de que existiera esto, un solo id o null; se normaliza
 // con toIdArray() al leerlo, sin necesidad de migrar nada guardado.
 import { getSongsByCategory, getMisa, saveMisa, getAllMisas, getSongByUuid } from '../storage/db.js';
-import { getAllCategories, getAllTags, getCurrentSpaceKey, getSpaceLabel, getModoLectura } from '../storage/settings.js';
+import { getAllCategories, getAllTags, getCurrentSpaceKey, getSpaceLabel, getModoLectura, getIdentidad } from '../storage/settings.js';
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSession } from '../storage/auth.js';
 import { syncMisasNow } from '../storage/misasSync.js';
@@ -63,15 +63,24 @@ async function getFechasHorasPublicadas(space) {
 }
 
 export async function renderMisaListView(container, { fecha, hora } = {}) {
-  // Sin sesión, no se puede armar/guardar/publicar la lista de misa ni
-  // siquiera local — mismo criterio que newSongView.js/songView.js/
-  // libraryView.js. El modo lectura es una restricción EXTRA para cuando sí
-  // hay sesión pero se quiere prestar el dispositivo igual.
-  const puedeEditar = Boolean(await getSession()) && !getModoLectura();
   const selectedFecha = fecha || todayIso();
   const selectedHora = hora || '';
   const space = getCurrentSpaceKey();
   const categories = getAllCategories(space);
+
+  // Armar y guardar la lista (elegir canciones) NO pide sesión de verdad
+  // si el dispositivo ya dijo "¿quién sos?" (ver cronogramaView.js) — para
+  // poder ensayar el jueves con la lista del domingo sin que cada uno
+  // tenga que loguearse. Queda guardada SOLO en este dispositivo hasta que
+  // alguien CON sesión lo sincronice (syncMisasNow ya lo exige solo, ver
+  // storage/misasSync.js) — publicar sigue pidiendo sesión de verdad
+  // siempre, sin excepción (ver "publish-link" más abajo): éste sí es el
+  // paso que hace falta cuidar, no elegir canciones de un cancionero que
+  // ya es compartido dentro del equipo.
+  const session = await getSession();
+  const identidadConocida = getIdentidad(space);
+  const tieneSesionReal = Boolean(session);
+  const puedeEditar = (tieneSesionReal || Boolean(identidadConocida)) && !getModoLectura();
 
   const [existing, songsByCategory, allMisas, fechasHorasPublicadas] = await Promise.all([
     getMisa(space, selectedFecha, selectedHora),
@@ -123,6 +132,13 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
       <div id="import-status" class="warning-box" hidden></div>
 
       ${
+        puedeEditar && !tieneSesionReal
+          ? `<div class="warning-box">✏️ Armando esta lista como <strong>${escapeHtml(
+              identidadConocida
+            )}</strong>, sin iniciar sesión — queda guardada en este dispositivo. Para publicarla vas a necesitar iniciar sesión.</div>`
+          : ''
+      }
+      ${
         puedeEditar
           ? `<p class="chord-editor-hint">
         Escribí para buscar y tocá una canción para agregarla — se puede
@@ -132,7 +148,7 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
           : `<div class="warning-box">${
               getModoLectura()
                 ? '👁️ Modo lectura activado — se puede ver la lista, pero no armarla ni guardarla.'
-                : `Hace falta iniciar sesión para armar y guardar la lista de misa. <a href="#/login?returnTo=${encodeURIComponent(
+                : `Hace falta iniciar sesión para armar y guardar la lista de misa (o elegir quién sos desde el <a href="#/cronograma">Cronograma</a>). <a href="#/login?returnTo=${encodeURIComponent(
                     '/library'
                   )}">Ingresar</a>`
             }</div>`
@@ -142,7 +158,7 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
       <div class="form-actions">
         <button class="btn btn-accent" id="save-btn" ${puedeEditar ? '' : 'disabled'}>Guardar lista</button>
         ${
-          puedeEditar
+          tieneSesionReal
             ? `<a class="btn" id="publish-link" href="#/publicar/${selectedFecha}/${encodeURIComponent(selectedHora)}">Ir a publicar →</a>`
             : ''
         }
