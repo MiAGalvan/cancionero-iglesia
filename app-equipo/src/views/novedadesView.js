@@ -169,8 +169,8 @@ export async function renderNovedadesView(container, { fecha: fechaAConsultar } 
       <div class="categories-field">
         <span class="categories-label">🔍 Consultar lecturas de una fecha (para preparar los cantos con anticipación)</span>
         <p class="chord-editor-hint">
-          Busca en otra fuente (Vatican News) que publica con más anticipación que la automática de arriba —
-          a cambio no trae el Salmo, y no siempre trae una reflexión. Solo te muestra el resultado: no guarda
+          Busca en otra fuente (misadehoy.org, mismo origen que la automática de arriba) que publica con
+          semanas de anticipación — no siempre trae una reflexión. Solo te muestra el resultado: no guarda
           ni publica nada hasta que vos elijas "Usar esta".
         </p>
         <div class="misa-category-row">
@@ -395,9 +395,10 @@ export async function renderNovedadesView(container, { fecha: fechaAConsultar } 
   });
 
   // Consulta a demanda (no publica nada sola) a una fuente distinta de la
-  // automática de arriba — Vatican News publica con más anticipación, útil
-  // para preparar cantos de una misa de dentro de varios días. Ver
-  // pagina-publica/api/consultar-lecturas.js.
+  // automática de arriba — misadehoy.org publica con semanas de
+  // anticipación (arma el calendario litúrgico completo, no depende de
+  // publicar "lo de hoy" cada mañana), útil para preparar cantos de una
+  // misa de dentro de varios días. Ver pagina-publica/api/consultar-lecturas.js.
   const resultadoConsultaEl = container.querySelector('#consultar-fecha-resultado');
   const consultarFechaInputEl = container.querySelector('#consultar-fecha-input');
 
@@ -413,6 +414,7 @@ export async function renderNovedadesView(container, { fecha: fechaAConsultar } 
       }
       const items = [
         { titulo: '1ª Lectura', cuerpo: data.primeraLectura },
+        { titulo: 'Salmo', cuerpo: data.salmo },
         { titulo: '2ª Lectura', cuerpo: data.segundaLectura },
         { titulo: 'Evangelio', cuerpo: data.evangelio },
         { titulo: 'Reflexión', cuerpo: data.reflexion },
@@ -420,7 +422,6 @@ export async function renderNovedadesView(container, { fecha: fechaAConsultar } 
 
       resultadoConsultaEl.innerHTML = `
         ${data.tituloDia ? `<p class="chord-editor-hint"><strong>${escapeHtml(data.tituloDia)}</strong></p>` : ''}
-        <p class="chord-editor-hint">⚠️ Esta fuente no trae el Salmo — si hace falta, cargalo a mano con el botón "Salmo" de arriba, con esta misma fecha.</p>
         ${items
           .map(
             (item, i) => `

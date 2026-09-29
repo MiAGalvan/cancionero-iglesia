@@ -14,6 +14,7 @@ import { pushMiembro, pushMiembroDeletion } from '../storage/labelsSync.js';
 import { syncMisasNow } from '../storage/misasSync.js';
 import { getSession } from '../storage/auth.js';
 import { tituloMisa } from './misaListView.js';
+import { PUBLIC_URL } from './qrView.js';
 
 // Mismo criterio que el resto de la app: sin sesión (o en modo lectura) se
 // puede VER el cronograma, pero no tocar nada.
@@ -180,6 +181,58 @@ export async function renderCronogramaView(container) {
     });
   }
 
+  // --- "Ver lecturas": consulta y muestra ACÁ MISMO, sin ir a otra
+  // pantalla — es solo para consultar/preparar los cantos, no hace falta
+  // pasar por toda la pantalla de Novedades para eso. Misma fuente que
+  // "Consultar lecturas de una fecha" ahí (misadehoy.org: con semanas de
+  // anticipación, mismo origen que la automática de todos los días — ver
+  // esa pantalla si hace falta guardar esto de verdad).
+  container.querySelectorAll('[data-ver-lecturas]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const fecha = btn.dataset.verLecturas;
+      const resultadoEl = container.querySelector(`#lecturas-resultado-${fecha}`);
+      if (!resultadoEl.hidden) {
+        resultadoEl.hidden = true;
+        return;
+      }
+      resultadoEl.hidden = false;
+      if (resultadoEl.dataset.cargado) return; // ya se buscó antes, no reconsultar
+
+      resultadoEl.innerHTML = `<p class="chord-editor-hint">Buscando...</p>`;
+      try {
+        const res = await fetch(`${PUBLIC_URL}api/consultar-lecturas?fecha=${fecha}`);
+        const data = await res.json();
+        if (!data.ok) {
+          resultadoEl.innerHTML = `<p class="chord-editor-hint">Todavía no está disponible para esta fecha — probá más cerca del día, o cargala a mano desde <a href="#/novedades?fecha=${fecha}">Novedades</a>.</p>`;
+          return;
+        }
+        const items = [
+          { titulo: '1ª Lectura', cuerpo: data.primeraLectura },
+          { titulo: 'Salmo', cuerpo: data.salmo },
+          { titulo: '2ª Lectura', cuerpo: data.segundaLectura },
+          { titulo: 'Evangelio', cuerpo: data.evangelio },
+          { titulo: 'Reflexión', cuerpo: data.reflexion },
+        ].filter((item) => item.cuerpo);
+        resultadoEl.innerHTML = `
+          ${data.tituloDia ? `<p class="chord-editor-hint"><strong>${escapeHtml(data.tituloDia)}</strong></p>` : ''}
+          <p class="chord-editor-hint">¿Vas a guardar esto de verdad? <a href="#/novedades?fecha=${fecha}">Hacelo desde Novedades →</a></p>
+          ${items
+            .map(
+              (item) => `
+            <div class="consulta-lectura-item">
+              <strong>${escapeHtml(item.titulo)}</strong>
+              <p class="consulta-lectura-texto">${escapeHtml(item.cuerpo)}</p>
+            </div>`
+            )
+            .join('')}
+        `;
+        resultadoEl.dataset.cargado = '1';
+      } catch {
+        resultadoEl.innerHTML = `<p class="chord-editor-hint">No se pudo consultar (revisá la conexión).</p>`;
+      }
+    });
+  });
+
   // Sincroniza en segundo plano al entrar — si trajo algo nuevo (otra
   // persona armó o cambió una asignación desde otro dispositivo), repinta
   // para que se note sin recargar la página.
@@ -226,17 +279,14 @@ function renderMiembrosSection(miembros, puedeEditar) {
 function renderFinDeSemana(fin, miembros, misaPorClave, puedeEditar) {
   // El domingo, no el sábado: la vigilia del sábado a la noche toma las
   // MISMAS lecturas que el domingo (mismo día litúrgico), así que alcanza
-  // con consultar una vez por finde, no una por horario. Lleva a la
-  // pantalla de "Consultar lecturas de una fecha" (Novedades) con esa
-  // fecha ya cargada — no a la página pública, que solo muestra lo de HOY,
-  // nunca lo de un finde futuro que todavía no se cargó.
-  const lecturasHref = `#/novedades?fecha=${fin.domingo}`;
+  // con consultar una vez por finde, no una por horario.
   return `
     <div class="sidebar-group cronograma-finde">
       <div class="cronograma-finde-header">
         <h3>Fin de semana del ${formatFechaCorta(fin.sabado)} al ${formatFechaCorta(fin.domingo)}</h3>
-        <a class="btn" href="${lecturasHref}">📖 Ver / preparar lecturas</a>
+        <button type="button" class="btn" data-ver-lecturas="${fin.domingo}">📖 Ver lecturas</button>
       </div>
+      <div class="cronograma-lecturas-resultado" id="lecturas-resultado-${fin.domingo}" hidden></div>
       ${fin.slots.map((slot) => renderSlot(slot, miembros, misaPorClave, puedeEditar)).join('')}
     </div>
   `;

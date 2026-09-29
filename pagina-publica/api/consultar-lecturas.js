@@ -1,14 +1,16 @@
-// Consulta a demanda las lecturas de UNA fecha (hoy o futura, hasta donde
-// Vatican News las tenga publicadas) — pensado para que el equipo pueda
-// preparar los cantos con anticipación, no para publicar nada solo.
+// Consulta a demanda las lecturas de UNA fecha (hoy o futura, semanas por
+// adelantado) — pensado para que el equipo pueda preparar los cantos con
+// anticipación, no para publicar nada solo.
 //
-// Es una fuente DISTINTA de la que usa sync-lecturas.js: ese trabajo de
-// madrugada usa el feed de evangelizo.org (completo — trae Salmo y
-// reflexión — pero con muy poca anticipación, a veces ni el día de mañana
-// está todavía). Vatican News, en cambio, publica con semanas de
-// anticipación, pero no tiene el Salmo. Por eso conviven las dos: una para
-// publicar automático "lo de hoy" todos los días, otra para consultar "qué
-// va a tocar" bastante más adelante.
+// Fuente: misadehoy.org — que a su vez toma las lecturas de Evangelizo.org,
+// la MISMA fuente que usa sync-lecturas.js para la publicación automática
+// de todos los días (confirmado comparando el resultado de las dos para el
+// mismo día: coinciden letra por letra). La diferencia es que misadehoy.org
+// arma un calendario litúrgico completo por adelantado (los ciclos A/B/C
+// son enteramente calculables de antemano, no dependen de que alguien
+// publique "lo de hoy" cada mañana), así que se puede consultar cualquier
+// fecha futura — y a diferencia de la fuente que se usaba antes acá
+// (Vatican News), sí incluye el Salmo.
 //
 // Sin CORS propio: esta página se llama desde el navegador de OTRO
 // proyecto (app-equipo), así que hace falta agregar el header a mano —
@@ -16,10 +18,10 @@
 // ninguna clave ni CRON_SECRET.
 //
 // Nota: esto lee el HTML de una página pensada para que la lea una
-// persona, no una API — si Vatican News rediseña esa página, este parseo
+// persona, no una API — si misadehoy.org rediseña esa página, este parseo
 // se puede romper y va a hacer falta ajustarlo. No afecta para nada a la
 // publicación automática de todos los días (esa sigue usando el feed de
-// evangelizo.org, sin relación con este archivo).
+// evangelizo.org directo, sin relación con este archivo).
 
 function decodeEntities(text) {
   return (text || '')
@@ -46,54 +48,51 @@ function decodeEntities(text) {
     .replace(/&amp;/g, '&');
 }
 
-function extraerLecturas(html) {
-  const sinScripts = html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
-  const texto = decodeEntities(sinScripts.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+// El texto de cada lectura viene como <p>...<br />...</p> dentro de un
+// <div class="misadehoy-lecturas__texto">. <br/> se convierte en salto de
+// línea (separa los versos) y </p> en línea en blanco (separa estrofas) —
+// así se preserva la estructura en vez de aplastar todo en un solo párrafo.
+function textoDesdeHtml(htmlFragmento) {
+  return decodeEntities(
+    htmlFragmento
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<[^>]+>/g, '')
+  )
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
-  const idxLectura = texto.indexOf('Lectura del Día');
-  const idxEvangelio = texto.indexOf('Evangelio del Día');
-  if (idxLectura === -1 || idxEvangelio === -1) return null;
+// Cada lectura vive en su propio <article id="lect-{YYYYMMDD}-{codigo}">
+// — códigos fijos: fr=primera lectura, ps=salmo, sr=segunda lectura (solo
+// domingos/solemnidades), gsp=evangelio, reflexion=reflexión (no todos los
+// días la traen). Ausente = null, no error: un lunes cualquiera no tiene
+// segunda lectura, y eso es normal, no un fallo del parseo.
+function extraerPanel(html, fechaCompacta, codigo) {
+  const re = new RegExp(`<article[^>]*id="lect-${fechaCompacta}-${codigo}"[^>]*>([\\s\\S]*?)<\\/article>`);
+  const match = html.match(re);
+  if (!match) return null;
+  // El evangelio tiene una clase EXTRA en el mismo div ("...__texto
+  // misadehoy-evangelio__texto") — por eso el match busca la clase en
+  // cualquier parte de un class="...", no pegada justo antes de la
+  // comilla de cierre.
+  const textoMatch = match[1].match(/class="[^"]*misadehoy-lecturas__texto[^"]*">([\s\S]*?)<\/div>/);
+  return textoMatch ? textoDesdeHtml(textoMatch[1]) || null : null;
+}
 
-  const idxSegunda = texto.indexOf('Segunda lectura');
-  const idxPapas = texto.indexOf('Las palabras de los Papas');
+function extraerLecturas(html, fecha) {
+  const fechaCompacta = fecha.replace(/-/g, '');
+  const primeraLectura = extraerPanel(html, fechaCompacta, 'fr');
+  const salmo = extraerPanel(html, fechaCompacta, 'ps');
+  const segundaLectura = extraerPanel(html, fechaCompacta, 'sr');
+  const evangelio = extraerPanel(html, fechaCompacta, 'gsp');
+  const reflexion = extraerPanel(html, fechaCompacta, 'reflexion');
+  if (!primeraLectura && !evangelio) return null;
 
-  const finPrimera = idxSegunda !== -1 && idxSegunda < idxEvangelio ? idxSegunda : idxEvangelio;
-  // El trim() va ANTES de sacar la etiqueta "Primera lectura": en domingo
-  // esa etiqueta viene con un espacio adelante (que trim() saca primero),
-  // así que si el replace corriera antes de trim() el ^ nunca matcheaba y
-  // la etiqueta quedaba pegada al principio del texto.
-  const primeraLectura = texto
-    .slice(idxLectura + 'Lectura del Día'.length, finPrimera)
-    .trim()
-    .replace(/^Primera lectura\s*/, '');
+  const tituloMatch = html.match(/misadehoy-lecturas__temporada">([^<]+)</);
+  const tituloDia = tituloMatch ? decodeEntities(tituloMatch[1]).trim() : null;
 
-  const segundaLectura =
-    idxSegunda !== -1 && idxSegunda < idxEvangelio
-      ? texto.slice(idxSegunda + 'Segunda lectura'.length, idxEvangelio).trim()
-      : null;
-
-  const finEvangelio = idxPapas !== -1 ? idxPapas : idxEvangelio + 3000;
-  const evangelio = texto.slice(idxEvangelio + 'Evangelio del Día'.length, finEvangelio).trim();
-
-  // La reflexión no siempre está (algunos días no traen comentario). No hay
-  // un marcador de cierre confiable, así que se corta en un largo
-  // razonable — pero antes se prueba con el texto legal fijo que Vatican
-  // News pone después del comentario ("Su contribución a una gran
-  // misión..."), si aparece, para no arrastrar ese aviso como si fuera
-  // parte de la reflexión.
-  let reflexion = null;
-  if (idxPapas !== -1) {
-    const bloque = texto.slice(idxPapas + 'Las palabras de los Papas'.length, idxPapas + 2500);
-    const idxAviso = bloque.indexOf('Su contribución a una gran misión');
-    reflexion = (idxAviso !== -1 ? bloque.slice(0, idxAviso) : bloque.slice(0, 2000)).trim();
-  }
-
-  // "Fecha DD/MM/YYYY <Nombre del día litúrgico>" — informativo, para
-  // mostrar arriba de las lecturas (ej. "Sábado de la XXII semana...").
-  const tituloMatch = texto.match(/Fecha \d{2}\/\d{2}\/\d{4}\s*([^.]*?)(?:La Palabra del día es)/);
-  const tituloDia = tituloMatch ? tituloMatch[1].trim() : null;
-
-  return { primeraLectura, segundaLectura, evangelio, reflexion, tituloDia };
+  return { primeraLectura, salmo, segundaLectura, evangelio, reflexion, tituloDia };
 }
 
 module.exports = async (req, res) => {
@@ -104,17 +103,17 @@ module.exports = async (req, res) => {
     res.status(400).json({ ok: false, error: 'Falta ?fecha=YYYY-MM-DD' });
     return;
   }
-  const [anio, mes, dia] = fecha.split('-');
+  const [anio, mes] = fecha.split('-');
 
   try {
-    const url = `https://www.vaticannews.va/es/evangelio-de-hoy/${anio}/${mes}/${dia}.html`;
+    const url = `https://misadehoy.org/calendario-liturgico/?fecha=${fecha}&mes=${anio}-${mes}`;
     const respuesta = await fetch(url);
     if (!respuesta.ok) {
       res.status(200).json({ ok: false, motivo: 'no-disponible', fecha });
       return;
     }
     const html = await respuesta.text();
-    const lecturas = extraerLecturas(html);
+    const lecturas = extraerLecturas(html, fecha);
     if (!lecturas) {
       res.status(200).json({ ok: false, motivo: 'no-disponible', fecha });
       return;
