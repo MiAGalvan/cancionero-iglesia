@@ -10,7 +10,7 @@
 // misma infraestructura de misasSync.js.
 import { getMisa, saveAsignados } from '../storage/db.js';
 import { getMiembros, addMiembro, deleteMiembro, getCurrentSpaceKey, getSpaceLabel, getModoLectura } from '../storage/settings.js';
-import { pushMiembro, pushMiembroDeletion } from '../storage/labelsSync.js';
+import { pushMiembro, pushMiembroDeletion, syncLabelsNow } from '../storage/labelsSync.js';
 import { syncMisasNow } from '../storage/misasSync.js';
 import { getSession } from '../storage/auth.js';
 import { tituloMisa } from './misaListView.js';
@@ -346,13 +346,17 @@ export async function renderCronogramaView(container) {
   });
 
   // Sincroniza en segundo plano al entrar — si trajo algo nuevo (otra
-  // persona armó o cambió una asignación desde otro dispositivo), repinta
-  // para que se note sin recargar la página.
+  // persona armó o cambió una asignación, o cargó un miembro nuevo desde
+  // otro dispositivo), repinta para que se note sin recargar la página.
+  // Los miembros del equipo viajan por syncLabelsNow() (junto con carpetas
+  // y tiempos/temas litúrgicos, ver storage/labelsSync.js) — sin esto acá,
+  // un miembro agregado desde el celular nunca aparecía solo en la tablet
+  // hasta entrar a Inicio (la única pantalla que lo sincronizaba).
   if (puedeEditar) {
-    syncMisasNow().then((result) => {
-      if (result.synced && result.pulled > 0) {
+    Promise.all([syncMisasNow(), syncLabelsNow()]).then(([misasResult, labelsResult]) => {
+      if ((misasResult.synced && misasResult.pulled > 0) || labelsResult.changed) {
         renderCronogramaView(container);
-      } else if (!result.synced && result.reason === 'error') {
+      } else if (!misasResult.synced && misasResult.reason === 'error') {
         syncStatusEl.hidden = false;
         syncStatusEl.textContent = 'No se pudo sincronizar el cronograma (revisá la conexión).';
       }
