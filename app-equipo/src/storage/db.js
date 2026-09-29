@@ -253,14 +253,48 @@ export async function getSongsByCategory(category, space) {
 // funcionaba antes de que existiera esto. `items` es un objeto
 // { [categoria]: songId | null } — una sola canción por categoría, o vacío
 // si ese día no aplica (ej. no siempre hay "Entrada de la Palabra").
+// `asignados` (para el cronograma) es un array de nombres de quiénes cubren
+// esa misa — vive en el MISMO registro que la lista de canciones (misma
+// fecha+horario = la misma misa), así que armar la lista y asignar gente
+// son dos pantallas distintas tocando la misma fila, sin duplicar nada.
 
 function misaId(space, fecha, hora) {
   return hora ? `${space}|${fecha}|${hora}` : `${space}|${fecha}`;
 }
 
+// Guarda SOLO la lista de canciones, sin tocar `asignados` si ya había —
+// así la pantalla de "Lista de misa" nunca borra sin querer lo que se
+// cargó desde el cronograma (y viceversa, ver saveAsignados).
 export async function saveMisa(space, fecha, hora, items) {
   const db = await getDb();
-  const misa = { id: misaId(space, fecha, hora), space, fecha, hora: hora || '', items, updatedAt: new Date().toISOString() };
+  const existing = await db.get(MISAS_STORE, misaId(space, fecha, hora));
+  const misa = {
+    id: misaId(space, fecha, hora),
+    space,
+    fecha,
+    hora: hora || '',
+    items,
+    asignados: existing?.asignados || [],
+    updatedAt: new Date().toISOString(),
+  };
+  await db.put(MISAS_STORE, misa);
+  return misa;
+}
+
+// Guarda SOLO quiénes están asignados, sin tocar `items` (la lista de
+// canciones) si ya había una armada.
+export async function saveAsignados(space, fecha, hora, asignados) {
+  const db = await getDb();
+  const existing = await db.get(MISAS_STORE, misaId(space, fecha, hora));
+  const misa = {
+    id: misaId(space, fecha, hora),
+    space,
+    fecha,
+    hora: hora || '',
+    items: existing?.items || {},
+    asignados,
+    updatedAt: new Date().toISOString(),
+  };
   await db.put(MISAS_STORE, misa);
   return misa;
 }
@@ -283,7 +317,15 @@ export async function getAllMisas(space) {
 // `updatedAt` ya viene puesto por quien la guardó originalmente: no se pisa
 // con la hora actual, para no perder la referencia de cuál es más nueva la
 // próxima vez que se sincronice.
-export async function applyRemoteMisa({ space, fecha, hora, items, updatedAt }) {
+export async function applyRemoteMisa({ space, fecha, hora, items, asignados, updatedAt }) {
   const db = await getDb();
-  await db.put(MISAS_STORE, { id: misaId(space, fecha, hora), space, fecha, hora: hora || '', items, updatedAt });
+  await db.put(MISAS_STORE, {
+    id: misaId(space, fecha, hora),
+    space,
+    fecha,
+    hora: hora || '',
+    items,
+    asignados: asignados || [],
+    updatedAt,
+  });
 }

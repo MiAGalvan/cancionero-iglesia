@@ -2130,3 +2130,35 @@ a {
   padding: 8px 4px;
   font-size: 1rem;
 }
+
+/* --- Cronograma: quién cubre cada misa de las próximas semanas --------- */
+.cronograma-view .form-actions {
+  align-items: center;
+}
+
+.cronograma-finde {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.cronograma-finde-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cronograma-finde-header h3 {
+  margin: 0;
+}
+
+.cronograma-slot {
+  flex-wrap: wrap;
+}
+
+.cronograma-slot-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

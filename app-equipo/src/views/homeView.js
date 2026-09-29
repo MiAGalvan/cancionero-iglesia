@@ -139,6 +139,10 @@ export async function renderHomeView(container) {
         <span class="quick-tile-icon">📋</span>
         <span class="quick-tile-label">Lista de misa</span>
       </a>
+      <a class="quick-tile" href="#/cronograma" title="Quién cubre cada misa de las próximas semanas">
+        <span class="quick-tile-icon">📅</span>
+        <span class="quick-tile-label">Cronograma</span>
+      </a>
       <a class="quick-tile" href="#/espacios" title="Agregar o editar parroquias y capillas">
         <span class="quick-tile-icon">⚙️</span>
         <span class="quick-tile-label">Parroquias</span>

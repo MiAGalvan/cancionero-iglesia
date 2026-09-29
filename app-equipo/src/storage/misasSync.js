@@ -77,7 +77,14 @@ export async function syncMisasNow() {
       const remoteIsNewer = !local || new Date(remote.updated_at) > new Date(local.updatedAt);
       if (!remoteIsNewer) continue;
       const items = await itemsDeUuidALocal(remote.items);
-      await applyRemoteMisa({ space, fecha: remote.fecha, hora: remote.hora, items, updatedAt: remote.updated_at });
+      await applyRemoteMisa({
+        space,
+        fecha: remote.fecha,
+        hora: remote.hora,
+        items,
+        asignados: remote.asignados || [],
+        updatedAt: remote.updated_at,
+      });
       pulled += 1;
     }
 
@@ -102,6 +109,7 @@ export async function syncMisasNow() {
           fecha: misa.fecha,
           hora: misa.hora || '',
           items,
+          asignados: misa.asignados || [],
           updated_by: getDeviceGroup() || session.user?.email || null,
           updated_at: misa.updatedAt,
         },

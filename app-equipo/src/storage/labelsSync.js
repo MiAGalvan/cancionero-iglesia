@@ -17,7 +17,15 @@
 // resolver, porque acá no se "edita" nada, solo se agrega o se borra.
 import { supabase, isSupabaseConfigured } from './supabaseClient.js';
 import { getSession } from './auth.js';
-import { getCurrentSpaceKey, getCustomCategories, addCustomCategory, getCustomTags, addCustomTag } from './settings.js';
+import {
+  getCurrentSpaceKey,
+  getCustomCategories,
+  addCustomCategory,
+  getCustomTags,
+  addCustomTag,
+  getMiembros,
+  addMiembro,
+} from './settings.js';
 
 async function pushLabel(kind, name, space) {
   if (!isSupabaseConfigured) return false;
@@ -46,6 +54,12 @@ export function pushCustomCategoryDeletion(spaceKey, name) {
 export function pushCustomTag(name) {
   return pushLabel('tag', name, '');
 }
+export function pushMiembro(spaceKey, name) {
+  return pushLabel('miembro', name, spaceKey);
+}
+export function pushMiembroDeletion(spaceKey, name) {
+  return pushLabelDeletion('miembro', name, spaceKey);
+}
 
 // Se puede llamar seguido (después de loguearse, o con el botón 🔄 de la
 // biblioteca). `changed: true` avisa a quien llamó que hay que volver a
@@ -61,10 +75,11 @@ export async function syncLabelsNow() {
     if (error) throw error;
 
     let changed = false;
-    // Carpetas: solo las de ESTA parroquia. Tiempos/temas: todos (siempre
-    // viajan con space vacío, compartidos).
+    // Carpetas y miembros: solo las de ESTA parroquia. Tiempos/temas: todos
+    // (siempre viajan con space vacío, compartidos).
     const remoteCategories = data.filter((row) => row.kind === 'category' && row.space === spaceKey).map((row) => row.name);
     const remoteTags = data.filter((row) => row.kind === 'tag').map((row) => row.name);
+    const remoteMiembros = data.filter((row) => row.kind === 'miembro' && row.space === spaceKey).map((row) => row.name);
 
     const localCategories = getCustomCategories(spaceKey);
     for (const name of remoteCategories) {
@@ -86,6 +101,17 @@ export async function syncLabelsNow() {
     }
     for (const name of localTags) {
       if (!remoteTags.includes(name)) await pushLabel('tag', name, '');
+    }
+
+    const localMiembros = getMiembros(spaceKey);
+    for (const name of remoteMiembros) {
+      if (!localMiembros.includes(name)) {
+        addMiembro(spaceKey, name);
+        changed = true;
+      }
+    }
+    for (const name of localMiembros) {
+      if (!remoteMiembros.includes(name)) await pushLabel('miembro', name, spaceKey);
     }
 
     return { synced: true, changed };

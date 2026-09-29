@@ -3,7 +3,8 @@
 // (carpetas y canciones), #/library/:categoria,
 // #/song/new, #/song/new/:categoria, #/song/:id, #/song/:id/edit,
 // #/login (opcional ?returnTo=/ruta/de/vuelta),
-// #/misa/nueva, #/misa/:fecha, #/publicar/:fecha, #/qr,
+// #/misa/nueva, #/misa/:fecha, #/misa/:fecha/:hora, #/publicar/:fecha,
+// #/publicar/:fecha/:hora, #/cronograma, #/qr,
 // #/lista-publicada, #/proyeccion, #/espacios, #/novedades, #/adoracion,
 // #/importar-cancionero, #/compartidas, #/afinador
 import './styles.css';
@@ -18,6 +19,7 @@ import { renderSongView } from './views/songView.js';
 import { renderLoginView } from './views/loginView.js';
 import { renderMisaListView } from './views/misaListView.js';
 import { renderPublicarView } from './views/publicarView.js';
+import { renderCronogramaView } from './views/cronogramaView.js';
 import { renderQrView } from './views/qrView.js';
 import { renderListaPublicadaView } from './views/listaPublicadaView.js';
 import { renderProyeccionView } from './views/proyeccionView.js';
@@ -78,6 +80,8 @@ function router() {
     renderMisaListView(app, { fecha: parts[1], hora: parts[2] || '' });
   } else if (parts[0] === 'publicar' && parts[1]) {
     renderPublicarView(app, { fecha: parts[1], hora: parts[2] || '' });
+  } else if (parts[0] === 'cronograma') {
+    renderCronogramaView(app);
   } else if (parts[0] === 'qr') {
     renderQrView(app);
   } else if (parts[0] === 'lista-publicada') {

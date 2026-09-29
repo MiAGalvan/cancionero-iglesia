@@ -12,6 +12,7 @@ const DEVICE_GROUP_KEY = 'cancionero-iglesia:device-group';
 const SHOW_CHORDS_KEY = 'cancionero-iglesia:show-chords';
 const CHORD_NOTATION_KEY = 'cancionero-iglesia:chord-notation';
 const CUSTOM_TAGS_KEY = 'cancionero-iglesia:custom-tags';
+const MIEMBROS_KEY = 'cancionero-iglesia:miembros';
 const HEADER_TITLE_KEY = 'cancionero-iglesia:header-title';
 const CURRENT_SPACE_KEY = 'cancionero-iglesia:current-space';
 const SPACES_KEY = 'cancionero-iglesia:spaces';
@@ -484,6 +485,52 @@ export function addCustomTag(name) {
 export function deleteCustomTag(name) {
   saveCustomTags(getCustomTags().filter((t) => t !== name));
   return getAllTags();
+}
+
+// --- Miembros del equipo (para el cronograma) --------------------------
+// Lista de nombres PARA ESA PARROQUIA (cada una tiene su propio equipo, no
+// se mezclan) — mismo patrón que las carpetas agregadas (getCustomCategories
+// más arriba): un mapa espacio -> lista, guardado en localStorage y
+// sincronizado entre dispositivos (ver storage/labelsSync.js).
+function getMiembrosMap() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MIEMBROS_KEY));
+    if (!saved || Array.isArray(saved) || typeof saved !== 'object') return {};
+    return saved;
+  } catch {
+    return {};
+  }
+}
+
+function saveMiembrosMap(map) {
+  localStorage.setItem(MIEMBROS_KEY, JSON.stringify(map));
+}
+
+export function getMiembros(spaceKey) {
+  const list = getMiembrosMap()[spaceKey];
+  return Array.isArray(list) ? list : [];
+}
+
+function saveMiembros(spaceKey, miembros) {
+  const map = getMiembrosMap();
+  map[spaceKey] = miembros;
+  saveMiembrosMap(map);
+}
+
+export function addMiembro(spaceKey, nombre) {
+  const trimmed = nombre.trim();
+  if (!trimmed) return getMiembros(spaceKey);
+
+  const existentes = getMiembros(spaceKey).map((m) => m.toLowerCase());
+  if (existentes.includes(trimmed.toLowerCase())) return getMiembros(spaceKey);
+
+  saveMiembros(spaceKey, [...getMiembros(spaceKey), trimmed]);
+  return getMiembros(spaceKey);
+}
+
+export function deleteMiembro(spaceKey, nombre) {
+  saveMiembros(spaceKey, getMiembros(spaceKey).filter((m) => m !== nombre));
+  return getMiembros(spaceKey);
 }
 
 // "Grupo" (ej. "CORO SÁBADO"): a diferencia de todo lo demás en este

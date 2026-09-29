@@ -181,6 +181,7 @@ create table if not exists misas (
   fecha date not null,
   hora text not null default '', -- opcional: '' = una sola lista para todo el día (como antes)
   items jsonb not null default '{}',
+  asignados jsonb not null default '[]', -- nombres de quiénes cubren esta misa (para el cronograma, ver misaListView.js)
   updated_by text,
   updated_at timestamptz not null default now()
 );
@@ -403,18 +404,19 @@ create policy "equipo autorizado reemplaza sus grabaciones en storage"
     )
   );
 
--- --- custom_labels: carpetas agregadas y tiempos/temas litúrgicos ------
--- Las carpetas (kind='category') SÍ son de una parroquia puntual (ej.
--- "DON BOSCO" es de Merced, no de las demás) — `space` guarda cuál. Los
--- tiempos/temas litúrgicos (kind='tag'), en cambio, son los mismos en
--- cualquier parroquia (Adviento es Adviento en todos lados), así que se
--- siguen compartiendo entre todas: siempre viajan con `space` en ''. No
--- hay chequeo de team_members para leer/agregar/borrar (nada sensible
--- viaja acá, son solo nombres) — cualquier integrante logueado puede.
+-- --- custom_labels: carpetas, tiempos/temas litúrgicos y miembros --------
+-- Las carpetas (kind='category') y los miembros del equipo (kind='miembro',
+-- para el cronograma) SÍ son de una parroquia puntual (ej. "DON BOSCO" es
+-- de Merced, no de las demás) — `space` guarda cuál. Los tiempos/temas
+-- litúrgicos (kind='tag'), en cambio, son los mismos en cualquier
+-- parroquia (Adviento es Adviento en todos lados), así que se siguen
+-- compartiendo entre todas: siempre viajan con `space` en ''. No hay
+-- chequeo de team_members para leer/agregar/borrar (nada sensible viaja
+-- acá, son solo nombres) — cualquier integrante logueado puede.
 create table if not exists custom_labels (
-  kind text not null check (kind in ('category', 'tag')),
+  kind text not null check (kind in ('category', 'tag', 'miembro')),
   name text not null,
-  space text not null default '', -- '' para los tiempos/temas (compartidos); la key de la parroquia para carpetas
+  space text not null default '', -- '' para los tiempos/temas (compartidos); la key de la parroquia para carpetas y miembros
   updated_at timestamptz not null default now(),
   primary key (kind, name, space)
 );
