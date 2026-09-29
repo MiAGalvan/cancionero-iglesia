@@ -88,6 +88,11 @@ export async function renderCronogramaView(container) {
     <div class="form-view cronograma-view">
       ${renderMiembrosSection(miembros, puedeEditar)}
       <div id="cronograma-sync-status" class="warning-box" hidden></div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-accent" id="compartir-cronograma-btn">📤 Compartir por WhatsApp</button>
+        <span class="qr-share-status" id="compartir-cronograma-status" hidden></span>
+      </div>
+      <textarea id="compartir-cronograma-textarea" class="share-fallback-textarea" rows="6" readonly hidden></textarea>
       ${finesConSlots.map((fin) => renderFinDeSemana(fin, miembros, misaPorClave, puedeEditar)).join('')}
     </div>
   `;
@@ -233,6 +238,65 @@ export async function renderCronogramaView(container) {
     });
   });
 
+  // --- Compartir por WhatsApp: arma el texto y abre el selector nativo
+  // del celular — mismo mecanismo que "Compartir invitación con el
+  // Evangelio" (Novedades) y el botón del QR: navigator.share primero, si
+  // no existe o falla copia al portapapeles, y si tampoco se puede deja el
+  // texto seleccionable para copiar a mano. Nunca se manda solo: siempre
+  // es la persona la que elige a quién y toca "Enviar" en su propio
+  // WhatsApp.
+  container.querySelector('#compartir-cronograma-btn')?.addEventListener('click', async () => {
+    const statusEl = container.querySelector('#compartir-cronograma-status');
+    const textareaEl = container.querySelector('#compartir-cronograma-textarea');
+    statusEl.hidden = true;
+    textareaEl.hidden = true;
+
+    // Referencia del día litúrgico por finde (da contexto sin mandar las
+    // lecturas enteras, que harían el mensaje kilométrico) — se pide
+    // fresca cada vez, no depende de que alguien ya haya tocado "Ver
+    // lecturas" para ese finde en particular.
+    const tituloPorFinde = await Promise.all(
+      finesConSlots.map(async (fin) => {
+        try {
+          const res = await fetch(`${PUBLIC_URL}api/consultar-lecturas?fecha=${fin.domingo}`);
+          const data = await res.json();
+          return data.ok ? data.tituloDia : null;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    const texto = armarTextoCronograma(finesConSlots, misaPorClave, tituloPorFinde, getSpaceLabel(space));
+    const esNavegadorEmbebido = /FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
+
+    if (!esNavegadorEmbebido && navigator.share) {
+      try {
+        await navigator.share({ title: 'Cronograma', text: texto });
+        return;
+      } catch {
+        // Canceló, o falló: seguimos abajo al respaldo.
+      }
+    }
+    if (!esNavegadorEmbebido) {
+      try {
+        await navigator.clipboard.writeText(texto);
+        statusEl.hidden = false;
+        statusEl.textContent = '✓ Texto copiado, pegalo donde quieras compartirlo.';
+        return;
+      } catch {
+        // Tampoco se pudo: seguimos al respaldo final.
+      }
+    }
+    textareaEl.value = texto;
+    textareaEl.hidden = false;
+    textareaEl.select();
+    statusEl.hidden = false;
+    statusEl.textContent = esNavegadorEmbebido
+      ? 'Este navegador (el de Facebook/Instagram) no deja compartir directo. Mantené presionado el texto de abajo y elegí "Copiar".'
+      : 'No se pudo copiar solo. Mantené presionado el texto de abajo y elegí "Copiar".';
+  });
+
   // Sincroniza en segundo plano al entrar — si trajo algo nuevo (otra
   // persona armó o cambió una asignación desde otro dispositivo), repinta
   // para que se note sin recargar la página.
@@ -334,6 +398,26 @@ function renderSlot(slot, miembros, misaPorClave, puedeEditar) {
       }
     </div>
   `;
+}
+
+// Arma el mensaje para WhatsApp: un bloque por fin de semana, con la
+// referencia del día litúrgico si se pudo traer, y una línea por horario
+// con quién cubre (o "sin asignar" bien visible, para que se note lo que
+// todavía falta cubrir en vez de quedar en blanco sin explicación).
+function armarTextoCronograma(finesConSlots, misaPorClave, tituloPorFinde, spaceLabel) {
+  const bloques = finesConSlots.map((fin, i) => {
+    const titulo = tituloPorFinde[i];
+    const encabezado = `*📖 Fin de semana del ${formatFechaCorta(fin.sabado)} al ${formatFechaCorta(fin.domingo)}*${
+      titulo ? ` — ${titulo}` : ''
+    }`;
+    const filas = fin.slots.map((slot) => {
+      const misa = misaPorClave.get(`${slot.fecha}|${slot.hora}`);
+      const asignados = misa?.asignados?.length ? misa.asignados.join(', ') : '— sin asignar —';
+      return `🎵 ${slot.diaLabel} ${slot.hora} hs: ${asignados}`;
+    });
+    return [encabezado, ...filas].join('\n');
+  });
+  return `📅 *Cronograma — ${spaceLabel}*\n\n${bloques.join('\n\n')}`;
 }
 
 function formatFechaCorta(fecha) {
