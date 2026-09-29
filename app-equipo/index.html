@@ -8,6 +8,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#0f2220" />
     <title>Rezar Cantando — Equipo</title>
+    <!-- Para que un link a esta app (ej. el que va debajo de la placa del
+         Cronograma en WhatsApp) se vea como una tarjeta con ícono y
+         descripción en vez de una URL pelada — WhatsApp arma esa tarjeta
+         solo leyendo estas etiquetas, no hace falta nada más de nuestro
+         lado. No hay forma de que sea un botón de verdad (eso solo existe
+         con la API de WhatsApp Business, paga y para otro caso de uso);
+         esto es lo más prolijo que se puede lograr con un link normal. -->
+    <meta property="og:title" content="Rezar Cantando — Equipo" />
+    <meta property="og:description" content="Armá la lista de canciones de tu misa" />
+    <meta property="og:image" content="https://cancionero-iglesia.vercel.app/icons/icon-512.png" />
     <!-- Elegimos el tema (claro/oscuro) ANTES de cargar el CSS, para que la
          página no "parpadee" mostrando un tema y cambiando al otro medio
          segundo después. Va en HTML a propósito (no en main.js): un script
