@@ -2167,6 +2167,17 @@ a {
   margin-bottom: 4px;
 }
 
+/* Mismo amarillo/ámbar que ya usa el badge "Por publicar" — mismo lenguaje
+   visual para "esto necesita atención" en toda la app. */
+.cronograma-finde-sin-cubrir {
+  border-color: #c98a1f;
+  background: rgba(230, 168, 63, 0.08);
+}
+
+#ver-mas-semanas-btn {
+  width: 100%;
+}
+
 /* --- Modo ensayo: varias canciones seguidas, cada una con sus acordes -- */
 .ensayo-cancion {
   border-bottom: 1px solid var(--border);

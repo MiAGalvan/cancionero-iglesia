@@ -14,7 +14,7 @@ import { pushMiembro, pushMiembroDeletion } from '../storage/labelsSync.js';
 import { syncMisasNow } from '../storage/misasSync.js';
 import { getSession } from '../storage/auth.js';
 import { tituloMisa } from './misaListView.js';
-import { PUBLIC_URL } from './qrView.js';
+import { PUBLIC_URL, APP_URL } from './qrView.js';
 
 // Mismo criterio que el resto de la app: sin sesión (o en modo lectura) se
 // puede VER el cronograma, pero no tocar nada.
@@ -93,11 +93,33 @@ export async function renderCronogramaView(container) {
         <span class="qr-share-status" id="compartir-cronograma-status" hidden></span>
       </div>
       <textarea id="compartir-cronograma-textarea" class="share-fallback-textarea" rows="6" readonly hidden></textarea>
-      ${finesConSlots.map((fin) => renderFinDeSemana(fin, miembros, misaPorClave, puedeEditar)).join('')}
+      ${renderFinDeSemana(finesConSlots[0], miembros, misaPorClave, puedeEditar)}
+      ${
+        finesConSlots.length > 1
+          ? `<button type="button" class="btn" id="ver-mas-semanas-btn">Ver ${finesConSlots.length - 1} semana${
+              finesConSlots.length - 1 === 1 ? '' : 's'
+            } más →</button>
+             <div id="cronograma-semanas-extra" hidden>
+               ${finesConSlots
+                 .slice(1)
+                 .map((fin) => renderFinDeSemana(fin, miembros, misaPorClave, puedeEditar))
+                 .join('')}
+             </div>`
+          : ''
+      }
     </div>
   `;
 
   const syncStatusEl = container.querySelector('#cronograma-sync-status');
+
+  // Por defecto se muestra solo el próximo fin de semana (lo urgente) — el
+  // resto queda a un toque de distancia, sin obligar a scrollear un
+  // montón para llegar a lo importante. Ya está todo renderizado (no hace
+  // falta pedir nada de nuevo), solo se destapa.
+  container.querySelector('#ver-mas-semanas-btn')?.addEventListener('click', (event) => {
+    container.querySelector('#cronograma-semanas-extra').hidden = false;
+    event.target.remove();
+  });
 
   // --- Miembros del equipo: agregar / quitar ------------------------
   const miembroInput = container.querySelector('#miembro-input');
@@ -145,9 +167,11 @@ export async function renderCronogramaView(container) {
         const elegidos = yaElegidos();
         const needle = texto.trim().toLowerCase();
         const disponibles = miembros.filter((m) => !elegidos.has(m) && (!needle || m.toLowerCase().includes(needle)));
-        dropdown.innerHTML = disponibles
-          .map((m) => `<button type="button" class="song-picker-option" data-nombre="${escapeAttr(m)}">${escapeHtml(m)}</button>`)
-          .join('');
+        dropdown.innerHTML =
+          disponibles.map((m) => `<button type="button" class="song-picker-option" data-nombre="${escapeAttr(m)}">${escapeHtml(m)}</button>`).join('') ||
+          `<p class="song-picker-empty">${
+            miembros.length === 0 ? 'Todavía no cargaste a nadie — agregalo arriba, en "Miembros del equipo".' : 'No queda nadie más para agregar acá.'
+          }</p>`;
         dropdown.hidden = false;
       }
 
@@ -238,13 +262,17 @@ export async function renderCronogramaView(container) {
     });
   });
 
-  // --- Compartir por WhatsApp: arma el texto y abre el selector nativo
-  // del celular — mismo mecanismo que "Compartir invitación con el
-  // Evangelio" (Novedades) y el botón del QR: navigator.share primero, si
-  // no existe o falla copia al portapapeles, y si tampoco se puede deja el
-  // texto seleccionable para copiar a mano. Nunca se manda solo: siempre
-  // es la persona la que elige a quién y toca "Enviar" en su propio
-  // WhatsApp.
+  // --- Compartir por WhatsApp: arma una PLACA (imagen) con el cronograma
+  // y abre el selector nativo del celular — una imagen se distingue mejor
+  // en el chat que un mensaje de texto largo, que puede quedar perdido
+  // entre otros mensajes. Si el navegador no puede compartir imágenes
+  // (navigator.canShare con archivos), se cae al texto de siempre; mismo
+  // mecanismo ya probado que "Compartir invitación con el Evangelio"
+  // (Novedades) y el botón del QR para el resto de los respaldos:
+  // navigator.share primero, si no existe o falla copia al portapapeles, y
+  // si tampoco se puede deja el texto seleccionable para copiar a mano.
+  // Nunca se manda solo: siempre es la persona la que elige a quién y toca
+  // "Enviar" en su propio WhatsApp.
   container.querySelector('#compartir-cronograma-btn')?.addEventListener('click', async () => {
     const statusEl = container.querySelector('#compartir-cronograma-status');
     const textareaEl = container.querySelector('#compartir-cronograma-textarea');
@@ -267,8 +295,28 @@ export async function renderCronogramaView(container) {
       })
     );
 
-    const texto = armarTextoCronograma(finesConSlots, misaPorClave, tituloPorFinde, getSpaceLabel(space));
+    const spaceLabel = getSpaceLabel(space);
+    // ?space=... para que quien abra el link desde OTRO dispositivo (o sin
+    // esta parroquia ya seleccionada) caiga directo en la correcta, sin
+    // tener que elegirla — ver el ?space= que lee main.js al arrancar.
+    const appUrl = `${APP_URL}?space=${encodeURIComponent(space)}#/cronograma`;
     const esNavegadorEmbebido = /FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
+
+    if (!esNavegadorEmbebido && navigator.share && navigator.canShare) {
+      try {
+        const blob = await armarPlacaCronograma(finesConSlots, misaPorClave, tituloPorFinde, spaceLabel);
+        const file = new File([blob], 'cronograma.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], text: `👉 Ingresá a la app para armar tu misa:\n${appUrl}`, title: 'Cronograma' });
+          return;
+        }
+      } catch {
+        // Canceló, no se pudo armar la imagen, o no se pudo compartir así:
+        // seguimos abajo al respaldo de texto de siempre.
+      }
+    }
+
+    const texto = armarTextoCronograma(finesConSlots, misaPorClave, tituloPorFinde, spaceLabel, appUrl);
 
     if (!esNavegadorEmbebido && navigator.share) {
       try {
@@ -344,10 +392,19 @@ function renderFinDeSemana(fin, miembros, misaPorClave, puedeEditar) {
   // El domingo, no el sábado: la vigilia del sábado a la noche toma las
   // MISMAS lecturas que el domingo (mismo día litúrgico), así que alcanza
   // con consultar una vez por finde, no una por horario.
+  //
+  // Si NINGÚN horario de este finde tiene a nadie asignado todavía, se
+  // resalta entero (mismo criterio que el naranja de la planilla que
+  // usaban antes) — para verlo de un vistazo, sin tener que leer los 3
+  // horarios uno por uno para darse cuenta de que falta cubrir.
+  const sinCubrir = fin.slots.every((slot) => !(misaPorClave.get(`${slot.fecha}|${slot.hora}`)?.asignados?.length));
   return `
-    <div class="sidebar-group cronograma-finde">
+    <div class="sidebar-group cronograma-finde${sinCubrir ? ' cronograma-finde-sin-cubrir' : ''}">
       <div class="cronograma-finde-header">
-        <h3>Fin de semana del ${formatFechaCorta(fin.sabado)} al ${formatFechaCorta(fin.domingo)}</h3>
+        <h3>
+          ${sinCubrir ? '<span title="Nadie asignado todavía">⚠️</span> ' : ''}
+          Fin de semana del ${formatFechaCorta(fin.sabado)} al ${formatFechaCorta(fin.domingo)}
+        </h3>
         <button type="button" class="btn" data-ver-lecturas="${fin.domingo}">📖 Ver lecturas</button>
       </div>
       <div class="cronograma-lecturas-resultado" id="lecturas-resultado-${fin.domingo}" hidden></div>
@@ -404,7 +461,7 @@ function renderSlot(slot, miembros, misaPorClave, puedeEditar) {
 // referencia del día litúrgico si se pudo traer, y una línea por horario
 // con quién cubre (o "sin asignar" bien visible, para que se note lo que
 // todavía falta cubrir en vez de quedar en blanco sin explicación).
-function armarTextoCronograma(finesConSlots, misaPorClave, tituloPorFinde, spaceLabel) {
+function armarTextoCronograma(finesConSlots, misaPorClave, tituloPorFinde, spaceLabel, appUrl) {
   const bloques = finesConSlots.map((fin, i) => {
     const titulo = tituloPorFinde[i];
     const encabezado = `*📖 Fin de semana del ${formatFechaCorta(fin.sabado)} al ${formatFechaCorta(fin.domingo)}*${
@@ -417,7 +474,127 @@ function armarTextoCronograma(finesConSlots, misaPorClave, tituloPorFinde, space
     });
     return [encabezado, ...filas].join('\n');
   });
-  return `📅 *Cronograma — ${spaceLabel}*\n\n${bloques.join('\n\n')}`;
+  return `📅 *Cronograma — ${spaceLabel}*\n\n${bloques.join('\n\n')}\n\n👉 Ingresá a la app para armar tu misa:\n${appUrl}`;
+}
+
+// --- Placa (imagen) del cronograma, armada con <canvas> al vuelo — se ve
+// mejor y no se pierde en el chat como un mensaje de texto largo. Se mide
+// el contenido primero (una lista larga de nombres se envuelve en más de
+// una línea) para crear el canvas del alto justo, sin dejar un pedazo de
+// fondo vacío ni cortar contenido abajo. Mismos colores que la marca
+// (--bg/--accent de siempre, ver styles.css :root) para que se sienta
+// parte de la misma app aunque sea una imagen suelta.
+const PLACA_ANCHO = 1080;
+const PLACA_MARGEN_X = 64;
+const PLACA_COLOR_FONDO = '#0f2220';
+const PLACA_COLOR_ACENTO = '#7fd8c4';
+const PLACA_COLOR_TEXTO = '#ffffff';
+const PLACA_COLOR_TEXTO_TENUE = '#9fbdb6';
+const PLACA_COLOR_BOTON = '#2f8a7a';
+
+function wrapCanvasText(ctx, texto, anchoMaximo) {
+  const palabras = texto.split(' ');
+  const lineas = [];
+  let actual = '';
+  for (const palabra of palabras) {
+    const prueba = actual ? `${actual} ${palabra}` : palabra;
+    if (actual && ctx.measureText(prueba).width > anchoMaximo) {
+      lineas.push(actual);
+      actual = palabra;
+    } else {
+      actual = prueba;
+    }
+  }
+  if (actual) lineas.push(actual);
+  return lineas;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+async function armarPlacaCronograma(finesConSlots, misaPorClave, tituloPorFinde, spaceLabel) {
+  const anchoContenido = PLACA_ANCHO - PLACA_MARGEN_X * 2;
+  // Canvas "de mentira" (nunca se dibuja ni se agrega a la página) solo
+  // para medir cuánto ocupa el texto con cada fuente, antes de saber el
+  // alto final.
+  const medidor = document.createElement('canvas').getContext('2d');
+
+  const lineas = [];
+  function agregarTexto(texto, font, color, lineHeight) {
+    medidor.font = font;
+    for (const l of wrapCanvasText(medidor, texto, anchoContenido)) {
+      lineas.push({ texto: l, font, color, lineHeight });
+    }
+  }
+  function agregarEspacio(alto) {
+    lineas.push({ espacio: alto });
+  }
+
+  agregarTexto('📅 Cronograma', '600 40px sans-serif', PLACA_COLOR_ACENTO, 50);
+  agregarTexto(spaceLabel, '500 28px sans-serif', PLACA_COLOR_TEXTO, 40);
+  agregarEspacio(30);
+
+  finesConSlots.forEach((fin, i) => {
+    agregarTexto(`Fin de semana del ${formatFechaCorta(fin.sabado)} al ${formatFechaCorta(fin.domingo)}`, '600 30px sans-serif', PLACA_COLOR_ACENTO, 38);
+    if (tituloPorFinde[i]) {
+      agregarTexto(tituloPorFinde[i], '400 22px sans-serif', PLACA_COLOR_TEXTO_TENUE, 32);
+    }
+    agregarEspacio(10);
+    fin.slots.forEach((slot) => {
+      const misa = misaPorClave.get(`${slot.fecha}|${slot.hora}`);
+      const asignados = misa?.asignados?.length ? misa.asignados.join(', ') : 'sin asignar';
+      agregarTexto(`🎵 ${slot.diaLabel} ${slot.hora} hs: ${asignados}`, '400 26px sans-serif', PLACA_COLOR_TEXTO, 36);
+    });
+    agregarEspacio(34);
+  });
+
+  const margenSuperior = 70;
+  const altoBoton = 150; // incluye el espacio arriba del botón
+  let alto = margenSuperior;
+  for (const item of lineas) alto += item.espacio ?? item.lineHeight;
+  alto += altoBoton;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = PLACA_ANCHO;
+  canvas.height = alto;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = PLACA_COLOR_FONDO;
+  ctx.fillRect(0, 0, PLACA_ANCHO, alto);
+
+  let y = margenSuperior;
+  for (const item of lineas) {
+    if (item.espacio) {
+      y += item.espacio;
+      continue;
+    }
+    y += item.lineHeight;
+    ctx.font = item.font;
+    ctx.fillStyle = item.color;
+    ctx.fillText(item.texto, PLACA_MARGEN_X, y);
+  }
+
+  const botonAlto = 84;
+  const botonY = alto - botonAlto - 40;
+  ctx.fillStyle = PLACA_COLOR_BOTON;
+  roundRect(ctx, PLACA_MARGEN_X, botonY, anchoContenido, botonAlto, 16);
+  ctx.fill();
+  ctx.fillStyle = PLACA_COLOR_TEXTO;
+  ctx.font = '600 28px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('👉 Ingresá a la app para armar tu misa', PLACA_ANCHO / 2, botonY + 54);
+  ctx.textAlign = 'left';
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('No se pudo generar la imagen'))), 'image/png');
+  });
 }
 
 function formatFechaCorta(fecha) {

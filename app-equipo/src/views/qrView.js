@@ -12,6 +12,12 @@ import { getVisibleSpaces } from '../storage/auth.js';
 // URL de Vercel que le hayas puesto a pagina-publica).
 export const PUBLIC_URL = 'https://cancionero-iglesia-qk5n.vercel.app/';
 
+// La URL de ESTA app (la del equipo, no la pública) — para links que
+// invitan a "entrar a la app" desde afuera (ej. la placa del Cronograma
+// compartida por WhatsApp). Acepta ?space=... para que quien abra el link
+// caiga directo en la parroquia correcta (ver main.js).
+export const APP_URL = 'https://cancionero-iglesia.vercel.app/';
+
 // Cada modo apunta a una pantalla distinta de la página pública, pero
 // siempre con el mismo mecanismo (misma URL fija + ?space=..., cambia solo
 // el hash) — así el QR de Adoración se puede imprimir aparte del de la

@@ -30,9 +30,20 @@ import { renderAdoracionView } from './views/adoracionView.js';
 import { renderImportarCancioneroView } from './views/importarCancioneroView.js';
 import { renderCompartidasView } from './views/compartidasView.js';
 import { renderTunerView } from './views/tunerView.js';
+import { setCurrentSpaceKey } from './storage/settings.js';
 
 const app = document.getElementById('app');
 const bottomNav = document.getElementById('bottom-nav');
+
+// Un link compartido (ej. desde el Cronograma por WhatsApp) puede llevar
+// ?space=merced en la URL de verdad (antes del #, no en la ruta por hash)
+// para que quien lo abra caiga en la parroquia correcta de una — sin esto,
+// se abriría con la que haya quedado guardada en ESE dispositivo la última
+// vez, que puede no ser la que corresponde. Se lee UNA sola vez al
+// arrancar, no en cada cambio de ruta (si alguien navega después a otra
+// pantalla, no hay que seguir "recordando" el link con el que entró).
+const spaceDeLaUrl = new URLSearchParams(window.location.search).get('space');
+if (spaceDeLaUrl) setCurrentSpaceKey(spaceDeLaUrl);
 
 // Solo los 5 accesos más usados durante el día a día (armar/ver la lista,
 // buscar una canción compartida, cargar una nueva) — el resto de las
