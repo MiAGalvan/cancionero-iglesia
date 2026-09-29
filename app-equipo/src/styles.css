@@ -2166,3 +2166,43 @@ a {
 .cronograma-lecturas-resultado {
   margin-bottom: 4px;
 }
+
+/* --- Modo ensayo: varias canciones seguidas, cada una con sus acordes -- */
+.ensayo-cancion {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.ensayo-cancion:last-child {
+  border-bottom: none;
+}
+
+.ensayo-categoria {
+  margin: 0;
+  color: var(--accent);
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+}
+
+.ensayo-titulo {
+  margin: 4px 0 0;
+}
+
+.ensayo-artista {
+  color: var(--text-dim);
+  font-weight: 400;
+  font-size: 1.1rem;
+}
+
+/* .lyrics-container de siempre está pensado para UNA canción ocupando toda
+   la pantalla (flex:1, con un padding-bottom enorme para que el teclado
+   virtual no tape la última línea) — acá van varias seguidas, una abajo de
+   otra en una pantalla que scrollea normal, así que ese padding gigante
+   solo dejaría un hueco gigante entre canción y canción. */
+.ensayo-letra {
+  flex: none;
+  overflow: visible;
+  padding: 8px 0 16px;
+}

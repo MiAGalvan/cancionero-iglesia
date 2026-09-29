@@ -146,6 +146,11 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
             ? `<a class="btn" id="publish-link" href="#/publicar/${selectedFecha}/${encodeURIComponent(selectedHora)}">Ir a publicar →</a>`
             : ''
         }
+        ${
+          Object.keys(items).length
+            ? `<a class="btn" href="#/ensayar/${selectedFecha}/${encodeURIComponent(selectedHora)}">👁️ Ensayo (con acordes)</a>`
+            : ''
+        }
       </div>
 
       ${allMisas.length ? renderMisasGuardadas(allMisas, fechasHorasPublicadas, todayIso()) : ''}

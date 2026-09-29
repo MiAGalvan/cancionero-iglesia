@@ -327,6 +327,11 @@ function renderSlot(slot, miembros, misaPorClave, puedeEditar) {
       <a class="btn cronograma-slot-btn" href="${listaHref}">
         🎵 Armar lista de canciones${cantidadCanciones ? ` (${cantidadCanciones})` : ''}
       </a>
+      ${
+        cantidadCanciones
+          ? `<a class="btn cronograma-slot-btn" href="#/ensayar/${slot.fecha}/${encodeURIComponent(slot.hora)}">👁️ Ensayo</a>`
+          : ''
+      }
     </div>
   `;
 }
