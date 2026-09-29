@@ -9,7 +9,16 @@
 // tabla aparte, así que ya viaja sincronizada entre dispositivos con la
 // misma infraestructura de misasSync.js.
 import { getMisa, saveAsignados } from '../storage/db.js';
-import { getMiembros, addMiembro, deleteMiembro, getCurrentSpaceKey, getSpaceLabel, getModoLectura } from '../storage/settings.js';
+import {
+  getMiembros,
+  addMiembro,
+  deleteMiembro,
+  getCurrentSpaceKey,
+  getSpaceLabel,
+  getModoLectura,
+  getIdentidad,
+  setIdentidad,
+} from '../storage/settings.js';
 import { pushMiembro, pushMiembroDeletion, syncLabelsNow } from '../storage/labelsSync.js';
 import { syncMisasNow } from '../storage/misasSync.js';
 import { getSession } from '../storage/auth.js';
@@ -52,7 +61,7 @@ function proximosFinesDeSemana(n) {
 
 const SEMANAS_A_MOSTRAR = 4;
 
-export async function renderCronogramaView(container) {
+export async function renderCronogramaView(container, { verTodos = false } = {}) {
   const puedeEditar = Boolean(await getSession()) && !getModoLectura();
   const space = getCurrentSpaceKey();
   const fines = proximosFinesDeSemana(SEMANAS_A_MOSTRAR);
@@ -79,12 +88,47 @@ export async function renderCronogramaView(container) {
   ]);
   const misaPorClave = new Map(misasPorSlot);
 
+  // --- "¿Quién sos?" (en off, todavía no confirmado) -------------------
+  // La idea: en vez de que cada uno tenga que buscar su fila entre 12
+  // horarios, este dispositivo recuerda quién lo usa (por parroquia) y lo
+  // lleva derecho a SU misa asignada. Se pregunta UNA sola vez — "" quiere
+  // decir "ya se le preguntó y prefirió no decir", no se repregunta solo.
+  const identidad = getIdentidad(space);
+
+  if (!verTodos && identidad === undefined && miembros.length > 0) {
+    renderQuienSos(container, { miembros, space });
+    return;
+  }
+
+  const misSlots =
+    !verTodos && identidad
+      ? finesConSlots.flatMap((fin) =>
+          fin.slots.filter((slot) => misaPorClave.get(`${slot.fecha}|${slot.hora}`)?.asignados?.includes(identidad))
+        )
+      : [];
+
+  if (misSlots.length > 0) {
+    renderMisMisas(container, { identidad, misSlots, space });
+    return;
+  }
+
   container.innerHTML = `
     <div class="topbar">
       <a class="btn" href="#/library">← Cancionero</a>
       <h2>Cronograma — ${escapeHtml(getSpaceLabel(space))}</h2>
       <span></span>
     </div>
+    ${
+      identidad && !verTodos
+        ? `<p class="chord-editor-hint cronograma-quien-soy">👤 Sos <strong>${escapeHtml(
+            identidad
+          )}</strong> — no tenés ninguna misa asignada todavía. <a href="#" id="cambiar-identidad-link">¿No sos vos?</a></p>`
+        : identidad
+        ? `<p class="chord-editor-hint cronograma-quien-soy">👤 Estás viendo el cronograma completo como <strong>${escapeHtml(
+            identidad
+          )}</strong>. <a href="#/cronograma">Ir a mis misas</a> · <a href="#" id="cambiar-identidad-link">¿No sos vos?</a></p>`
+        : ''
+    }
     <div class="form-view cronograma-view">
       ${renderMiembrosSection(miembros, puedeEditar)}
       <div id="cronograma-sync-status" class="warning-box" hidden></div>
@@ -112,6 +156,12 @@ export async function renderCronogramaView(container) {
 
   const syncStatusEl = container.querySelector('#cronograma-sync-status');
 
+  container.querySelector('#cambiar-identidad-link')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    setIdentidad(space, undefined);
+    renderCronogramaView(container);
+  });
+
   // Por defecto se muestra solo el próximo fin de semana (lo urgente) — el
   // resto queda a un toque de distancia, sin obligar a scrollear un
   // montón para llegar a lo importante. Ya está todo renderizado (no hace
@@ -129,7 +179,7 @@ export async function renderCronogramaView(container) {
     addMiembro(space, nombre);
     miembroInput.value = '';
     pushMiembro(space, nombre); // en segundo plano
-    renderCronogramaView(container);
+    renderCronogramaView(container, { verTodos });
   });
   miembroInput?.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') container.querySelector('#miembro-add-btn').click();
@@ -140,7 +190,7 @@ export async function renderCronogramaView(container) {
       if (!confirm(`¿Quitar a "${nombre}" de la lista de miembros?`)) return;
       deleteMiembro(space, nombre);
       pushMiembroDeletion(space, nombre); // en segundo plano
-      renderCronogramaView(container);
+      renderCronogramaView(container, { verTodos });
     });
   });
 
@@ -355,7 +405,7 @@ export async function renderCronogramaView(container) {
   if (puedeEditar) {
     Promise.all([syncMisasNow(), syncLabelsNow()]).then(([misasResult, labelsResult]) => {
       if ((misasResult.synced && misasResult.pulled > 0) || labelsResult.changed) {
-        renderCronogramaView(container);
+        renderCronogramaView(container, { verTodos });
       } else if (!misasResult.synced && misasResult.reason === 'error') {
         syncStatusEl.hidden = false;
         syncStatusEl.textContent = 'No se pudo sincronizar el cronograma (revisá la conexión).';
@@ -390,6 +440,82 @@ function renderMiembrosSection(miembros, puedeEditar) {
       }
     </div>
   `;
+}
+
+// "¿Quién sos?" — se muestra UNA sola vez por dispositivo (mientras
+// probamos esto "en off"): elegís tu nombre de la lista de miembros, o
+// "Prefiero no decir" si preferís ver el cronograma entero directamente.
+// Cualquiera de las dos opciones queda guardada — no se vuelve a preguntar
+// sola en este dispositivo.
+function renderQuienSos(container, { miembros, space }) {
+  container.innerHTML = `
+    <div class="topbar">
+      <a class="btn" href="#/library">← Cancionero</a>
+      <h2>Cronograma</h2>
+      <span></span>
+    </div>
+    <div class="form-view cronograma-view cronograma-quien-sos">
+      <h3>👋 ¿Quién sos?</h3>
+      <p class="chord-editor-hint">Así te llevamos directo a tu misa asignada, sin tener que buscarla.</p>
+      <div class="cronograma-quien-sos-opciones">
+        ${miembros
+          .map((m) => `<button type="button" class="btn" data-elegir-identidad="${escapeAttr(m)}">${escapeHtml(m)}</button>`)
+          .join('')}
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn" id="no-decir-identidad-btn">Prefiero no decir — ver todo el cronograma</button>
+      </div>
+    </div>
+  `;
+
+  container.querySelectorAll('[data-elegir-identidad]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setIdentidad(space, btn.dataset.elegirIdentidad);
+      renderCronogramaView(container);
+    });
+  });
+  container.querySelector('#no-decir-identidad-btn').addEventListener('click', () => {
+    setIdentidad(space, '');
+    renderCronogramaView(container);
+  });
+}
+
+// Vista chica con SOLO las misas de esta persona — en vez del cronograma
+// entero, que obligaría a buscar su fila entre un montón de horarios.
+function renderMisMisas(container, { identidad, misSlots, space }) {
+  container.innerHTML = `
+    <div class="topbar">
+      <a class="btn" href="#/library">← Cancionero</a>
+      <h2>Cronograma</h2>
+      <span></span>
+    </div>
+    <div class="form-view cronograma-view">
+      <p class="chord-editor-hint cronograma-quien-soy">
+        👤 Sos <strong>${escapeHtml(identidad)}</strong> — ${
+    misSlots.length === 1 ? 'esta es tu misa' : 'estas son tus misas'
+  }. <a href="#" id="cambiar-identidad-link">¿No sos vos?</a>
+      </p>
+      ${misSlots
+        .map(
+          (slot) => `
+        <div class="misa-category-row cronograma-slot">
+          <span class="misa-category-name">${formatFechaCorta(slot.fecha)} — ${escapeHtml(tituloMisa(slot.fecha, slot.hora))}</span>
+          <a class="btn btn-accent" href="#/misa/${slot.fecha}/${encodeURIComponent(slot.hora)}">🎵 Armar lista de canciones</a>
+          <a class="btn" href="#/ensayar/${slot.fecha}/${encodeURIComponent(slot.hora)}">👁️ Ensayo</a>
+        </div>`
+        )
+        .join('')}
+      <div class="form-actions">
+        <a class="btn" href="#/cronograma?todos=1">Ver el cronograma completo →</a>
+      </div>
+    </div>
+  `;
+
+  container.querySelector('#cambiar-identidad-link').addEventListener('click', (event) => {
+    event.preventDefault();
+    setIdentidad(space, undefined);
+    renderCronogramaView(container);
+  });
 }
 
 function renderFinDeSemana(fin, miembros, misaPorClave, puedeEditar) {

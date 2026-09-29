@@ -572,6 +572,41 @@ export function setDeviceGroup(name) {
   }
 }
 
+// --- "¿Quién sos?" del Cronograma ---------------------------------------
+// Quién es la persona QUE USA este dispositivo (no una etiqueta de grupo
+// como el "Grupo del dispositivo" de arriba) — para poder llevarla directo
+// a SU misa asignada en vez de mostrarle el cronograma entero. Por
+// parroquia (alguien puede ayudar en más de una) — un mapa espacio ->
+// nombre, en localStorage, PROBADO ("en off") todavía no confirmado.
+//
+// Tres estados posibles para una parroquia dada:
+//   undefined  -> todavía no se le preguntó (primera vez)
+//   ''         -> se le preguntó y prefirió no decir quién es (no volver a
+//                 preguntar solo; puede elegir "Soy yo" a mano después)
+//   'Nombre'   -> ya sabemos quién es
+const IDENTIDAD_KEY = 'cancionero-iglesia:identidad';
+
+function getIdentidadMap() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(IDENTIDAD_KEY));
+    if (!saved || Array.isArray(saved) || typeof saved !== 'object') return {};
+    return saved;
+  } catch {
+    return {};
+  }
+}
+
+export function getIdentidad(spaceKey) {
+  const map = getIdentidadMap();
+  return Object.prototype.hasOwnProperty.call(map, spaceKey) ? map[spaceKey] : undefined;
+}
+
+export function setIdentidad(spaceKey, nombre) {
+  const map = getIdentidadMap();
+  map[spaceKey] = nombre;
+  localStorage.setItem(IDENTIDAD_KEY, JSON.stringify(map));
+}
+
 // Preferencia personal de este dispositivo: mostrar los acordes en el
 // visor, o solo la letra (para quien no toca ningún instrumento y los
 // acordes le quedan de más). Por defecto se muestran, igual que siempre.

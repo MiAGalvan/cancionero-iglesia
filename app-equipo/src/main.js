@@ -95,7 +95,7 @@ function router() {
   } else if (parts[0] === 'ensayar' && parts[1]) {
     renderEnsayoView(app, { fecha: parts[1], hora: parts[2] || '' });
   } else if (parts[0] === 'cronograma') {
-    renderCronogramaView(app);
+    renderCronogramaView(app, { verTodos: params.get('todos') === '1' });
   } else if (parts[0] === 'qr') {
     renderQrView(app);
   } else if (parts[0] === 'lista-publicada') {

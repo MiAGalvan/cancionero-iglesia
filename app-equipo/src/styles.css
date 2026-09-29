@@ -2178,6 +2178,26 @@ a {
   width: 100%;
 }
 
+/* --- "¿Quién sos?" (en off) --------------------------------------- */
+.cronograma-quien-sos-opciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.cronograma-quien-sos-opciones .btn {
+  font-size: 1.1rem;
+  padding: 14px 20px;
+}
+
+.cronograma-quien-soy {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
 /* --- Modo ensayo: varias canciones seguidas, cada una con sus acordes -- */
 .ensayo-cancion {
   border-bottom: 1px solid var(--border);
