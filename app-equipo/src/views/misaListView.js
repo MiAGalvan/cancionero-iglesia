@@ -9,6 +9,7 @@
 // guardadas antes de que existiera esto, un solo id o null; se normaliza
 // con toIdArray() al leerlo, sin necesidad de migrar nada guardado.
 import { getSongsByCategory, getMisa, saveMisa, getAllMisas, getSongByUuid } from '../storage/db.js';
+import { filterSongs } from '../search/songSearch.js';
 import { getAllCategories, getAllTags, getCurrentSpaceKey, getSpaceLabel, getModoLectura, getIdentidad } from '../storage/settings.js';
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSession } from '../storage/auth.js';
@@ -225,13 +226,8 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
     const category = picker.dataset.category;
     const songs = songsPorCategoria.get(category) || [];
     const yaElegidas = idsYaElegidas(picker);
-    const needle = texto.trim().toLowerCase();
     const disponibles = songs.filter((song) => !yaElegidas.has(song.id) && songMatchesFilter(song, filterTag));
-    const filtradas = needle
-      ? disponibles.filter(
-          (song) => song.title.toLowerCase().includes(needle) || (song.artist || '').toLowerCase().includes(needle)
-        )
-      : disponibles;
+    const filtradas = filterSongs(disponibles, texto);
 
     const dropdown = picker.querySelector('.song-picker-dropdown');
     dropdown.innerHTML = `

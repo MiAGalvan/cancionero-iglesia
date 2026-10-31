@@ -10,6 +10,7 @@
 // decide storage/settings.js — así evitamos que ambos archivos se importen
 // entre sí (un ciclo que rompe en tiempo de ejecución).
 import { openDB } from 'idb';
+import { filterSongs } from '../search/songSearch.js';
 import { CATEGORIES, DEFAULT_SPACE_KEY } from './constants.js';
 
 export { CATEGORIES };
@@ -220,20 +221,12 @@ export async function getAllSongs(space) {
   return songs.sort((a, b) => a.title.localeCompare(b.title, 'es'));
 }
 
-// Búsqueda simple por nombre, artista o tiempo/tema litúrgico (ej. buscar
-// "pascua" encuentra las canciones etiquetadas "Pascua" aunque la palabra
-// no esté en el título): alcanza y sobra para un cancionero de parroquia
+// Búsqueda por título, artista, tiempo/tema litúrgico o letra (ver
+// search/songSearch.js: sin importar tildes, mayúsculas ni el orden de las
+// palabras). Alcanza y sobra para un cancionero de parroquia
 // (decenas/cientos de canciones), no hace falta un índice de texto.
 export async function searchSongs(query, space) {
-  const songs = await getAllSongs(space);
-  const needle = query.trim().toLowerCase();
-  if (!needle) return songs;
-  return songs.filter(
-    (song) =>
-      song.title.toLowerCase().includes(needle) ||
-      song.artist.toLowerCase().includes(needle) ||
-      (song.tags || []).some((tag) => tag.toLowerCase().includes(needle))
-  );
+  return filterSongs(await getAllSongs(space), query);
 }
 
 export async function getSongsByCategory(category, space) {

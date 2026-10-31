@@ -8,6 +8,7 @@
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSession, isAdmin } from '../storage/auth.js';
 import { saveSong } from '../storage/db.js';
+import { filterSongs } from '../search/songSearch.js';
 import { syncNow } from '../storage/sync.js';
 import { getCurrentSpaceKey, getChordNotation, getModoLectura } from '../storage/settings.js';
 import { parseChordPro, renderSong } from '../viewer/songViewer.js';
@@ -76,13 +77,7 @@ export async function renderCompartidasView(container) {
   }
 
   function renderList(query) {
-    const needle = (query || '').trim().toLowerCase();
-    const filtered = needle
-      ? songs.filter(
-          (song) =>
-            song.title.toLowerCase().includes(needle) || (song.artist || '').toLowerCase().includes(needle)
-        )
-      : songs;
+    const filtered = filterSongs(songs, query);
 
     if (filtered.length === 0) {
       listEl.innerHTML = `<li class="empty-state">${

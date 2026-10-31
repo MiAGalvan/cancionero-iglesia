@@ -13,6 +13,7 @@ import { pushSpace } from '../storage/spacesSync.js';
 import { getVisibleSpaces, getSession } from '../storage/auth.js';
 import { getPublicSongsForSpace } from '../storage/publicCancionero.js';
 import { CATEGORIES } from '../storage/constants.js';
+import { filterSongs } from '../search/songSearch.js';
 import {
   getAllCategories,
   isCustomCategory,
@@ -160,14 +161,7 @@ async function renderFoldersView(container) {
           `;
           return;
         }
-        const needle = query.toLowerCase();
-        const filtered = songs.filter(
-          (song) =>
-            song.title.toLowerCase().includes(needle) ||
-            (song.artist || '').toLowerCase().includes(needle) ||
-            (song.tags || []).some((tag) => tag.toLowerCase().includes(needle))
-        );
-        contentEl.innerHTML = songSearchResultsHtml(filtered, false);
+        contentEl.innerHTML = songSearchResultsHtml(filterSongs(songs, query), false);
         return;
       }
 
@@ -265,15 +259,7 @@ async function renderCategoryView(container, category) {
     const songs = loggedIn
       ? await getSongsByCategory(category, getCurrentSpaceKey())
       : (await publicSongsPromise).filter((song) => (song.categories || []).includes(category));
-    const needle = query.trim().toLowerCase();
-    const filtered = needle
-      ? songs.filter(
-          (song) =>
-            song.title.toLowerCase().includes(needle) ||
-            (song.artist || '').toLowerCase().includes(needle) ||
-            (song.tags || []).some((tag) => tag.toLowerCase().includes(needle))
-        )
-      : songs;
+    const filtered = filterSongs(songs, query);
 
     if (filtered.length === 0) {
       listEl.innerHTML = `<li class="empty-state">No hay canciones acá todavía.</li>`;
