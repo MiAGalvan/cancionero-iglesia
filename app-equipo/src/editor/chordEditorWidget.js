@@ -10,7 +10,6 @@ import {
   chordProToEditorLines,
   editorLinesToChordPro,
   normalizeTypedChord,
-  clampChordOffset,
   preserveChords,
 } from './chordProBuilder.js';
 import { openFullscreenTextEditor } from './fullscreenTextEditor.js';
@@ -114,11 +113,170 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
     });
   }
 
+  // El principio de cada palabra de toda la letra, en orden — a dónde salta
+  // Tab / Shift+Tab. Cruza de línea solo.
+  function anclasDePalabras() {
+    const anclas = [];
+    state.editorLines.forEach((line, lineIndex) => {
+      if (line.type !== 'lyric') return;
+      line.words.forEach((word) => anclas.push({ lineIndex, index: word.start }));
+    });
+    return anclas;
+  }
+
+  // Abre el cuadrito para poner (o cambiar) el acorde que va ANTES de la
+  // letra `index` de la línea. `chordRef` es el acorde que se está editando
+  // (si ya existe), para no confundirlo con otro en la misma letra.
+  function abrirEnPosicion(lineIndex, index, chordRef) {
+    const line = state.editorLines[lineIndex];
+    const lineEl = container.querySelector(`[data-lyric-line="${lineIndex}"]`);
+    if (!line || !lineEl) return;
+    const charEls = lineEl.querySelectorAll('.ce-char');
+    const anchorEl = charEls[Math.min(index, charEls.length - 1)];
+    anchorEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const existing = chordRef || line.chords.find((c) => c.index === index);
+
+    openChordPopover(anchorEl, { entry: existing }, {
+      onSubmit(newChord) {
+        if (newChord) {
+          if (existing) existing.chord = newChord;
+          else line.chords.push({ index, chord: newChord });
+        } else if (existing) {
+          line.chords.splice(line.chords.indexOf(existing), 1);
+        }
+        rerenderPreservingScroll();
+        notifyChange();
+      },
+      // Tab (o Shift+Tab): confirma el acorde tipeado, como si se tocara
+      // "Guardar", y de paso abre el de la palabra siguiente (o anterior) —
+      // para cargar una canción entera de corrido con el teclado, sin soltar
+      // el mouse en cada palabra.
+      onTab(direction) {
+        const actual = existing ? existing.index : index;
+        const anclas = anclasDePalabras();
+        const destino =
+          direction > 0
+            ? anclas.find((a) => a.lineIndex > lineIndex || (a.lineIndex === lineIndex && a.index > actual))
+            : [...anclas].reverse().find((a) => a.lineIndex < lineIndex || (a.lineIndex === lineIndex && a.index < actual));
+        if (destino) abrirEnPosicion(destino.lineIndex, destino.index);
+      },
+    });
+  }
+
+  // Una línea de letra: la letra queda BLOQUEADA (no se toca, para eso está
+  // "Editar letra") y toda la interacción pasa en la franja de arriba — un
+  // toque pone un acorde en la letra que queda justo debajo de ese punto, y
+  // se arrastra con el dedo para correrlo.
+  function wireLyricLine(lineEl) {
+    const lineIndex = Number(lineEl.dataset.lyricLine);
+    const line = state.editorLines[lineIndex];
+    const strip = lineEl.querySelector('.ce-strip');
+    const charEls = Array.from(lineEl.querySelectorAll('.ce-char'));
+
+    function leftOfIndex(index) {
+      if (index >= charEls.length) {
+        const last = charEls[charEls.length - 1];
+        return last.offsetLeft + last.offsetWidth;
+      }
+      return charEls[index].offsetLeft;
+    }
+
+    // La letra que está bajo la posición `clientX` (o el final de la línea
+    // si cae después de la última). Un espacio no es un lugar válido para un
+    // acorde: se pasa a la primera letra de la palabra que sigue.
+    function indexFromClientX(clientX) {
+      for (let i = 0; i < charEls.length; i++) {
+        if (clientX < charEls[i].getBoundingClientRect().right) {
+          let index = i;
+          while (index < line.text.length && line.text[index] === ' ') index += 1;
+          return index;
+        }
+      }
+      return line.text.length;
+    }
+
+    // Cada acorde va arriba de su letra; si dos quedan tan cerca que se
+    // taparían, el de la derecha se corre un poco (solo se ve así — su
+    // posición real, la letra, no cambia).
+    function positionChips() {
+      let minLeft = 0;
+      const chips = Array.from(strip.querySelectorAll('.ce-chip')).sort(
+        (a, b) => Number(a.dataset.index) - Number(b.dataset.index)
+      );
+      for (const chip of chips) {
+        const left = Math.max(leftOfIndex(Number(chip.dataset.index)), minLeft);
+        chip.style.left = `${left}px`;
+        minLeft = left + chip.offsetWidth + 4;
+      }
+    }
+    positionChips();
+
+    function marcarDestino(index) {
+      charEls.forEach((el) => el.classList.remove('ce-char-target'));
+      if (index !== null && charEls[index]) charEls[index].classList.add('ce-char-target');
+    }
+
+    strip.addEventListener('click', (event) => {
+      if (event.target !== strip) return;
+      abrirEnPosicion(lineIndex, indexFromClientX(event.clientX));
+    });
+
+    strip.querySelectorAll('.ce-chip').forEach((chip) => {
+      const chord = line.chords[Number(chip.dataset.chordIdx)];
+      let drag = null;
+
+      chip.addEventListener('pointerdown', (event) => {
+        if (event.button) return;
+        chip.setPointerCapture(event.pointerId);
+        drag = {
+          startX: event.clientX,
+          grabDx: event.clientX - chip.getBoundingClientRect().left,
+          moved: false,
+          index: chord.index,
+        };
+      });
+
+      chip.addEventListener('pointermove', (event) => {
+        if (!drag) return;
+        if (!drag.moved && Math.abs(event.clientX - drag.startX) < 6) return;
+        drag.moved = true;
+        chip.classList.add('dragging');
+        chip.style.left = `${event.clientX - drag.grabDx - strip.getBoundingClientRect().left}px`;
+        // El acorde queda en la letra que está bajo su borde izquierdo.
+        drag.index = indexFromClientX(event.clientX - drag.grabDx + 2);
+        marcarDestino(drag.index);
+      });
+
+      chip.addEventListener('pointerup', (event) => {
+        if (!drag) return;
+        const { moved, index } = drag;
+        drag = null;
+        chip.releasePointerCapture(event.pointerId);
+        marcarDestino(null);
+        if (moved) {
+          chord.index = index;
+          rerenderPreservingScroll();
+          notifyChange();
+        } else {
+          abrirEnPosicion(lineIndex, chord.index, chord);
+        }
+      });
+
+      chip.addEventListener('pointercancel', () => {
+        drag = null;
+        chip.classList.remove('dragging');
+        marcarDestino(null);
+        positionChips();
+      });
+    });
+  }
+
   function renderChordsPhase() {
     container.innerHTML = `
       <p class="chord-editor-hint">
-        Tocá una palabra para ponerle (o cambiarle) el acorde de arriba. Si no
-        va justo al principio, abrí el acorde y usá las flechas para correrlo.
+        Tocá la franja de arriba de la línea, justo encima de la letra donde va
+        el acorde. Para correrlo, arrastralo con el dedo. La letra no se toca
+        acá: para cambiarla, usá "Editar letra".
       </p>
       <div class="chord-editor-lines">
         ${state.editorLines.map((line, lineIndex) => renderLine(line, lineIndex)).join('')}
@@ -133,47 +291,7 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
       render();
     });
 
-    container.querySelectorAll('[data-word-slot]').forEach((el, wordIndex) => {
-      el.addEventListener('click', () => {
-        const lineIndex = Number(el.dataset.lineIndex);
-        const wordStart = Number(el.dataset.wordStart);
-        const line = state.editorLines[lineIndex];
-        const word = line.words.find((w) => w.start === wordStart);
-        const entry = line.chords[wordStart];
-
-        openChordPopover(el, { entry, wordLength: word.text.length }, {
-          onSubmit(newChord) {
-            if (newChord) {
-              const offset = clampChordOffset(entry ? entry.offset : 0, word.text.length);
-              line.chords[wordStart] = { chord: newChord, offset };
-            } else {
-              delete line.chords[wordStart];
-            }
-            rerenderPreservingScroll();
-            notifyChange();
-          },
-          // Tab (o Shift+Tab): confirma el acorde tipeado, como si se
-          // tocara "Guardar", y de paso abre el popover de la palabra
-          // siguiente (o anterior) — para cargar una canción entera de
-          // corrido con el teclado, sin soltar el mouse en cada palabra.
-          // `wordIndex` es la posición entre TODAS las palabras (no solo
-          // las de esta línea), así que +1/-1 cruza de línea sola.
-          onTab(direction) {
-            const slotsAhora = container.querySelectorAll('[data-word-slot]');
-            const siguiente = slotsAhora[wordIndex + direction];
-            if (siguiente) siguiente.click();
-          },
-          onNudge(direction) {
-            const current = line.chords[wordStart];
-            if (!current) return;
-            const newOffset = clampChordOffset(current.offset + direction, word.text.length);
-            line.chords[wordStart] = { ...current, offset: newOffset };
-            rerenderPreservingScroll();
-            notifyChange();
-          },
-        });
-      });
-    });
+    container.querySelectorAll('[data-lyric-line]').forEach(wireLyricLine);
 
     container.querySelectorAll('[data-instrumental-chord]').forEach((el) => {
       el.addEventListener('click', () => {
@@ -210,10 +328,6 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
   notifyChange();
 }
 
-// Una palabra sin acorde (o con el acorde justo al principio, offset 0) se
-// muestra como un solo bloque. Si el acorde está corrido unas letras adentro
-// (offset > 0), partimos la palabra en dos pedacitos visuales justo ahí,
-// igual que hace el visor final con el ChordPro ya guardado.
 function renderLine(line, lineIndex) {
   if (line.type === 'instrumental') {
     return `
@@ -230,52 +344,39 @@ function renderLine(line, lineIndex) {
     `;
   }
 
+  // Cada letra en su propio <span> pegado al anterior (sin saltos de línea
+  // entre medio, o aparecerían espacios de más) para poder saber en qué
+  // letra cae un toque; los acordes se posicionan en wireLyricLine.
+  const letras = line.text
+    .split('')
+    .map((ch, i) => `<span class="ce-char" data-i="${i}">${escapeHtml(ch)}</span>`)
+    .join('');
+  const acordes = line.chords
+    .map(
+      (c, i) =>
+        `<button type="button" class="ce-chip" data-chord-idx="${i}" data-index="${c.index}">${escapeHtml(c.chord)}</button>`
+    )
+    .join('');
   return `
-    <div class="chord-editor-line">
-      ${line.words.map((word) => renderWordSlot(line, lineIndex, word)).join('')}
+    <div class="ce-line" data-lyric-line="${lineIndex}">
+      <div class="ce-line-inner">
+        <div class="ce-strip">${acordes}</div>
+        <div class="ce-text">${letras}</div>
+      </div>
     </div>
   `;
-}
-
-function renderWordSlot(line, lineIndex, word) {
-  const entry = line.chords[word.start];
-  const dataAttrs = `data-word-slot data-line-index="${lineIndex}" data-word-start="${word.start}"`;
-
-  if (!entry || entry.offset === 0) {
-    return `
-      <span class="chord-editor-word" ${dataAttrs}>
-        <span class="chord-editor-chord${entry ? '' : ' empty'}">${entry ? escapeHtml(entry.chord) : '+'}</span>
-        <span class="chord-editor-text">${escapeHtml(word.text)}</span>
-      </span>`;
-  }
-
-  const before = word.text.slice(0, entry.offset);
-  const after = word.text.slice(entry.offset);
-  return `
-    <span class="chord-editor-word chord-editor-word-split" ${dataAttrs}
-      ><span class="chord-editor-segment">
-        <span class="chord-editor-chord"></span>
-        <span class="chord-editor-text">${escapeHtml(before)}</span>
-      </span><span class="chord-editor-segment">
-        <span class="chord-editor-chord">${escapeHtml(entry.chord)}</span>
-        <span class="chord-editor-text">${escapeHtml(after)}</span>
-      </span></span>`;
 }
 
 function linesToPlainText(lines) {
   return lines.map((line) => (line.type === 'instrumental' ? '' : line.text)).join('\n');
 }
 
-// `info` es { entry, wordLength } para una palabra ({chord, offset}) o solo
-// { entry } (un acorde suelto, sin offset) para una línea instrumental.
-// `handlers` es { onSubmit(chord), onNudge(direction), onTab(direction) } —
-// onNudge es opcional, solo se pasa (y solo se muestran las flechas) cuando
-// tiene sentido correr el acorde, es decir sobre una palabra de más de una
-// letra. onTab también es opcional (solo lo pasan las palabras de la letra,
-// no los acordes sueltos de una línea instrumental).
-function openChordPopover(anchorEl, { entry, wordLength }, { onSubmit, onNudge, onTab }) {
+// `info` es { entry } con el acorde actual ({chord, ...}) si ya hay uno.
+// `handlers` es { onSubmit(chord), onTab(direction) } — onTab es opcional
+// (solo lo pasan los acordes de la letra, no los sueltos de una línea
+// instrumental). Para correr un acorde ya no hay botones: se arrastra.
+function openChordPopover(anchorEl, { entry }, { onSubmit, onTab }) {
   const currentChord = entry ? entry.chord : '';
-  const canNudge = Boolean(onNudge && entry && wordLength > 1);
   const rect = anchorEl.getBoundingClientRect();
 
   const backdrop = document.createElement('div');
@@ -287,15 +388,6 @@ function openChordPopover(anchorEl, { entry, wordLength }, { onSubmit, onNudge, 
   popover.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 220))}px`;
   popover.innerHTML = `
     <input type="text" id="chord-popover-input" placeholder="Am, E7, Sol..." value="${escapeAttr(currentChord)}" />
-    ${
-      canNudge
-        ? `<div class="chord-popover-nudge">
-            <span>Mover el acorde:</span>
-            <button type="button" class="btn btn-icon" id="chord-popover-nudge-left" title="Correr a la izquierda">◄</button>
-            <button type="button" class="btn btn-icon" id="chord-popover-nudge-right" title="Correr a la derecha">►</button>
-          </div>`
-        : ''
-    }
     <div class="chord-popover-actions">
       ${currentChord ? '<button type="button" class="btn btn-danger" id="chord-popover-remove">Quitar</button>' : ''}
       <button type="button" class="btn btn-accent" id="chord-popover-save">Guardar</button>
@@ -310,6 +402,12 @@ function openChordPopover(anchorEl, { entry, wordLength }, { onSubmit, onNudge, 
   backdrop.addEventListener('click', close);
   document.body.appendChild(backdrop);
   document.body.appendChild(popover);
+
+  // Si no entra debajo de la letra (ej. la línea está al pie de la pantalla
+  // o el teclado ocupa lugar), se muestra arriba.
+  if (rect.bottom + 8 + popover.offsetHeight > window.innerHeight) {
+    popover.style.top = `${Math.max(8, rect.top - 8 - popover.offsetHeight)}px`;
+  }
 
   const input = popover.querySelector('#chord-popover-input');
   input.focus();
@@ -349,14 +447,6 @@ function openChordPopover(anchorEl, { entry, wordLength }, { onSubmit, onNudge, 
       onSubmit('');
     });
   }
-
-  // Las flechas de mover NO cierran el popover: aplican el corrimiento en el
-  // fondo (el editor se repinta atrás) y se puede seguir tocando para
-  // ajustarlo, viendo el resultado en vivo detrás del popover.
-  const nudgeLeft = popover.querySelector('#chord-popover-nudge-left');
-  const nudgeRight = popover.querySelector('#chord-popover-nudge-right');
-  if (nudgeLeft) nudgeLeft.addEventListener('click', () => onNudge(-1));
-  if (nudgeRight) nudgeRight.addEventListener('click', () => onNudge(1));
 }
 
 function escapeHtml(text) {

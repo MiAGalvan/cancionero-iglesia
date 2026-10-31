@@ -44,20 +44,18 @@ export function buildEditorLines(plainLyrics) {
       return { type: 'instrumental', chords: [] };
     }
     const { text, words } = normalizedLineFromWords(rawWords);
-    // chords: { [wordStart]: { chord: 'Am', offset: 0 } }. El acorde queda
-    // "enganchado" a una palabra (así siempre sabemos a qué botón
-    // corresponde), pero `offset` permite correrlo unas letras adentro de
-    // esa palabra cuando el acorde no va justo al principio (depende de la
-    // melodía). offset 0 = arriba del todo, como antes.
-    return { type: 'lyric', text, words, chords: {} };
+    // chords: [{ index, chord }] — `index` es la posición (letra) del texto
+    // de la línea ANTES de la cual va el acorde, tal cual lo guarda el
+    // ChordPro. Puede haber varios en la misma palabra y en cualquier
+    // letra; `words` queda solo para saltar de palabra en palabra con Tab.
+    return { type: 'lyric', text, words, chords: [] };
   });
 }
 
-// Un acorde puede correrse desde el principio de su palabra (offset 0) hasta
-// la anteúltima letra (offset length-1): nunca lo dejamos pasar de largo,
-// para que siga siendo inequívoco a qué palabra pertenece el botón.
-export function clampChordOffset(offset, wordLength) {
-  return Math.max(0, Math.min(offset, wordLength - 1));
+// Un acorde puede ir antes de cualquier letra del texto, o al final de todo
+// (index === text.length: un acorde suelto después de la última palabra).
+export function clampChordIndex(index, textLength) {
+  return Math.max(0, Math.min(index, textLength));
 }
 
 // Separa una línea de ChordPro en su letra sin acordes y la posición (ya en
@@ -86,18 +84,20 @@ function extractChordPlacements(chordproLine) {
   return { plain, placements };
 }
 
-// El editor siempre engancha el botón de un acorde a una palabra completa
-// (nunca a una letra suelta): si un acorde cae a mitad de una palabra (algo
-// común según la melodía), se engancha a esa misma palabra, guardando
-// cuántas letras adentro va (ver clampChordOffset). No cambia nada al
-// cantar, solo a qué palabra queda "atado" el botón en este editor.
-function wordAtOrBefore(words, index) {
-  let found = null;
-  for (const word of words) {
-    if (word.start <= index) found = word;
-    else break;
+// El editor reescribe la letra con un solo espacio entre palabras (ver
+// normalizedLineFromWords), así que una posición del texto ORIGINAL hay que
+// traducirla a la del texto normalizado: adentro de una palabra se mantiene
+// la misma letra; en un hueco entre palabras (espacios de más) se pasa al
+// principio de la palabra que sigue; y después de la última, al final.
+function mapRawIndexToNormalized(index, rawWords, normalizedWords, normalizedLength) {
+  for (let i = 0; i < rawWords.length; i++) {
+    const word = rawWords[i];
+    if (index >= word.start && index < word.start + word.text.length) {
+      return normalizedWords[i].start + (index - word.start);
+    }
+    if (word.start > index) return normalizedWords[i].start;
   }
-  return found || words[0];
+  return normalizedLength;
 }
 
 // ChordPro existente -> estructura interna del editor, con los acordes que
@@ -117,20 +117,17 @@ export function chordProToEditorLines(chordpro) {
     }
 
     const { text, words } = normalizedLineFromWords(rawWords);
-    const chords = {};
-    for (const { index, chord } of placements) {
-      const word = wordAtOrBefore(rawWords, index);
-      const normalizedWord = words[rawWords.indexOf(word)];
-      const offset = clampChordOffset(index - word.start, normalizedWord.text.length);
-      chords[normalizedWord.start] = { chord, offset };
-    }
+    const chords = placements.map(({ index, chord }) => ({
+      index: mapRawIndexToNormalized(index, rawWords, words, text.length),
+      chord,
+    }));
     return { type: 'lyric', text, words, chords };
   });
 }
 
 // Estructura interna del editor -> texto ChordPro final, listo para guardar.
-// Por cada línea, inserta "[acorde]" justo antes de cada palabra que tenga
-// uno asignado; en una línea instrumental, deja los acordes sueltos uno
+// Por cada línea, inserta "[acorde]" justo antes de la letra que le
+// corresponde; en una línea instrumental, deja los acordes sueltos uno
 // detrás del otro.
 export function editorLinesToChordPro(editorLines) {
   return editorLines
@@ -139,14 +136,14 @@ export function editorLinesToChordPro(editorLines) {
         return line.chords.map((chord) => `[${chord}]`).join(' ');
       }
 
-      const entries = Object.entries(line.chords)
-        .map(([wordStart, { chord, offset }]) => ({ start: Number(wordStart) + offset, chord }))
-        .sort((a, b) => a.start - b.start);
+      // sort es estable: dos acordes en la misma letra quedan en el orden
+      // en que estaban.
+      const entries = [...line.chords].sort((a, b) => a.index - b.index);
 
       let result = line.text;
       let offset = 0;
-      for (const { start, chord } of entries) {
-        const insertAt = start + offset;
+      for (const { index, chord } of entries) {
+        const insertAt = index + offset;
         const bracketed = `[${chord}]`;
         result = result.slice(0, insertAt) + bracketed + result.slice(insertAt);
         offset += bracketed.length;
@@ -202,7 +199,7 @@ export function preserveChords(newLines, oldLines) {
     const candidatos = disponiblesPorTexto.get(line.text);
     if (!candidatos || candidatos.length === 0) return line;
     const elegido = sacarMasCercano(candidatos, i);
-    return { ...line, chords: { ...elegido.chords } };
+    return { ...line, chords: elegido.chords.map((c) => ({ ...c })) };
   });
 }
 

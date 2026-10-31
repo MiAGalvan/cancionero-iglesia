@@ -1498,19 +1498,6 @@ a {
   contain: layout;
 }
 
-.chord-editor-word {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-  padding: 2px 3px;
-  border-radius: 6px;
-}
-
-.chord-editor-word:active {
-  background: var(--border);
-}
-
 .chord-editor-chord {
   background: none;
   border: none;
@@ -1522,17 +1509,6 @@ a {
   padding: 0 2px;
   cursor: pointer;
   font-family: inherit;
-  white-space: nowrap;
-}
-
-.chord-editor-chord.empty {
-  color: var(--text-dim);
-  opacity: 0.5;
-}
-
-.chord-editor-text {
-  font-size: 1.05rem;
-  line-height: 1.3;
   white-space: nowrap;
 }
 
@@ -1579,34 +1555,71 @@ a {
   gap: 8px;
 }
 
-/* Cuando un acorde está corrido unas letras adentro de la palabra (en vez de
-   ir arriba de todo), la partimos en dos pedacitos visuales pegados: el
-   acorde queda arriba de donde arranca el segundo. */
-.chord-editor-word-split {
-  flex-direction: row;
-  align-items: flex-end;
-  padding: 0;
+/* Línea de letra del editor de acordes: la letra queda bloqueada (no recibe
+   toques) y solo la franja de arriba es interactiva. Cada acorde es un chip
+   posicionado en absoluto sobre su letra; se arrastra con el dedo. Si la
+   línea es más ancha que la pantalla, scrollea sola hacia el costado. */
+.ce-line {
+  /* La caja de líneas es flex en columna con altura topeada: sin esto cada
+     línea se encoge hasta aplastarse en vez de dejar scrollear la caja. */
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
-.chord-editor-segment {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.ce-line-inner {
+  position: relative;
+  display: inline-block;
+  min-width: 100%;
 }
 
-/* Flechas para correr un acorde letra por letra, dentro del popover */
-.chord-popover-nudge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  font-size: 0.85rem;
-  color: var(--text-dim);
+.ce-strip {
+  position: relative;
+  height: 40px;
+  border-bottom: 1px dashed var(--border);
+  cursor: pointer;
 }
 
-.chord-popover-nudge .btn-icon {
-  padding: 4px 12px;
-  font-size: 1.1rem;
+.ce-chip {
+  position: absolute;
+  top: 6px;
+  min-height: 30px;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--accent);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0 8px;
+  white-space: nowrap;
+  cursor: grab;
+  /* El dedo arrastra el acorde, no el scroll de la línea */
+  touch-action: none;
+  user-select: none;
+}
+
+.ce-chip.dragging {
+  cursor: grabbing;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.ce-text {
+  white-space: pre;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ce-char-target {
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 3px;
 }
 
 /* --- Login --- */
