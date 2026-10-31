@@ -6,6 +6,7 @@ import { getPublicSongByUuid } from '../storage/publicCancionero.js';
 import { propagateDelete, syncNow } from '../storage/sync.js';
 import { parseChordPro, renderSong } from '../viewer/songViewer.js';
 import { createAutoScroller } from '../scroll/autoScroll.js';
+import { attachPinchZoom } from '../gestures/pinchZoom.js';
 import { getGuitarVoicings, drawGuitarVoicing } from '../diagrams/guitarDiagram.js';
 import { renderPianoDiagram } from '../diagrams/pianoDiagram.js';
 import {
@@ -157,6 +158,12 @@ export async function renderSongView(container, { id, returnTo }) {
         }
       </aside>
       <div class="lyrics-container" id="lyrics-container"></div>
+      <span class="floating-speed-hint" id="floating-speed-hint" hidden></span>
+      <button
+        class="btn floating-scroll-btn"
+        id="floating-scroll-toggle"
+        title="Tocar: play/pausa. Arrastrar arriba/abajo: velocidad"
+      >▶</button>
     </div>
   `;
 
@@ -170,8 +177,8 @@ export async function renderSongView(container, { id, returnTo }) {
 
   let lineHeight = 1.7; // mismo valor que el default de .lyrics-container en styles.css
   const LINE_HEIGHT_STEP = 0.2;
-  const LINE_HEIGHT_MIN = 1.1;
-  const LINE_HEIGHT_MAX = 2.6;
+  const LINE_HEIGHT_MIN = 1.2;
+  const LINE_HEIGHT_MAX = 3.4;
 
   let notation = getChordNotation();
 
@@ -208,12 +215,29 @@ export async function renderSongView(container, { id, returnTo }) {
   });
 
   container.querySelector('#lineheight-up').addEventListener('click', () => {
-    lineHeight = Math.min(LINE_HEIGHT_MAX, +(lineHeight + LINE_HEIGHT_STEP).toFixed(1));
+    lineHeight = Math.min(LINE_HEIGHT_MAX, +(lineHeight + LINE_HEIGHT_STEP).toFixed(2));
     applyLineHeight();
   });
   container.querySelector('#lineheight-down').addEventListener('click', () => {
-    lineHeight = Math.max(LINE_HEIGHT_MIN, +(lineHeight - LINE_HEIGHT_STEP).toFixed(1));
+    lineHeight = Math.max(LINE_HEIGHT_MIN, +(lineHeight - LINE_HEIGHT_STEP).toFixed(2));
     applyLineHeight();
+  });
+
+  // Pellizco con dos dedos sobre la letra, igual que el zoom: separar los
+  // dedos agranda el interlineado, juntarlos lo achica. Comparte variable y
+  // límites con los botones de arriba. touch-action: pan-y en
+  // .lyrics-container (ver styles.css) evita que el navegador intente hacer
+  // zoom de página de verdad con el mismo gesto.
+  let lineHeightAtPinchStart = lineHeight;
+  attachPinchZoom(lyricsContainer, {
+    onPinchStart: () => {
+      lineHeightAtPinchStart = lineHeight;
+    },
+    onPinchMove: (scale) => {
+      const next = lineHeightAtPinchStart * scale;
+      lineHeight = Math.min(LINE_HEIGHT_MAX, Math.max(LINE_HEIGHT_MIN, +next.toFixed(2)));
+      applyLineHeight();
+    },
   });
 
   container.querySelector('#show-chords-input').addEventListener('change', (event) => {
@@ -249,32 +273,149 @@ export async function renderSongView(container, { id, returnTo }) {
   // desaparecer arriba, en vez de un segundo y medio.
   let scrollSpeed = 15;
   const SCROLL_SPEED_STEP = 5;
-  const SCROLL_SPEED_MIN = 5;
+  const SCROLL_SPEED_MIN = 4;
   const SCROLL_SPEED_MAX = 100;
   const scroller = createAutoScroller(lyricsContainer, { initialSpeed: scrollSpeed });
   const scrollToggleBtn = container.querySelector('#scroll-toggle');
+  const floatingScrollBtn = container.querySelector('#floating-scroll-toggle');
   const speedValueEl = container.querySelector('#speed-value');
-  scrollToggleBtn.addEventListener('click', () => {
-    scroller.toggle();
-    scrollToggleBtn.textContent = scroller.isRunning() ? '⏸' : '▶';
-  });
+
+  // Cuenta regresiva antes de arrancar: da tiempo a acomodarse (o a que
+  // termine la introducción tocada sola) antes de que la letra empiece a
+  // moverse. Cambiar acá si hace falta más o menos margen.
+  const START_DELAY_SECONDS = 18;
+  let countingDown = false;
+  let countdownRemaining = 0;
+  let countdownIntervalId = null;
+
+  function cancelStartDelay() {
+    if (countdownIntervalId != null) {
+      clearInterval(countdownIntervalId);
+      countdownIntervalId = null;
+    }
+    countingDown = false;
+  }
+
+  function startWithDelay() {
+    countingDown = true;
+    countdownRemaining = START_DELAY_SECONDS;
+    updateScrollToggleButtons();
+    countdownIntervalId = setInterval(() => {
+      countdownRemaining -= 1;
+      if (countdownRemaining <= 0) {
+        cancelStartDelay();
+        scroller.play();
+      }
+      updateScrollToggleButtons();
+    }, 1000);
+  }
+
+  // El botón flotante repite el play/pausa del panel: sigue visible aunque
+  // se oculte el panel de controles o se entre en pantalla completa, que es
+  // justo cuando más hace falta poder parar/seguir el scroll sin tocar nada
+  // más en pantalla. Los dos íconos se actualizan siempre juntos desde acá.
+  function updateScrollToggleButtons() {
+    const icon = countingDown ? String(countdownRemaining) : scroller.isRunning() ? '⏸' : '▶';
+    scrollToggleBtn.textContent = icon;
+    floatingScrollBtn.textContent = icon;
+    floatingScrollBtn.classList.toggle('running', scroller.isRunning() || countingDown);
+  }
+
+  // Tres casos: contando -> cancela la cuenta; corriendo -> pausa; parado ->
+  // empieza la cuenta (el movimiento recién arranca al llegar a 0).
+  function toggleScroll() {
+    if (countingDown) {
+      cancelStartDelay();
+    } else if (scroller.isRunning()) {
+      scroller.pause();
+    } else {
+      startWithDelay();
+    }
+    updateScrollToggleButtons();
+  }
+  scrollToggleBtn.addEventListener('click', toggleScroll);
   container.querySelector('#scroll-reset').addEventListener('click', () => {
+    cancelStartDelay();
     scroller.reset();
+    updateScrollToggleButtons();
   });
   // Botones +/− en vez de una barra deslizable: en pantalla completa, en un
   // celular, una barra tan chica es casi imposible de mover con precisión;
   // con botones grandes alcanza con tocar (mismo patrón que tamaño de letra
   // e interlineado, más arriba).
-  container.querySelector('#speed-down').addEventListener('click', () => {
-    scrollSpeed = Math.max(SCROLL_SPEED_MIN, scrollSpeed - SCROLL_SPEED_STEP);
+  function applySpeed() {
     scroller.setSpeed(scrollSpeed);
     speedValueEl.textContent = scrollSpeed;
+  }
+  container.querySelector('#speed-down').addEventListener('click', () => {
+    scrollSpeed = Math.max(SCROLL_SPEED_MIN, scrollSpeed - SCROLL_SPEED_STEP);
+    applySpeed();
   });
   container.querySelector('#speed-up').addEventListener('click', () => {
     scrollSpeed = Math.min(SCROLL_SPEED_MAX, scrollSpeed + SCROLL_SPEED_STEP);
-    scroller.setSpeed(scrollSpeed);
-    speedValueEl.textContent = scrollSpeed;
+    applySpeed();
   });
+
+  // El botón flotante hace dos cosas, distinguidas por si hubo arrastre: un
+  // toque simple (sin mover el dedo) es play/pausa; arrastrar hacia arriba o
+  // abajo sube o baja la velocidad en caliente, sin soltar el botón — para
+  // frenar o acelerar sobre la marcha sin ir a buscar los botones +/− del
+  // panel (que además puede estar oculto).
+  const speedHintEl = container.querySelector('#floating-speed-hint');
+  const DRAG_DEADZONE = 8; // px antes de considerar que es arrastre y no toque
+  const DRAG_PX_PER_STEP = 10; // px de arrastre por cada paso
+  const DRAG_STEP = 2; // unidades de velocidad por paso (más fino que los botones +/−)
+  let drag = null;
+  let speedHintTimeout = null;
+
+  function showSpeedHint() {
+    speedHintEl.textContent = scrollSpeed;
+    speedHintEl.hidden = false;
+    clearTimeout(speedHintTimeout);
+    speedHintTimeout = setTimeout(() => {
+      speedHintEl.hidden = true;
+    }, 900);
+  }
+
+  floatingScrollBtn.addEventListener('pointerdown', (event) => {
+    drag = { startY: event.clientY, startSpeed: scrollSpeed, dragging: false };
+    floatingScrollBtn.setPointerCapture(event.pointerId);
+  });
+
+  floatingScrollBtn.addEventListener('pointermove', (event) => {
+    if (!drag) return;
+    const deltaY = drag.startY - event.clientY; // positivo = arrastre hacia arriba
+    if (!drag.dragging && Math.abs(deltaY) < DRAG_DEADZONE) return;
+    drag.dragging = true;
+    const steps = Math.round(deltaY / DRAG_PX_PER_STEP);
+    const newSpeed = Math.min(SCROLL_SPEED_MAX, Math.max(SCROLL_SPEED_MIN, drag.startSpeed + steps * DRAG_STEP));
+    if (newSpeed !== scrollSpeed) {
+      scrollSpeed = newSpeed;
+      applySpeed();
+      showSpeedHint();
+    }
+  });
+
+  function endDrag() {
+    if (!drag) return;
+    const wasDragging = drag.dragging;
+    drag = null;
+    if (!wasDragging) toggleScroll();
+  }
+  floatingScrollBtn.addEventListener('pointerup', endDrag);
+  floatingScrollBtn.addEventListener('pointercancel', endDrag);
+
+  // Si se navega a otra pantalla con algo corriendo, lo frenamos: si no,
+  // sigue moviendo (en vano) un contenedor de letra que ya no está en
+  // pantalla, gastando batería sin que se note.
+  window.addEventListener(
+    'hashchange',
+    () => {
+      cancelStartDelay();
+      scroller.pause();
+    },
+    { once: true }
+  );
 
   // Grabación: un botón para grabar cómo canta el grupo ESTA canción ahora
   // mismo. Requiere login (necesita saber la parroquia para guardarla en el

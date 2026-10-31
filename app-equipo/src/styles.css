@@ -890,6 +890,59 @@ a {
   padding: 24px 20px 40vh;
   font-size: 1.9rem;
   line-height: 1.7;
+  /* Permite el scroll vertical con un dedo de siempre, pero le saca al
+     navegador el zoom nativo de página con dos dedos: ese gesto lo toma
+     nuestro pellizco para el interlineado en vez de agrandar la pantalla. */
+  touch-action: pan-y;
+}
+
+/* Botón flotante de play/pausa del scroll: sigue visible aunque se oculte
+   el panel lateral o se esté en pantalla completa. */
+.floating-scroll-btn {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 40;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  padding: 0;
+  font-size: 2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  opacity: 0.9;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.floating-scroll-btn.running {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.floating-speed-hint {
+  position: fixed;
+  right: 22px;
+  bottom: 102px;
+  z-index: 40;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.floating-speed-hint[hidden] {
+  display: none;
 }
 
 .lyrics-container.hide-chords .chord-sheet .chord {
@@ -2022,6 +2075,24 @@ a {
      ni de ninguna lista. */
   #app {
     padding-bottom: 60px;
+  }
+
+  /* El botón flotante del scroll se sube para no quedar tapado por la barra
+     inferior (en pantalla completa la barra no está, ver más abajo). */
+  .floating-scroll-btn {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .floating-speed-hint {
+    bottom: calc(152px + env(safe-area-inset-bottom, 0px));
+  }
+
+  :fullscreen .floating-scroll-btn {
+    bottom: 22px;
+  }
+
+  :fullscreen .floating-speed-hint {
+    bottom: 102px;
   }
 
   .bottom-nav {
