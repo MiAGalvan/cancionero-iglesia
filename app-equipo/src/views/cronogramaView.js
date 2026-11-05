@@ -156,6 +156,18 @@ export async function renderCronogramaView(container, { verTodos = false } = {})
 
   const syncStatusEl = container.querySelector('#cronograma-sync-status');
 
+  // Un fallo de sincronización tiene que verse CON su causa: "revisá la
+  // conexión" a secas hizo pasar por problema de internet algo que era una
+  // columna que faltaba en la base (el celular de la coordinadora guardaba
+  // el cronograma, pero nunca llegaba al resto del equipo, y nadie lo
+  // sabía).
+  function mostrarErrorDeSync(result) {
+    if (!result || result.synced || result.reason !== 'error') return;
+    const detalle = result.error?.message ? ` Detalle: ${result.error.message}` : '';
+    syncStatusEl.hidden = false;
+    syncStatusEl.textContent = `No se pudo sincronizar el cronograma.${detalle}`;
+  }
+
   container.querySelector('#cambiar-identidad-link')?.addEventListener('click', (event) => {
     event.preventDefault();
     setIdentidad(space, undefined);
@@ -210,7 +222,7 @@ export async function renderCronogramaView(container, { verTodos = false } = {})
       async function guardar() {
         const asignados = Array.from(chipsWrap.querySelectorAll('[data-nombre]')).map((el) => el.dataset.nombre);
         await saveAsignados(space, fecha, hora, asignados);
-        syncMisasNow(); // en segundo plano
+        syncMisasNow().then(mostrarErrorDeSync); // en segundo plano
       }
 
       function abrirDropdown(texto) {
@@ -278,37 +290,67 @@ export async function renderCronogramaView(container, { verTodos = false } = {})
       if (resultadoEl.dataset.cargado) return; // ya se buscó antes, no reconsultar
 
       resultadoEl.innerHTML = `<p class="chord-editor-hint">Buscando...</p>`;
-      try {
-        const res = await fetch(`${PUBLIC_URL}api/consultar-lecturas?fecha=${fecha}`);
-        const data = await res.json();
-        if (!data.ok) {
-          resultadoEl.innerHTML = `<p class="chord-editor-hint">Todavía no está disponible para esta fecha — probá más cerca del día, o cargala a mano desde <a href="#/novedades?fecha=${fecha}">Novedades</a>.</p>`;
-          return;
-        }
-        const items = [
-          { titulo: '1ª Lectura', cuerpo: data.primeraLectura },
-          { titulo: 'Salmo', cuerpo: data.salmo },
-          { titulo: '2ª Lectura', cuerpo: data.segundaLectura },
-          { titulo: 'Evangelio', cuerpo: data.evangelio },
-          { titulo: 'Reflexión', cuerpo: data.reflexion },
-        ].filter((item) => item.cuerpo);
-        resultadoEl.innerHTML = `
-          ${data.tituloDia ? `<p class="chord-editor-hint"><strong>${escapeHtml(data.tituloDia)}</strong></p>` : ''}
-          <p class="chord-editor-hint">¿Vas a guardar esto de verdad? <a href="#/novedades?fecha=${fecha}">Hacelo desde Novedades →</a></p>
-          ${items
-            .map(
-              (item) => `
-            <div class="consulta-lectura-item">
-              <strong>${escapeHtml(item.titulo)}</strong>
-              <p class="consulta-lectura-texto">${escapeHtml(item.cuerpo)}</p>
-            </div>`
-            )
-            .join('')}
-        `;
-        resultadoEl.dataset.cargado = '1';
-      } catch {
+      // Las lecturas y las antífonas vienen de fuentes distintas (las
+      // antífonas, de eucaristiadiaria.cl): si una falla, la otra se muestra
+      // igual — por eso cada pedido se resuelve por su cuenta.
+      const pedir = (ruta) =>
+        fetch(`${PUBLIC_URL}api/${ruta}?fecha=${fecha}`)
+          .then((res) => res.json())
+          .catch(() => null);
+      const [lecturas, antifonas] = await Promise.all([pedir('consultar-lecturas'), pedir('consultar-antifonas')]);
+
+      if (!lecturas && !antifonas) {
         resultadoEl.innerHTML = `<p class="chord-editor-hint">No se pudo consultar (revisá la conexión).</p>`;
+        return;
       }
+
+      const lecturasOk = Boolean(lecturas?.ok);
+      const antifonasOk = Boolean(antifonas?.ok);
+      if (!lecturasOk && !antifonasOk) {
+        resultadoEl.innerHTML = `<p class="chord-editor-hint">Todavía no está disponible para esta fecha — probá más cerca del día, o cargala a mano desde <a href="#/novedades?fecha=${fecha}">Novedades</a>.</p>`;
+        return;
+      }
+
+      const itemHtml = (titulo, cuerpo, referencia) => `
+        <div class="consulta-lectura-item">
+          <strong>${escapeHtml(titulo)}</strong>${referencia ? ` <span class="chord-editor-hint">${escapeHtml(referencia)}</span>` : ''}
+          <p class="consulta-lectura-texto">${escapeHtml(cuerpo)}</p>
+        </div>`;
+
+      // Orden de la misa: la antífona de entrada abre, las lecturas, y la de
+      // comunión va después del Evangelio.
+      const partes = [];
+      if (antifonasOk && antifonas.entrada) {
+        partes.push(itemHtml('Antífona de entrada', antifonas.entrada.texto, antifonas.entrada.referencia));
+      }
+      if (lecturasOk) {
+        for (const [titulo, cuerpo] of [
+          ['1ª Lectura', lecturas.primeraLectura],
+          ['Salmo', lecturas.salmo],
+          ['2ª Lectura', lecturas.segundaLectura],
+          ['Evangelio', lecturas.evangelio],
+        ]) {
+          if (cuerpo) partes.push(itemHtml(titulo, cuerpo));
+        }
+      }
+      if (antifonasOk && antifonas.comunion) {
+        partes.push(itemHtml('Antífona de comunión', antifonas.comunion.texto, antifonas.comunion.referencia));
+      }
+      if (lecturasOk && lecturas.reflexion) partes.push(itemHtml('Reflexión', lecturas.reflexion));
+
+      resultadoEl.innerHTML = `
+        ${lecturasOk && lecturas.tituloDia ? `<p class="chord-editor-hint"><strong>${escapeHtml(lecturas.tituloDia)}</strong></p>` : ''}
+        ${lecturasOk ? `<p class="chord-editor-hint">¿Vas a guardar esto de verdad? <a href="#/novedades?fecha=${fecha}">Hacelo desde Novedades →</a></p>` : ''}
+        ${partes.join('')}
+        ${
+          antifonasOk
+            ? `<p class="chord-editor-hint">Antífonas: ${escapeHtml(antifonas.fuente || 'eucaristiadiaria.cl')} (misal de Chile). En fiestas propias de cada país el texto puede variar: confirmalo con quien dirige el coro.</p>`
+            : ''
+        }
+      `;
+      // Solo se da por "cargado" (no volver a consultar al reabrir) si
+      // llegó todo: si falló una de las dos, se reintenta la próxima vez.
+      if (lecturasOk && antifonasOk) resultadoEl.dataset.cargado = '1';
     });
   });
 
@@ -406,9 +448,8 @@ export async function renderCronogramaView(container, { verTodos = false } = {})
     Promise.all([syncMisasNow(), syncLabelsNow()]).then(([misasResult, labelsResult]) => {
       if ((misasResult.synced && misasResult.pulled > 0) || labelsResult.changed) {
         renderCronogramaView(container, { verTodos });
-      } else if (!misasResult.synced && misasResult.reason === 'error') {
-        syncStatusEl.hidden = false;
-        syncStatusEl.textContent = 'No se pudo sincronizar el cronograma (revisá la conexión).';
+      } else {
+        mostrarErrorDeSync(misasResult);
       }
     });
   }

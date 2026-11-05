@@ -70,10 +70,13 @@ async function itemsDeUuidALocal(items) {
 export async function getMisaSinSesion(space, fecha, hora) {
   if (!isSupabaseConfigured) return null;
   const id = hora ? `${space}|${fecha}|${hora}` : `${space}|${fecha}`;
-  // select('*') a propósito, no select('items, asignados') — PostgREST
-  // cachea el esquema, y nombrar una columna agregada hace poco (como
-  // `asignados`) puede fallar con "column does not exist" hasta que ese
-  // caché se actualice solo; select('*') no depende de esa lista.
+  // select('*') a propósito, no select('items, asignados'): nombrar la
+  // columna `asignados` falla con "column does not exist" si todavía no se
+  // corrió supabase/migracion-miembros-cronograma.sql, y así esta lectura
+  // sin sesión sigue funcionando igual (devuelve la fila sin esa columna).
+  // OJO: antes este comentario culpaba al caché de PostgREST — en realidad
+  // la columna faltaba de verdad en la base, y la sincronización de misas
+  // (syncMisasNow) fallaba en silencio por lo mismo.
   const { data, error } = await supabase.from('misas').select('*').eq('id', id).maybeSingle();
   if (error || !data) return null;
   return data;
