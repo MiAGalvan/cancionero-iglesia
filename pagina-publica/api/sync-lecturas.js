@@ -1,13 +1,15 @@
 // Trabajo automático (ver vercel.json → crons) que corre solo dos veces por
-// semana: de madrugada todos los días, y el sábado a las 18hs — trae el
+// semana: de madrugada todos los días, y el sábado a las 10hs — trae el
 // Evangelio, la 1ª Lectura, el Salmo y la 2ª Lectura (cuando hay) del feed
 // público de evangelizo.org, y los publica en Novedades para TODAS las
 // parroquias — el calendario litúrgico es el mismo en cualquier lado, así
 // que no hace falta cargarlo a mano en cada una.
 //
-// El sábado a las 18hs es la corrida especial: desde esa hora, la misa
-// vespertina ya toma las lecturas del DOMINGO (cumple la obligación
-// dominical) — ver calcularFechas() más abajo.
+// El sábado a las 10hs es la corrida especial: desde esa hora se publican las
+// lecturas del DOMINGO. La misa vespertina del sábado ya las usa (cumple la
+// obligación dominical) y, además, el equipo y la comunidad empiezan a vivir
+// la misa del fin de semana desde la mañana — por eso se adelantó desde las
+// 18hs — ver calcularFechas() más abajo.
 //
 // No usa ninguna librería (ni siquiera @supabase/supabase-js): son pedidos
 // REST directos a Supabase con la service role key, que evita las
@@ -86,19 +88,24 @@ function ahoraEnArgentina() {
   return new Date(Date.now() - 3 * 60 * 60 * 1000);
 }
 
-// El sábado, desde que empieza la misa vespertina (18hs en adelante), ya
-// se toma el Evangelio y las lecturas del DOMINGO — es la misa de
-// vigilia, cumple igual la obligación dominical. Se publica con la fecha
+// El sábado, desde media mañana (HORA_CORTE_SABADO en adelante), ya se toma
+// el Evangelio y las lecturas del DOMINGO — la misa de vigilia las usa
+// igual y es lo que se vive todo el fin de semana. Se publica con la fecha
 // de HOY (sábado) para que el aviso "en vivo hoy" siga funcionando toda
 // la tarde/noche del sábado — pero el CONTENIDO en sí (el texto) se busca
 // en el feed con la fecha de mañana (domingo), no la de hoy.
+//
+// Tiene que coincidir con la hora del cron del sábado en vercel.json
+// ("0 13 * * 6" = 13:00 UTC = 10:00 en Argentina).
+const HORA_CORTE_SABADO = 10;
+
 function calcularFechas() {
   const ahora = ahoraEnArgentina();
   const diaSemana = ahora.getUTCDay(); // 0 = domingo, 6 = sábado
   const horas = ahora.getUTCHours();
   const fechaObjetivo = ahora.toISOString().slice(0, 10);
 
-  const esVigiliaSabado = diaSemana === 6 && horas >= 18;
+  const esVigiliaSabado = diaSemana === 6 && horas >= HORA_CORTE_SABADO;
   if (!esVigiliaSabado) {
     return { fechaObjetivo, fechaContenido: fechaObjetivo };
   }
