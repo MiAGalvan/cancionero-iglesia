@@ -323,6 +323,11 @@ export async function renderCronogramaView(container, { verTodos = false } = {})
       if (antifonasOk && antifonas.entrada) {
         partes.push(itemHtml('Antífona de entrada', antifonas.entrada.texto, antifonas.entrada.referencia));
       }
+      // El salmo de eucaristiadiaria.cl trae la RESPUESTA ("R. ...") y marca
+      // dónde se repite en cada estrofa — el de misadehoy.org son solo las
+      // estrofas, y a veces el salmo se canta entero. Si no está, se usa el
+      // de misadehoy.org como antes.
+      const salmoConRespuesta = antifonasOk ? antifonas.salmo : null;
       if (lecturasOk) {
         for (const [titulo, cuerpo] of [
           ['1ª Lectura', lecturas.primeraLectura],
@@ -330,8 +335,14 @@ export async function renderCronogramaView(container, { verTodos = false } = {})
           ['2ª Lectura', lecturas.segundaLectura],
           ['Evangelio', lecturas.evangelio],
         ]) {
-          if (cuerpo) partes.push(itemHtml(titulo, cuerpo));
+          if (titulo === 'Salmo' && salmoConRespuesta) {
+            partes.push(itemHtml('Salmo responsorial', salmoConRespuesta.texto, salmoConRespuesta.referencia));
+          } else if (cuerpo) {
+            partes.push(itemHtml(titulo, cuerpo));
+          }
         }
+      } else if (salmoConRespuesta) {
+        partes.push(itemHtml('Salmo responsorial', salmoConRespuesta.texto, salmoConRespuesta.referencia));
       }
       if (antifonasOk && antifonas.comunion) {
         partes.push(itemHtml('Antífona de comunión', antifonas.comunion.texto, antifonas.comunion.referencia));
@@ -344,7 +355,7 @@ export async function renderCronogramaView(container, { verTodos = false } = {})
         ${partes.join('')}
         ${
           antifonasOk
-            ? `<p class="chord-editor-hint">Antífonas: ${escapeHtml(antifonas.fuente || 'eucaristiadiaria.cl')} (misal de Chile). En fiestas propias de cada país el texto puede variar: confirmalo con quien dirige el coro.</p>`
+            ? `<p class="chord-editor-hint">Antífonas y salmo con respuesta: ${escapeHtml(antifonas.fuente || 'eucaristiadiaria.cl')} (misal de Chile). En fiestas propias de cada país el texto puede variar: confirmalo con quien dirige el coro.</p>`
             : ''
         }
       `;

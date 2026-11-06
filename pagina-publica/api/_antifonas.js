@@ -1,9 +1,12 @@
-// Lee la antífona de entrada y la de comunión del HTML de una fecha de
-// eucaristiadiaria.cl (Área de Liturgia y Espiritualidad de la Arquidiócesis
-// de Santiago de Chile). Ninguna de las fuentes de lecturas que ya usamos
-// (Evangelizo / misadehoy.org) trae las antífonas, y la encargada del coro
-// las comparte para dar el sentido de la misa y elegir los cantos de entrada
-// y de comunión.
+// Lee la antífona de entrada, la de comunión y el salmo responsorial del
+// HTML de una fecha de eucaristiadiaria.cl (Área de Liturgia y Espiritualidad
+// de la Arquidiócesis de Santiago de Chile). Ninguna de las fuentes de
+// lecturas que ya usamos (Evangelizo / misadehoy.org) trae las antífonas, y
+// la encargada del coro las comparte para dar el sentido de la misa y elegir
+// los cantos de entrada y de comunión. El salmo también se toma de acá
+// porque trae la RESPUESTA ("R. ...") y marca dónde se repite en cada
+// estrofa — la de misadehoy.org son solo las estrofas, sin la respuesta, y a
+// veces el salmo se canta entero.
 //
 // Vive aparte del endpoint (consultar-antifonas.js) para poder probarlo sin
 // internet. El prefijo "_" hace que Vercel no lo publique como ruta.
@@ -79,12 +82,36 @@ function extraerBloque(parrafos, inicioRegex, finRegex) {
   return texto ? { referencia, texto } : null;
 }
 
+// "SALMO RESPONSORIAL 22, 1-6", luego "R. El Señor nos prepara una mesa.",
+// luego cada estrofa terminada en "R.". Después del salmo no hay ningún
+// marcador (viene directo el título de la 2ª lectura), así que se corta en
+// el primer párrafo que ya no termina en "R.".
+function extraerSalmo(parrafos) {
+  const desde = parrafos.findIndex((p) => /^SALMO RESPONSORIAL\b/i.test(p));
+  if (desde === -1) return null;
+
+  const referencia = parrafos[desde].replace(/^SALMO RESPONSORIAL\s*/i, '').trim();
+  const respuestaMatch = (parrafos[desde + 1] || '').match(/^R\.\s*(.+)$/);
+  if (!respuestaMatch) return null;
+
+  const estrofas = [];
+  for (let i = desde + 2; i < parrafos.length && estrofas.length < 12; i++) {
+    if (!/\bR\.$/.test(parrafos[i])) break;
+    estrofas.push(parrafos[i]);
+  }
+  if (estrofas.length === 0) return null;
+
+  const respuesta = respuestaMatch[1].trim();
+  return { referencia, respuesta, texto: [`R. ${respuesta}`, ...estrofas].join('\n\n') };
+}
+
 function extraerAntifonas(html) {
   const parrafos = parrafosDe(html);
   const entrada = extraerBloque(parrafos, /^Antífona de entrada\s*/i, /^(Gloria|ORACI[ÓO]N|Acto penitencial|Se dice)/i);
   const comunion = extraerBloque(parrafos, /^Antífona de comunión\s*/i, /^(ORACI[ÓO]N DESPU[ÉE]S|Contacto|Síguenos)/i);
-  if (!entrada && !comunion) return null;
-  return { entrada, comunion };
+  const salmo = extraerSalmo(parrafos);
+  if (!entrada && !comunion && !salmo) return null;
+  return { entrada, comunion, salmo };
 }
 
 module.exports = { extraerAntifonas, decodificar };

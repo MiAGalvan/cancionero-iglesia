@@ -1,10 +1,12 @@
-// Consulta a demanda la antífona de entrada y la de comunión de UNA fecha,
-// para mostrarlas junto a las lecturas en el Cronograma (ayudan a saber de
-// qué va la misa y a elegir los cantos de entrada y de comunión).
+// Consulta a demanda la antífona de entrada, la de comunión y el salmo
+// (con su respuesta) de UNA fecha, para mostrarlos junto a las lecturas en el
+// Cronograma (ayudan a saber de qué va la misa y a elegir los cantos de
+// entrada, de comunión y el salmo cantado).
 //
 // Fuente: eucaristiadiaria.cl (Arquidiócesis de Santiago de Chile) — la
-// única que encontramos que las trae; las lecturas siguen viniendo de
-// Evangelizo / misadehoy.org (ver consultar-lecturas.js). Ojo: es el misal
+// única que encontramos que trae las antífonas y la respuesta del salmo; el
+// resto de las lecturas siguen viniendo de Evangelizo / misadehoy.org (ver
+// consultar-lecturas.js). Ojo: es el misal
 // y el calendario de Chile; en los domingos del tiempo ordinario coincide
 // con el de Argentina, pero en una fiesta propia de cada país puede no
 // coincidir — por eso la pantalla lo avisa.
