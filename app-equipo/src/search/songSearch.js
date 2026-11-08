@@ -26,7 +26,7 @@ export function normalizeText(text) {
 
 // La letra sin los acordes ([Am]), las directivas ({title: ...}) ni las
 // marcas de negrita, para buscar solo sobre lo que se canta.
-function lyricsOf(chordpro) {
+export function lyricsOf(chordpro) {
   return String(chordpro || '')
     .replace(/\{[^}]*\}/g, ' ')
     .replace(/\[[^\]]*\]/g, '')

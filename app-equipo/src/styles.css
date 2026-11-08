@@ -2321,3 +2321,66 @@ a {
   overflow: visible;
   padding: 8px 0 16px;
 }
+
+/* --- "Sugerencias para esta misa" (lista de misa): ideas del cancionero
+   según las lecturas del día. Plegable, para no sumar ruido a quien no la
+   usa. --- */
+.sugerencias-box {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  padding: 4px 14px;
+}
+
+.sugerencias-box > summary {
+  cursor: pointer;
+  padding: 10px 0;
+  font-weight: 600;
+  list-style-position: inside;
+}
+
+.sugerencias-contenido {
+  padding-bottom: 12px;
+}
+
+.sugerencia-momento h4 {
+  margin: 14px 0 6px;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.sugerencia-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.sugerencia-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sugerencia-titulo {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sugerencia-motivo {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.sugerencia-agregar {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.sugerencia-agregar:disabled {
+  opacity: 0.7;
+}

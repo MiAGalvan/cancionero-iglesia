@@ -8,8 +8,10 @@
 // tener más de una — ej. dos cantos de Comunión seguidos) — o, en misas
 // guardadas antes de que existiera esto, un solo id o null; se normaliza
 // con toIdArray() al leerlo, sin necesidad de migrar nada guardado.
-import { getSongsByCategory, getMisa, saveMisa, getAllMisas, getSongByUuid } from '../storage/db.js';
+import { getSongsByCategory, getMisa, saveMisa, getAllMisas, getSongByUuid, getAllSongs } from '../storage/db.js';
 import { filterSongs } from '../search/songSearch.js';
+import { sugerirCanciones, FUENTES_POR_MOMENTO, ETIQUETA_FUENTE } from '../search/sugerencias.js';
+import { traerDatosLiturgicos } from '../liturgia/datosLiturgicos.js';
 import { getAllCategories, getAllTags, getCurrentSpaceKey, getSpaceLabel, getModoLectura, getIdentidad } from '../storage/settings.js';
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSession } from '../storage/auth.js';
@@ -35,6 +37,54 @@ function songLabel(song) {
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function fechaIsoLocal(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+// La misa del sábado a la tarde (vigilia) ya lleva las lecturas del
+// DOMINGO: para consultar lecturas y antífonas hay que pedir esa fecha, no
+// la del sábado. 18:00 es el mismo corte que usa el cronograma para decir
+// "misa vespertina".
+function fechaLiturgicaDeMisa(fecha, hora) {
+  const dia = new Date(`${fecha}T00:00:00`);
+  if (dia.getDay() === 6 && hora && hora >= '18:00') {
+    dia.setDate(dia.getDate() + 1);
+    return fechaIsoLocal(dia);
+  }
+  return fecha;
+}
+
+// Sugerir de nuevo algo que se cantó hace poco es lo que más cansa: las
+// canciones de las listas de las últimas 5 semanas (anteriores a esta misa)
+// bajan de puntaje.
+const SEMANAS_RECIENTES = 5;
+function idsCantadosRecientemente(misas, fecha) {
+  const hasta = new Date(`${fecha}T00:00:00`);
+  const desde = new Date(hasta);
+  desde.setDate(desde.getDate() - SEMANAS_RECIENTES * 7);
+  const desdeIso = fechaIsoLocal(desde);
+  const ids = new Set();
+  for (const misa of misas) {
+    if (misa.fecha < desdeIso || misa.fecha >= fecha) continue;
+    for (const valor of Object.values(misa.items || {})) toIdArray(valor).forEach((id) => ids.add(id));
+  }
+  return ids;
+}
+
+// "En común con la misa: «pastor» (antífona de comunión), «mesa» (Evangelio)"
+function motivoDeSugerencia(sugerencia, tiempo) {
+  const partes = [];
+  if (sugerencia.palabras.length) {
+    const lista = sugerencia.palabras
+      .map((p) => `«${escapeHtml(p.palabra)}» (${escapeHtml(ETIQUETA_FUENTE[p.fuente] || p.fuente)})`)
+      .join(', ');
+    partes.push(`En común con la misa: ${lista}`);
+  }
+  if (sugerencia.esDelTiempo) partes.push(`Es de ${escapeHtml(tiempo)}`);
+  if (sugerencia.esReciente) partes.push('⏳ Se cantó hace poco');
+  return partes.join(' · ');
 }
 
 // "Lista de Sábado 19 hs" en vez de pedirle a alguien que la titule a mano
@@ -119,6 +169,11 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
         </select>
       </label>
 
+      <details class="sugerencias-box" id="sugerencias-box">
+        <summary>💡 Sugerencias para esta misa</summary>
+        <div id="sugerencias-contenido" class="sugerencias-contenido"></div>
+      </details>
+
       <div class="form-actions">
         <button type="button" class="btn" id="import-published-btn" ${isSupabaseConfigured && puedeEditar ? '' : 'disabled'}>
           ⬇️ Traer la última publicada
@@ -182,6 +237,9 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
     categoriesWrapEl.innerHTML = categories
       .map((cat, i) => renderCategoryRow(cat, songsByCategory[i], toIdArray(selections[cat]), puedeEditar))
       .join('');
+    // Al repintar (cambiar el filtro, traer la última publicada) lo ya
+    // elegido cambia: que los botones de "Sugerencias" lo reflejen.
+    sincronizarBotonesSugerencias();
   }
 
   function readCurrentSelections() {
@@ -263,28 +321,127 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
   // mousedown (no click) para que dispare ANTES que el blur del input —
   // si fuera click, el blur cierra el desplegable primero y el click nunca
   // llega a encontrar el botón.
+  function agregarChip(picker, songId, label) {
+    picker.querySelector('.song-picker-chips').insertAdjacentHTML(
+      'beforeend',
+      `<span class="song-picker-chip">
+        ${escapeHtml(label)}
+        <button type="button" class="song-picker-chip-remove" data-song-id="${songId}" title="Quitar">✕</button>
+      </span>`
+    );
+  }
+
   categoriesWrapEl.addEventListener('mousedown', (event) => {
     const option = event.target.closest('.song-picker-option');
     if (!option) return;
     event.preventDefault(); // no le saques el foco al input todavía
     const picker = option.closest('.song-picker');
-    const chipsWrap = picker.querySelector('.song-picker-chips');
-    chipsWrap.insertAdjacentHTML(
-      'beforeend',
-      `<span class="song-picker-chip">
-        ${escapeHtml(option.dataset.songLabel)}
-        <button type="button" class="song-picker-chip-remove" data-song-id="${option.dataset.songId}" title="Quitar">✕</button>
-      </span>`
-    );
+    agregarChip(picker, option.dataset.songId, option.dataset.songLabel);
     const input = picker.querySelector('.song-picker-input');
     input.value = '';
     abrirDropdown(picker, ''); // refresca la lista sin la que se acaba de agregar
+    sincronizarBotonesSugerencias();
   });
 
   categoriesWrapEl.addEventListener('click', (event) => {
     const removeBtn = event.target.closest('.song-picker-chip-remove');
     if (!removeBtn) return;
     removeBtn.closest('.song-picker-chip').remove();
+    sincronizarBotonesSugerencias();
+  });
+
+  // --- "Sugerencias para esta misa": ideas del cancionero según lo que se
+  // lee ese día (ver search/sugerencias.js — sin IA, con un puntaje fijo). Se
+  // piden recién cuando se abre la sección, no al entrar a la pantalla.
+  // "Agregar" solo suma la canción a la lista en pantalla, igual que
+  // elegirla del buscador: sigue haciendo falta "Guardar lista".
+  const sugerenciasBoxEl = container.querySelector('#sugerencias-box');
+  const sugerenciasEl = container.querySelector('#sugerencias-contenido');
+  const momentosSugeribles = categories.filter((cat) => FUENTES_POR_MOMENTO[cat]);
+  const fechaLiturgica = fechaLiturgicaDeMisa(selectedFecha, selectedHora);
+  let sugerenciasCargadas = false;
+
+  function sincronizarBotonesSugerencias() {
+    sugerenciasEl.querySelectorAll('.sugerencia-agregar').forEach((btn) => {
+      const picker = categoriesWrapEl.querySelector(`.song-picker[data-category="${cssEscape(btn.dataset.category)}"]`);
+      const yaEsta = picker ? idsYaElegidas(picker).has(Number(btn.dataset.songId)) : false;
+      btn.disabled = yaEsta;
+      btn.textContent = yaEsta ? '✓ En la lista' : '+ Agregar';
+    });
+  }
+
+  function pintarSugerencias(datos, todasLasCanciones) {
+    const recientes = idsCantadosRecientemente(allMisas, selectedFecha);
+    const bloques = momentosSugeribles.map((momento) => {
+      const sugerencias = sugerirCanciones({
+        momento,
+        candidatas: songsPorCategoria.get(momento) || [],
+        todasLasCanciones,
+        fuentes: datos.fuentes,
+        tiempo: datos.tiempo,
+        recientes,
+      });
+      const filas = sugerencias.length
+        ? sugerencias
+            .map(
+              (s) => `
+        <div class="sugerencia-item">
+          <div class="sugerencia-info">
+            <span class="sugerencia-titulo">${escapeHtml(songLabel(s.song))}</span>
+            <span class="sugerencia-motivo">${motivoDeSugerencia(s, datos.tiempo)}</span>
+          </div>
+          ${
+            puedeEditar
+              ? `<button type="button" class="btn sugerencia-agregar" data-category="${escapeAttr(momento)}" data-song-id="${s.song.id}" data-song-label="${escapeAttr(songLabel(s.song))}">+ Agregar</button>`
+              : ''
+          }
+        </div>`
+            )
+            .join('')
+        : `<p class="chord-editor-hint">Sin coincidencias claras en el cancionero para este momento.</p>`;
+      return `<div class="sugerencia-momento"><h4>${escapeHtml(momento)}</h4>${filas}</div>`;
+    });
+
+    sugerenciasEl.innerHTML = `
+      <p class="chord-editor-hint">
+        ${datos.tituloDia ? `<strong>${escapeHtml(datos.tituloDia)}</strong>` : 'Lecturas del día'}${
+      datos.tiempo ? ` · ${escapeHtml(datos.tiempo)}` : ''
+    }${fechaLiturgica !== selectedFecha ? ` · misa de vigilia: se usan las lecturas del domingo ${formatFecha(fechaLiturgica)}` : ''}
+      </p>
+      ${datos.faltan.length ? `<div class="warning-box">No se pudieron traer: ${escapeHtml(datos.faltan.join(' ni '))}. Las sugerencias son más pobres sin eso.</div>` : ''}
+      ${bloques.join('')}
+      <p class="chord-editor-hint">
+        Son ideas armadas con las palabras de las lecturas y las antífonas
+        (sin inteligencia artificial): decide siempre el equipo.
+        Las que dicen "Se cantó hace poco" aparecen más abajo a propósito.
+      </p>
+    `;
+    sincronizarBotonesSugerencias();
+  }
+
+  async function cargarSugerencias() {
+    sugerenciasEl.innerHTML = `<p class="chord-editor-hint">Buscando lecturas y armando ideas...</p>`;
+    const [datos, todasLasCanciones] = await Promise.all([traerDatosLiturgicos(fechaLiturgica), getAllSongs(space)]);
+    if (!datos.ok) {
+      sugerenciasEl.innerHTML = `<p class="chord-editor-hint">Todavía no están disponibles las lecturas de esa fecha (o no hay conexión) — probá más cerca del día.</p>`;
+      return;
+    }
+    pintarSugerencias(datos, todasLasCanciones);
+    // Con el resultado completo no hace falta volver a pedir al reabrir.
+    sugerenciasCargadas = datos.faltan.length === 0;
+  }
+
+  sugerenciasBoxEl.addEventListener('toggle', () => {
+    if (sugerenciasBoxEl.open && !sugerenciasCargadas) cargarSugerencias();
+  });
+
+  sugerenciasEl.addEventListener('click', (event) => {
+    const btn = event.target.closest('.sugerencia-agregar');
+    if (!btn || !puedeEditar) return;
+    const picker = categoriesWrapEl.querySelector(`.song-picker[data-category="${cssEscape(btn.dataset.category)}"]`);
+    if (!picker || idsYaElegidas(picker).has(Number(btn.dataset.songId))) return;
+    agregarChip(picker, btn.dataset.songId, btn.dataset.songLabel);
+    sincronizarBotonesSugerencias();
   });
 
   categoriesWrapEl.addEventListener(
