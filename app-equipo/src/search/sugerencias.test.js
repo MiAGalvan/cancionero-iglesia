@@ -174,6 +174,114 @@ const palabraDeAntifona = sugerirCanciones({
 });
 check(palabraDeAntifona.length === 1, 'sólida: una sola palabra de la antífona (corta) sí alcanza');
 
+// --- fichas litúrgicas (data/fichasCanciones.json) ---
+// Cada canción de prueba lleva un uuid para poder tener ficha.
+const conUuid = (song) => ({ ...song, uuid: `uuid-${song.id}` });
+const biblio = songs.map(conUuid);
+const [bPastor, bGloria, bAlabare, bBendito, bVen, bPescador, bPerdona, bId, bUnPastor, bPan] = biblio;
+const ficha = (extra) => ({ t: 'x', m: ['COMUNIÓN'], te: [], to: 'sereno', v: 'comunitaria', ad: 'neutral', ...extra });
+
+// El momento lo manda la ficha, no la carpeta.
+const fichasMomento = {
+  [bPescador.uuid]: ficha({ m: ['SALIDA', 'MEDITACIÓN'], te: ['vocacion', 'seguimiento'] }),
+  [bPastor.uuid]: ficha({ m: ['COMUNIÓN'], te: ['confianza'] }),
+};
+const comunionConFicha = sugerirCanciones({
+  momento: 'COMUNIÓN',
+  candidatas: [bPescador, bPastor],
+  todasLasCanciones: biblio,
+  fuentes: { comunion: 'El Señor es mi pastor, pescadores de hombres, sígueme' },
+  fichas: fichasMomento,
+});
+check(!ids(comunionConFicha).includes(bPescador.id), 'ficha: una canción de Salida no se sugiere en Comunión aunque esté en esa carpeta');
+const salidaConFicha = sugerirCanciones({
+  momento: 'SALIDA',
+  candidatas: [],
+  todasLasCanciones: biblio,
+  fuentes: { evangelio: 'Los llamó: Síganme, y los haré pescadores de hombres. Ellos lo siguieron.' },
+  fichas: fichasMomento,
+});
+check(ids(salidaConFicha).includes(bPescador.id), 'ficha: aparece en Salida aunque esté archivada en otra carpeta');
+
+// Adviento.
+const fichasAdviento = {
+  [bVen.uuid]: ficha({ m: ['ENTRADA'], te: ['venida-del-senor', 'esperanza'], ad: 'si' }),
+  [bAlabare.uuid]: ficha({ m: ['ENTRADA'], te: ['alabanza'], ad: 'neutral' }),
+  [bId.uuid]: ficha({ m: ['ENTRADA'], te: ['navidad'], ad: 'no', solo: ['Navidad'] }),
+  [bGloria.uuid]: ficha({ m: ['ENTRADA'], te: ['posada'], ad: 'tarde', solo: ['Adviento', 'Navidad'] }),
+};
+const entradaAdviento = (fecha) =>
+  sugerirCanciones({
+    momento: 'ENTRADA',
+    candidatas: [bVen, bAlabare, bId, bGloria],
+    todasLasCanciones: biblio,
+    fuentes: { entrada: 'A ti, Señor, elevo mi alma. Los que esperan en ti no quedarán defraudados. Alabaré al Señor.' },
+    tiempo: 'Adviento',
+    fecha,
+    fichas: fichasAdviento,
+  });
+const adv1 = entradaAdviento('2026-11-29');
+check(adv1[0]?.song.id === bVen.id && adv1[0].esDelTiempo, 'adviento: la ficha "si" va primera y marcada como de Adviento', JSON.stringify(ids(adv1)));
+check(!ids(adv1).includes(bId.id), 'adviento: una canción marcada "no" (Navidad) nunca se sugiere');
+check(!ids(adv1).includes(bGloria.id), 'adviento: una de "posada" no entra antes del 17/12');
+check(ids(entradaAdviento('2026-12-19')).includes(bGloria.id), 'adviento: la de "posada" sí entra del 17 al 24/12');
+
+// Época propia que no es esta.
+const fichasEpoca = {
+  [bGloria.uuid]: ficha({ m: ['ENTRADA'], te: ['alabanza'], solo: ['Pascua'] }),
+  [bAlabare.uuid]: ficha({ m: ['ENTRADA'], te: ['alabanza'], evitar: ['Cuaresma'] }),
+};
+const entradaEn = (tiempo) =>
+  ids(
+    sugerirCanciones({
+      momento: 'ENTRADA',
+      candidatas: [bGloria, bAlabare],
+      todasLasCanciones: biblio,
+      fuentes: { entrada: 'Gloria al Señor, alabaré a mi Señor con alabanza' },
+      tiempo,
+      fichas: fichasEpoca,
+    })
+  );
+check(!entradaEn('Tiempo Ordinario').includes(bGloria.id), 'ficha "solo Pascua": no se sugiere en Tiempo Ordinario');
+check(entradaEn('Pascua').includes(bGloria.id), 'ficha "solo Pascua": sí en Pascua');
+check(!entradaEn('Cuaresma').includes(bAlabare.id), 'ficha "evitar Cuaresma" (aleluya): no se sugiere en Cuaresma');
+check(entradaEn('Tiempo Ordinario').includes(bAlabare.id), 'ficha "evitar Cuaresma": sí en otra época');
+
+// Temas: el Evangelio habla de lámparas y esposo; la canción no repite ninguna
+// de esas palabras pero es de la espera del Señor.
+const bVigilia = conUuid({ id: 900, uuid: 'v', title: 'Estaremos despiertos', artist: '', tags: [], chordpro: '[C]Cantemos de noche en el silencio del templo' });
+const temasVsPalabras = sugerirCanciones({
+  momento: 'MEDITACIÓN',
+  candidatas: [bVigilia],
+  todasLasCanciones: [...biblio, bVigilia],
+  fuentes: { evangelio: 'Diez jóvenes tomaron sus lámparas y salieron al encuentro del esposo. Velen, porque no saben el día ni la hora.', respuesta: 'Mi alma tiene sed de ti' },
+  fichas: { [bVigilia.uuid]: ficha({ m: ['MEDITACIÓN'], te: ['vigilancia', 'luz'] }) },
+});
+check(temasVsPalabras.length === 1 && temasVsPalabras[0].temas.some((t) => t.tema === 'espera'), 'temas: "lámparas / esposo / velen" encuentra una canción de vigilancia sin repetir palabras', JSON.stringify(temasVsPalabras.map((r) => r.temas)));
+
+// Ocasionales: bajan y se avisa.
+const ocasional = sugerirCanciones({
+  momento: 'COMUNIÓN',
+  candidatas: [bPastor, bUnPastor],
+  todasLasCanciones: biblio,
+  fuentes: { comunion: 'El Señor es mi pastor' },
+  fichas: {
+    [bPastor.uuid]: ficha({ te: ['confianza'], nota: 'Ocasional: Virgen de la Merced' }),
+    [bUnPastor.uuid]: ficha({ te: ['confianza'] }),
+  },
+});
+check(ocasional[0]?.song.id === bUnPastor.id && ocasional.find((r) => r.song.id === bPastor.id)?.esOcasional === true, 'ocasional: baja de puntaje y queda marcada');
+
+// Canciones repetidas con otro título: una sola.
+const copia = conUuid({ ...bPastor, id: 901, uuid: 'copia', title: 'EL SEÑOR ES MI PASTOR (otra versión)' });
+const sinRepetir = sugerirCanciones({
+  momento: 'COMUNIÓN',
+  candidatas: [bPastor, copia],
+  todasLasCanciones: [...biblio, copia],
+  fuentes: { comunion: 'El Señor es mi pastor, nada me falta' },
+});
+check(sinRepetir.filter((r) => r.song.chordpro === bPastor.chordpro).length === 1, 'repetidas: la misma letra con otro título se muestra una sola vez');
+
 if (failures === 0) {
   console.log('\nTodos los tests pasaron');
 } else {

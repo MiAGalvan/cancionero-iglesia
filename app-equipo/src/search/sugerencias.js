@@ -20,6 +20,7 @@
 //  3. Variedad: lo que ya se cantó en las últimas semanas baja de puntaje.
 
 import { normalizeText, lyricsOf } from './songSearch.js';
+import { LEXICO_TEMAS, temaCanonico } from './temas.js';
 
 // De dónde sale el "tema" de cada momento de la misa y cuánto pesa cada
 // fuente. Las claves son las de datosLiturgicos.js. El orden de las
@@ -104,7 +105,9 @@ const PALABRAS_VACIAS = new Set(
     'tienen todo todos tras tu tus un una uno unos va vais vamos van vas ve veis ves voy vosotros vuestro y ya yo ' +
     'dice dicen dijo dijeron digo ahi alli ahora entonces luego despues pues tal tan aquel aquella aquellos aquellas ' +
     'cuyo cuya cuyos cuyas hacia mientras segun sino tampoco todavia vez veces ' +
-    'amen aleluya gloria dios senor'
+    'amen aleluya gloria dios senor ' +
+    'sera seran sere jesus jesucristo cristo hombre hombres padre hijo hemos habeis mismo misma ustedes tiempo mundo cosas cosa ' +
+    'siempre nunca estaba estaban tenemos tengo tienes hace hacen hacer dado dar dio vino viene vienen fin dia dias'
   ).split(' ')
 );
 
@@ -173,6 +176,51 @@ function temaDeMomento(momento, fuentes) {
   return tema;
 }
 
+// raíz de palabra -> temas a los que apunta (ver search/temas.js). Se arma una
+// sola vez.
+const RAIZ_A_TEMAS = new Map();
+for (const [tema, palabras] of Object.entries(LEXICO_TEMAS)) {
+  for (const palabra of palabras) {
+    const raiz = raizDe(palabra);
+    if (!RAIZ_A_TEMAS.has(raiz)) RAIZ_A_TEMAS.set(raiz, new Set());
+    RAIZ_A_TEMAS.get(raiz).add(tema);
+  }
+}
+
+// Los TEMAS de un momento: de qué habla lo que se lee ahí, no con qué
+// palabras. tema -> { peso, palabra (la de la lectura que lo delató), fuente,
+// pesoFuente }. Misma lógica de pesos que temaDeMomento.
+function temasDeMomento(momento, fuentes) {
+  const config = FUENTES_POR_MOMENTO[momento] || [];
+  const temas = new Map();
+  for (const [clave, pesoFuente] of config) {
+    const texto = fuentes?.[clave];
+    if (!texto) continue;
+    const conteo = new Map();
+    for (const { palabra, raiz } of raicesDe(texto)) {
+      for (const tema of RAIZ_A_TEMAS.get(raiz) || []) {
+        const previo = conteo.get(tema);
+        conteo.set(tema, { palabra: previo?.palabra || palabra, veces: (previo?.veces || 0) + 1 });
+      }
+    }
+    for (const [tema, { palabra, veces }] of conteo) {
+      const aporte = pesoFuente * (1 + Math.log(veces));
+      const actual = temas.get(tema);
+      if (!actual) {
+        temas.set(tema, { peso: aporte, palabra, fuente: clave, pesoFuente, mayor: aporte });
+      } else {
+        actual.peso += aporte;
+        if (aporte > actual.mayor) {
+          actual.mayor = aporte;
+          actual.fuente = clave;
+          actual.pesoFuente = pesoFuente;
+        }
+      }
+    }
+  }
+  return temas;
+}
+
 function esDeOtraEpoca(song, tiempo) {
   if (!tiempo) return false;
   const propias = (song.tags || []).filter((t) => TIEMPOS_PROPIOS.includes(t));
@@ -180,28 +228,120 @@ function esDeOtraEpoca(song, tiempo) {
   return !(song.tags || []).includes(tiempo);
 }
 
-// Devuelve las `limite` canciones más recomendables de `candidatas` (las de
-// UNA categoría) para `momento`, cada una con el motivo.
+// Del 17 al 24 de diciembre el Adviento mira ya al nacimiento: ahí recién
+// entran las canciones de "posada" y "ya viene". Antes, no.
+function esAdvientoTardio(fecha) {
+  const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(fecha || '');
+  return Boolean(m) && m[1] === '12' && Number(m[2]) >= 17 && Number(m[2]) <= 24;
+}
+
+// Qué dice la ficha de la canción (ver data/fichasCanciones.json): excluye lo
+// que no corresponde y devuelve cómo se suma al puntaje. null = descartada.
+function evaluarFicha(ficha, momento, tiempo, fecha) {
+  if (!ficha.m.includes(momento)) return null; // no es de este momento de la misa
+  if (ficha.solo && !ficha.solo.includes(tiempo)) return null; // de una época propia que no es esta
+  if (ficha.evitar && tiempo && ficha.evitar.includes(tiempo)) return null;
+  let esDelAdviento = false;
+  if (tiempo === 'Adviento') {
+    if (ficha.ad === 'no') return null;
+    if (ficha.ad === 'tarde' && !esAdvientoTardio(fecha)) return null;
+    esDelAdviento = ficha.ad === 'si' || ficha.ad === 'tarde';
+  }
+  return { esDelAdviento, esOcasional: /^Ocasional/i.test(ficha.nota || '') };
+}
+
+// Escalas: las palabras sueltas (sobre todo de lecturas largas) son la señal
+// más débil, por eso tienen techo; los temas de la ficha pesan más; y en
+// Adviento una canción de Adviento tiene que ganarle a una neutral con
+// coincidencias incidentales.
+const BONUS_ADVIENTO = 15;
+const FACTOR_TEMA = 1.2;
+const FACTOR_OCASIONAL = 0.5;
+const TECHO_PALABRAS = 14;
+const TECHO_PALABRAS_CON_FICHA = 7;
+const TECHO_TEMAS = 30;
+
+// Satura de a poco en vez de cortar de golpe: sigue subiendo con cada
+// coincidencia, pero cada vez menos, así que dos canciones parecidas no
+// quedan empatadas.
+function saturar(valor, techo) {
+  return techo * (1 - Math.exp(-valor / techo));
+}
+
+// Devuelve las `limite` canciones más recomendables para `momento`, cada una
+// con el motivo.
 //
+//  - candidatas: las canciones que están en la carpeta de ese momento.
 //  - todasLasCanciones: el cancionero completo de la parroquia (para saber
-//    qué palabras son comunes y cuáles raras).
+//    qué palabras y temas son comunes y cuáles raros).
 //  - fuentes: { entrada, comunion, respuesta, salmo, evangelio, primeraLectura,
 //    segundaLectura } con los textos de ese día (los que falten, se ignoran).
 //  - tiempo: 'Adviento', 'Cuaresma'... o null si no se pudo saber.
+//  - fecha: 'AAAA-MM-DD' de las lecturas (para el Adviento tardío).
 //  - recientes: Set de ids de canciones cantadas hace poco.
-export function sugerirCanciones({ momento, candidatas, todasLasCanciones, fuentes, tiempo = null, recientes = new Set(), limite = 4 }) {
-  const tema = temaDeMomento(momento, fuentes);
-  const { documentos, perfiles } = frecuenciaDeRaices(todasLasCanciones.length ? todasLasCanciones : candidatas);
-  const total = Math.max(todasLasCanciones.length, candidatas.length, 1);
+//  - fichas: { [uuid]: ficha }. Si una canción tiene ficha, MANDA sobre la
+//    carpeta: se sugiere en los momentos que la ficha dice (aunque esté en
+//    otra carpeta) y se descarta si no corresponde (otra época, otro
+//    momento). Las canciones sin ficha siguen igual que antes.
+export function sugerirCanciones({
+  momento,
+  candidatas,
+  todasLasCanciones,
+  fuentes,
+  tiempo = null,
+  fecha = null,
+  recientes = new Set(),
+  fichas = null,
+  limite = 4,
+}) {
+  const palabrasDelMomento = temaDeMomento(momento, fuentes);
+  const temasDelMomento = temasDeMomento(momento, fuentes);
+  const universo = todasLasCanciones.length ? todasLasCanciones : candidatas;
+  const { documentos, perfiles } = frecuenciaDeRaices(universo);
+  const total = Math.max(universo.length, candidatas.length, 1);
+
+  const fichaDe = (song) => (fichas && song.uuid ? fichas[song.uuid] || null : null);
+
+  // Qué tan raro es cada tema entre las canciones que tienen ficha.
+  const temasPorCancion = new Map();
+  const documentosDeTema = new Map();
+  let conFicha = 0;
+  for (const song of universo) {
+    const ficha = fichaDe(song);
+    if (!ficha) continue;
+    conFicha++;
+    const temas = new Set((ficha.te || []).map(temaCanonico));
+    temasPorCancion.set(song, temas);
+    for (const t of temas) documentosDeTema.set(t, (documentosDeTema.get(t) || 0) + 1);
+  }
+
+  // Candidatas: las de la carpeta, más las que la ficha dice que sirven acá.
+  const pool = new Map();
+  for (const song of candidatas) pool.set(song.id ?? song.uuid, song);
+  if (fichas) {
+    for (const song of universo) {
+      const ficha = fichaDe(song);
+      if (ficha && ficha.m.includes(momento)) pool.set(song.id ?? song.uuid, song);
+    }
+  }
 
   const resultados = [];
-  for (const song of candidatas) {
+  for (const song of pool.values()) {
     if (esDeOtraEpoca(song, tiempo)) continue;
 
+    const ficha = fichaDe(song);
+    let infoFicha = { esDelAdviento: false, esOcasional: false };
+    if (ficha) {
+      infoFicha = evaluarFicha(ficha, momento, tiempo, fecha);
+      if (!infoFicha) continue;
+    }
+
     const perfil = perfiles.get(song) || frecuenciaDeRaices([song]).perfiles.get(song);
+
+    // 1) Palabras en común.
     const coincidencias = [];
-    let puntaje = 0;
-    for (const [raiz, info] of tema) {
+    let puntajePalabras = 0;
+    for (const [raiz, info] of palabrasDelMomento) {
       if (!perfil.todas.has(raiz)) continue;
       const apariciones = documentos.get(raiz) || 1;
       // Una palabra que está en más de un tercio del cancionero no distingue
@@ -210,41 +350,82 @@ export function sugerirCanciones({ momento, candidatas, todasLasCanciones, fuent
       const rareza = Math.log((total + 1) / (apariciones + 0.5));
       const enTitulo = perfil.titulo.has(raiz);
       const aporte = info.peso * rareza * (enTitulo ? 2 : 1);
-      puntaje += aporte;
+      puntajePalabras += aporte;
       coincidencias.push({ palabra: info.palabra, fuente: info.fuente, aporte, enTitulo, pesoFuente: info.pesoFuente });
     }
     // Las letras largas tienen más palabras distintas y por eso más
     // chances de coincidir: se compensa un poco.
-    puntaje /= Math.sqrt(Math.max(perfil.todas.size, 20) / 20);
+    puntajePalabras /= Math.sqrt(Math.max(perfil.todas.size, 20) / 20);
+    // Con ficha, los temas ya dicen de qué habla la canción: las palabras
+    // sueltas valen menos.
+    puntajePalabras = saturar(puntajePalabras, ficha ? TECHO_PALABRAS_CON_FICHA : TECHO_PALABRAS);
+
+    // 2) Temas en común (solo si la canción tiene ficha).
+    const temasComunes = [];
+    let puntajeTemas = 0;
+    const temasSong = temasPorCancion.get(song);
+    if (temasSong) {
+      for (const [tema, info] of temasDelMomento) {
+        if (!temasSong.has(tema)) continue;
+        const apariciones = documentosDeTema.get(tema) || 1;
+        if (conFicha >= 12 && apariciones / conFicha > 0.33) continue;
+        const rareza = Math.log((conFicha + 1) / (apariciones + 0.5));
+        const aporte = info.peso * rareza * FACTOR_TEMA;
+        puntajeTemas += aporte;
+        temasComunes.push({ tema, fuente: info.fuente, aporte, pesoFuente: info.pesoFuente });
+      }
+    }
+
+    let puntaje = puntajePalabras + saturar(puntajeTemas, TECHO_TEMAS);
 
     const esDelTiempo = Boolean(tiempo) && (song.tags || []).includes(tiempo);
     if (esDelTiempo) puntaje += BONUS_TIEMPO;
+    if (infoFicha.esDelAdviento) puntaje += BONUS_ADVIENTO;
 
-    // Una palabra suelta de una lectura larga no alcanza para sugerir nada
-    // (es casualidad): hace falta más de una palabra en común, o que esté en
-    // el título, o que venga de la antífona / la respuesta del salmo, que son
-    // cortas y dicen de qué va ese momento.
-    const coincidenciaSolida =
+    // Una palabra o un tema suelto de una lectura larga no alcanza para
+    // sugerir nada (es casualidad): hace falta más de uno en común, o que
+    // esté en el título, o que venga de la antífona / la respuesta del
+    // salmo, que son cortas y dicen de qué va ese momento.
+    const palabrasSolidas =
       coincidencias.length >= 2 || coincidencias.some((c) => c.enTitulo || c.pesoFuente >= PESO_FUENTE_CORTA);
+    const temasSolidos = temasComunes.length >= 2 || temasComunes.some((c) => c.pesoFuente >= PESO_FUENTE_CORTA);
     // Sin coincidencia sólida, solo entra si es de una época propia de esta
     // semana (Adviento, Cuaresma...). "Tiempo Ordinario" no cuenta: es la
     // etiqueta de la mayoría de las canciones y no dice nada del día.
-    const entraSoloPorEpoca = esDelTiempo && TIEMPOS_PROPIOS.includes(tiempo);
-    if (!coincidenciaSolida && !entraSoloPorEpoca) continue;
+    const entraSoloPorEpoca = (esDelTiempo && TIEMPOS_PROPIOS.includes(tiempo)) || infoFicha.esDelAdviento;
+    if (!palabrasSolidas && !temasSolidos && !entraSoloPorEpoca) continue;
 
     const esReciente = recientes.has(song.id);
     if (esReciente) puntaje *= FACTOR_RECIENTE;
+    if (infoFicha.esOcasional) puntaje *= FACTOR_OCASIONAL;
 
     coincidencias.sort((a, b) => b.aporte - a.aporte);
+    temasComunes.sort((a, b) => b.aporte - a.aporte);
     resultados.push({
       song,
       puntaje,
       palabras: coincidencias.slice(0, 3).map((c) => ({ palabra: c.palabra, fuente: c.fuente, enTitulo: c.enTitulo })),
-      esDelTiempo,
+      temas: temasComunes.slice(0, 3).map((c) => ({ tema: c.tema, fuente: c.fuente })),
+      esDelTiempo: (esDelTiempo && TIEMPOS_PROPIOS.includes(tiempo)) || infoFicha.esDelAdviento,
       esReciente,
+      esOcasional: infoFicha.esOcasional,
+      nota: ficha?.nota || '',
     });
   }
 
   resultados.sort((a, b) => b.puntaje - a.puntaje || a.song.title.localeCompare(b.song.title, 'es'));
-  return resultados.slice(0, limite);
+
+  // La biblioteca tiene canciones repetidas con otro título (o cargadas dos
+  // veces): si la letra es la misma, se muestra solo la mejor.
+  const vistas = new Set();
+  const sinRepetidas = [];
+  for (const r of resultados) {
+    const letra = normalizeText(lyricsOf(r.song.chordpro)).slice(0, 120);
+    if (letra.length >= 40) {
+      if (vistas.has(letra)) continue;
+      vistas.add(letra);
+    }
+    sinRepetidas.push(r);
+  }
+  return sinRepetidas.slice(0, limite);
 }

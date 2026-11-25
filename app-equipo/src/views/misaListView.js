@@ -12,6 +12,7 @@ import { getSongsByCategory, getMisa, saveMisa, getAllMisas, getSongByUuid, getA
 import { filterSongs } from '../search/songSearch.js';
 import { sugerirCanciones, FUENTES_POR_MOMENTO, ETIQUETA_FUENTE } from '../search/sugerencias.js';
 import { traerDatosLiturgicos } from '../liturgia/datosLiturgicos.js';
+import fichasCanciones from '../data/fichasCanciones.json';
 import { getAllCategories, getAllTags, getCurrentSpaceKey, getSpaceLabel, getModoLectura, getIdentidad } from '../storage/settings.js';
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
 import { getSession } from '../storage/auth.js';
@@ -73,17 +74,32 @@ function idsCantadosRecientemente(misas, fecha) {
   return ids;
 }
 
-// "En común con la misa: «pastor» (antífona de comunión), «mesa» (Evangelio)"
+// "De qué habla: espera, esperanza (antífona de entrada) · Palabras en común:
+// «alma» (antífona de entrada)"
 function motivoDeSugerencia(sugerencia, tiempo) {
   const partes = [];
+  if (sugerencia.temas?.length) {
+    // Los temas se agrupan por la fuente que los delató.
+    const porFuente = new Map();
+    for (const t of sugerencia.temas) {
+      if (!porFuente.has(t.fuente)) porFuente.set(t.fuente, []);
+      porFuente.get(t.fuente).push(t.tema);
+    }
+    const lista = [...porFuente.entries()]
+      .map(([fuente, temas]) => `${escapeHtml(temas.join(', '))} (${escapeHtml(ETIQUETA_FUENTE[fuente] || fuente)})`)
+      .join('; ');
+    partes.push(`Tema en común con la misa: ${lista}`);
+  }
   if (sugerencia.palabras.length) {
     const lista = sugerencia.palabras
+      .slice(0, 2)
       .map((p) => `«${escapeHtml(p.palabra)}» (${escapeHtml(ETIQUETA_FUENTE[p.fuente] || p.fuente)})`)
       .join(', ');
-    partes.push(`En común con la misa: ${lista}`);
+    partes.push(`Palabras en común: ${lista}`);
   }
   if (sugerencia.esDelTiempo) partes.push(`Es de ${escapeHtml(tiempo)}`);
   if (sugerencia.esReciente) partes.push('⏳ Se cantó hace poco');
+  if (sugerencia.esOcasional) partes.push(`⚠️ ${escapeHtml(sugerencia.nota)}`);
   return partes.join(' · ');
 }
 
@@ -133,12 +149,17 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
   const tieneSesionReal = Boolean(session);
   const puedeEditar = (tieneSesionReal || Boolean(identidadConocida)) && !getModoLectura();
 
-  const [existing, songsByCategory, allMisas, fechasHorasPublicadas] = await Promise.all([
+  const [existing, songsByCategory, allMisas, fechasHorasPublicadas, todasLasCancionesDelEspacio] = await Promise.all([
     getMisa(space, selectedFecha, selectedHora),
     Promise.all(categories.map((cat) => getSongsByCategory(cat, space))),
     getAllMisas(space),
     getFechasHorasPublicadas(space),
+    getAllSongs(space),
   ]);
+  // Una canción puede estar elegida en un momento que no es su carpeta (ej. una
+  // sugerida para la Salida que está archivada en Comunión): para mostrarla
+  // hay que buscarla entre TODAS, no solo entre las de esa carpeta.
+  const cancionPorId = new Map(todasLasCancionesDelEspacio.map((song) => [song.id, song]));
   const items = existing ? existing.items : {};
 
   container.innerHTML = `
@@ -235,7 +256,7 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
 
   function renderCategories(selections) {
     categoriesWrapEl.innerHTML = categories
-      .map((cat, i) => renderCategoryRow(cat, songsByCategory[i], toIdArray(selections[cat]), puedeEditar))
+      .map((cat, i) => renderCategoryRow(cat, songsByCategory[i], toIdArray(selections[cat]), puedeEditar, cancionPorId))
       .join('');
     // Al repintar (cambiar el filtro, traer la última publicada) lo ya
     // elegido cambia: que los botones de "Sugerencias" lo reflejen.
@@ -379,6 +400,8 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
         todasLasCanciones,
         fuentes: datos.fuentes,
         tiempo: datos.tiempo,
+        fecha: fechaLiturgica,
+        fichas: fichasCanciones,
         recientes,
       });
       const filas = sugerencias.length
@@ -540,8 +563,8 @@ export async function renderMisaListView(container, { fecha, hora } = {}) {
   }
 }
 
-function renderCategoryRow(category, songs, selectedIds, puedeEditar) {
-  const seleccionadas = selectedIds.map((id) => songs.find((s) => s.id === id)).filter(Boolean);
+function renderCategoryRow(category, songs, selectedIds, puedeEditar, cancionPorId = new Map()) {
+  const seleccionadas = selectedIds.map((id) => cancionPorId.get(id) || songs.find((s) => s.id === id)).filter(Boolean);
   return `
     <div class="misa-category-row misa-category-row-multi">
       <span class="misa-category-name">${escapeHtml(category)}</span>
