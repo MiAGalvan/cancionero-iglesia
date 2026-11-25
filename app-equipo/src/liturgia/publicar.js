@@ -2,7 +2,8 @@
 // Supabase. Los acordes y la estructura de notas NUNCA salen de este
 // dispositivo: acá solo se manda título + letra en texto plano.
 import { supabase, isSupabaseConfigured } from '../storage/supabaseClient.js';
-import { getSong } from '../storage/db.js';
+import { getSong, getSongByUuid, getMisa, saveMisa } from '../storage/db.js';
+import { syncMisasNow } from '../storage/misasSync.js';
 import { getSession } from '../storage/auth.js';
 import { getAllCategories, getSpaceFullLabel, getDeviceGroup } from '../storage/settings.js';
 import { chordProToPlainLyrics } from './textoPlano.js';
@@ -61,6 +62,83 @@ export async function publishMisa(misa) {
     { onConflict: 'space,fecha,hora' }
   );
   if (error) throw error;
+}
+
+// Cambia UNA canción de una lista ya publicada por otra del cancionero, sin
+// pasar por "armar la lista de nuevo y volver a publicar" (ver el botón
+// "Cambiar" en views/listaPublicadaView.js). Vuelve a leer la fila ANTES de
+// escribir, para no pisar con datos viejos si alguien más del equipo publicó
+// algo en el medio, y ubica la canción por su uuid (o por título, en listas
+// publicadas antes de que existiera el uuid) en vez de por la posición. Deja
+// la misma categoría y el mismo lugar en la lista. Además corrige la lista
+// guardada en este dispositivo (y la sincroniza) para que la próxima vez que
+// se abra "Lista de misa" no vuelva a aparecer la canción vieja.
+export async function cambiarCancionPublicada({ space, fecha, hora, anterior, song }) {
+  if (!isSupabaseConfigured) {
+    throw new Error('Falta configurar Supabase en src/storage/supabaseClient.js');
+  }
+  const { data: fila, error: fetchError } = await supabase
+    .from('lista_actual')
+    .select('items')
+    .eq('space', space)
+    .eq('fecha', fecha)
+    .eq('hora', hora || '')
+    .maybeSingle();
+  if (fetchError) throw fetchError;
+  if (!fila) throw new Error('LISTA_YA_NO_EXISTE');
+
+  const posicion = fila.items.findIndex((item) =>
+    anterior.song_uuid ? item.song_uuid === anterior.song_uuid : item.titulo_cancion === anterior.titulo_cancion
+  );
+  if (posicion < 0) throw new Error('CANCION_YA_CAMBIADA');
+
+  const items = fila.items.map((item, i) =>
+    i === posicion
+      ? {
+          categoria: item.categoria,
+          titulo_cancion: song.title,
+          letra_sin_acordes: chordProToPlainLyrics(song.chordpro),
+          song_uuid: song.uuid,
+        }
+      : item
+  );
+
+  const session = await getSession();
+  const { error } = await supabase.from('lista_actual').upsert(
+    {
+      space,
+      space_name: getSpaceFullLabel(space),
+      fecha,
+      hora: hora || '',
+      items,
+      published_by: getDeviceGroup() || session?.user?.email || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'space,fecha,hora' }
+  );
+  if (error) throw error;
+
+  // La parte local es "lo mejor posible": lo publicado ya quedó bien, así
+  // que si esto falla no se deshace nada ni se le avisa como error.
+  try {
+    await reemplazarEnMisaLocal({ space, fecha, hora, categoria: fila.items[posicion].categoria, anterior, song });
+  } catch (err) {
+    console.error(err);
+  }
+  return { items };
+}
+
+async function reemplazarEnMisaLocal({ space, fecha, hora, categoria, anterior, song }) {
+  const misa = await getMisa(space, fecha, hora || '');
+  if (!misa) return;
+  const valor = misa.items?.[categoria];
+  const ids = Array.isArray(valor) ? [...valor] : valor ? [valor] : [];
+  const anteriorLocal = anterior.song_uuid ? await getSongByUuid(anterior.song_uuid) : null;
+  const indice = anteriorLocal ? ids.indexOf(anteriorLocal.id) : -1;
+  if (indice < 0) return;
+  ids[indice] = song.id;
+  await saveMisa(space, fecha, hora || '', { ...misa.items, [categoria]: ids });
+  syncMisasNow();
 }
 
 // "Publicar" saca una FOTO de la letra en ese momento — si después se

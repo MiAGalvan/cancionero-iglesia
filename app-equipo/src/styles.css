@@ -896,6 +896,19 @@ a {
   touch-action: pan-y;
 }
 
+/* "Ajustar a la pantalla" (ver songView.js): cuando la canción entra entera
+   no hace falta el colchón de abajo que sirve para que el scroll automático
+   pueda llevar la última línea hasta arriba. */
+.lyrics-container.fit-pantalla {
+  padding-bottom: 16px;
+}
+
+.fit-status {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
 /* Botón flotante de play/pausa del scroll: sigue visible aunque se oculte
    el panel lateral o se esté en pantalla completa. */
 .floating-scroll-btn {
@@ -2383,4 +2396,116 @@ a {
 
 .sugerencia-agregar:disabled {
   opacity: 0.7;
+}
+
+/* "Cambiar canción" en la lista publicada (ver views/listaPublicadaView.js) */
+.publicada-cancion [data-cambiar] {
+  align-self: flex-start;
+  margin: -2px 0 10px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.cambiar-aviso {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  font-size: 0.95rem;
+}
+
+.cambiar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.cambiar-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(560px, 100%);
+  max-height: min(86vh, 720px);
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.cambiar-header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cambiar-header h3 {
+  margin: 0;
+}
+
+.cambiar-sub,
+.cambiar-hint {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.cambiar-modal input[type='search'] {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.cambiar-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.cambiar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cambiar-item:hover,
+.cambiar-item:focus-visible {
+  border-color: var(--accent);
+}
+
+.cambiar-item-titulo {
+  font-weight: 600;
+}
+
+.cambiar-item-artista {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+#hora-tabs {
+  margin: 10px 0 14px;
 }

@@ -11,6 +11,7 @@ const CATEGORY_ORDER_KEY = 'cancionero-iglesia:category-order';
 const DEVICE_GROUP_KEY = 'cancionero-iglesia:device-group';
 const SHOW_CHORDS_KEY = 'cancionero-iglesia:show-chords';
 const CHORD_NOTATION_KEY = 'cancionero-iglesia:chord-notation';
+const AJUSTAR_PANTALLA_KEY = 'cancionero-iglesia:ajustar-pantalla';
 const CUSTOM_TAGS_KEY = 'cancionero-iglesia:custom-tags';
 const MIEMBROS_KEY = 'cancionero-iglesia:miembros';
 const HEADER_TITLE_KEY = 'cancionero-iglesia:header-title';
@@ -616,6 +617,17 @@ export function getShowChords() {
 
 export function setShowChords(show) {
   localStorage.setItem(SHOW_CHORDS_KEY, show ? 'true' : 'false');
+}
+
+// Preferencia personal de este dispositivo: al abrir una canción, achicar la
+// letra lo necesario para que entre entera en la pantalla (sin scroll). Por
+// defecto activado; se desactiva solo cuando se toca A+/A− a mano.
+export function getAjustarPantalla() {
+  return localStorage.getItem(AJUSTAR_PANTALLA_KEY) !== 'false';
+}
+
+export function setAjustarPantalla(activo) {
+  localStorage.setItem(AJUSTAR_PANTALLA_KEY, activo ? 'true' : 'false');
 }
 
 // Preferencia personal de este dispositivo: en qué cifrado mostrar los

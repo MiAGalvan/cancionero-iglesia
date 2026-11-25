@@ -18,6 +18,8 @@ import {
   getCurrentSpaceKey,
   getSpaceFullLabel,
   getModoLectura,
+  getAjustarPantalla,
+  setAjustarPantalla,
 } from '../storage/settings.js';
 import { getSession } from '../storage/auth.js';
 import { createAudioRecorder } from '../recorder/audioRecorder.js';
@@ -104,6 +106,11 @@ export async function renderSongView(container, { id, returnTo }) {
             <button class="btn btn-icon" id="fontsize-down">A−</button>
             <button class="btn btn-icon" id="fontsize-up">A+</button>
           </div>
+          <label class="shared-field">
+            <input type="checkbox" id="fit-screen-input" ${getAjustarPantalla() ? 'checked' : ''} />
+            Ajustar a la pantalla
+          </label>
+          <p class="fit-status" id="fit-status" hidden></p>
         </div>
         <div class="sidebar-group">
           <h3>Interlineado</h3>
@@ -205,20 +212,113 @@ export async function renderSongView(container, { id, returnTo }) {
 
   lyricsContainer.classList.toggle('hide-chords', !getShowChords());
 
+  // "Ajustar a la pantalla": la letra arranca en el tamaño más grande (hasta
+  // el de siempre) con el que la canción ENTERA entra en la pantalla, sin
+  // scroll. Si ni achicándola hasta FIT_MIN_FONT entra (una canción muy
+  // larga), se deja como siempre —tamaño cómodo, con scroll— en vez de
+  // dejarla ilegible. Se recalcula al transponer, mostrar/ocultar acordes,
+  // ocultar el panel, girar el celular, etc. Tocar A+/A− o pellizcar lo
+  // apaga solo para esta canción: ahí manda lo que se elige a mano.
+  const FIT_MAX_FONT = 1.9;
+  const FIT_MIN_FONT = 0.8;
+  const FIT_FONT_STEP = 0.05;
+  const FIT_LINE_HEIGHT = 1.45;
+  let ajustar = getAjustarPantalla();
+  const fitInput = container.querySelector('#fit-screen-input');
+  const fitStatusEl = container.querySelector('#fit-status');
+  const floatingScrollEl = container.querySelector('#floating-scroll-toggle');
+
+  function setFitStatus(text) {
+    fitStatusEl.hidden = !text;
+    fitStatusEl.textContent = text || '';
+  }
+
+  function fitToScreen() {
+    if (!ajustar) {
+      lyricsContainer.classList.remove('fit-pantalla');
+      floatingScrollEl.style.display = '';
+      setFitStatus('');
+      return;
+    }
+    lyricsContainer.classList.add('fit-pantalla');
+    lyricsContainer.style.lineHeight = FIT_LINE_HEIGHT;
+    let size = FIT_MAX_FONT;
+    let cabe = false;
+    while (size >= FIT_MIN_FONT - 0.001) {
+      lyricsContainer.style.fontSize = `${size}rem`;
+      // scrollHeight incluye el relleno: si no supera lo visible, entra todo.
+      if (lyricsContainer.scrollHeight <= lyricsContainer.clientHeight + 1) {
+        cabe = true;
+        break;
+      }
+      size = +(size - FIT_FONT_STEP).toFixed(2);
+    }
+    if (cabe) {
+      fontSize = size;
+      lineHeight = FIT_LINE_HEIGHT;
+      // Si entra toda la canción, el play/pausa del scroll no tiene nada que hacer.
+      floatingScrollEl.style.display = 'none';
+      setFitStatus('');
+    } else {
+      // Muy larga para achicarla sin que se vuelva ilegible: tamaño de siempre.
+      lyricsContainer.classList.remove('fit-pantalla');
+      applyFontSize();
+      applyLineHeight();
+      floatingScrollEl.style.display = '';
+      setFitStatus('Canción larga: se ve con scroll.');
+    }
+  }
+
+  function turnOffFitForThisSong() {
+    if (!ajustar) return;
+    ajustar = false;
+    fitInput.checked = false;
+    fitToScreen();
+  }
+
+  fitInput.addEventListener('change', () => {
+    ajustar = fitInput.checked;
+    setAjustarPantalla(ajustar);
+    if (!ajustar) {
+      fontSize = 1.9;
+      lineHeight = 1.7;
+      applyFontSize();
+      applyLineHeight();
+    }
+    fitToScreen();
+  });
+
+  // Se mide cuando la letra ya tiene su lugar en pantalla y cada vez que
+  // cambia el espacio disponible (girar, pantalla completa, ocultar el panel).
+  let fitLastSize = '';
+  const fitObserver = new ResizeObserver(() => {
+    const key = `${lyricsContainer.clientWidth}x${lyricsContainer.clientHeight}`;
+    if (key === fitLastSize) return;
+    fitLastSize = key;
+    fitToScreen();
+  });
+  fitObserver.observe(lyricsContainer);
+  document.fonts?.ready?.then(() => fitToScreen());
+  window.addEventListener('hashchange', () => fitObserver.disconnect(), { once: true });
+
   container.querySelector('#fontsize-up').addEventListener('click', () => {
+    turnOffFitForThisSong();
     fontSize = Math.min(FONT_MAX, fontSize + FONT_STEP);
     applyFontSize();
   });
   container.querySelector('#fontsize-down').addEventListener('click', () => {
+    turnOffFitForThisSong();
     fontSize = Math.max(FONT_MIN, fontSize - FONT_STEP);
     applyFontSize();
   });
 
   container.querySelector('#lineheight-up').addEventListener('click', () => {
+    turnOffFitForThisSong();
     lineHeight = Math.min(LINE_HEIGHT_MAX, +(lineHeight + LINE_HEIGHT_STEP).toFixed(2));
     applyLineHeight();
   });
   container.querySelector('#lineheight-down').addEventListener('click', () => {
+    turnOffFitForThisSong();
     lineHeight = Math.max(LINE_HEIGHT_MIN, +(lineHeight - LINE_HEIGHT_STEP).toFixed(2));
     applyLineHeight();
   });
@@ -234,6 +334,7 @@ export async function renderSongView(container, { id, returnTo }) {
       lineHeightAtPinchStart = lineHeight;
     },
     onPinchMove: (scale) => {
+      turnOffFitForThisSong();
       const next = lineHeightAtPinchStart * scale;
       lineHeight = Math.min(LINE_HEIGHT_MAX, Math.max(LINE_HEIGHT_MIN, +next.toFixed(2)));
       applyLineHeight();
@@ -243,23 +344,27 @@ export async function renderSongView(container, { id, returnTo }) {
   container.querySelector('#show-chords-input').addEventListener('change', (event) => {
     setShowChords(event.target.checked);
     lyricsContainer.classList.toggle('hide-chords', !event.target.checked);
+    fitToScreen();
   });
 
   container.querySelector('#chord-notation-input').addEventListener('change', (event) => {
     notation = event.target.checked ? 'solfege' : 'symbol';
     setChordNotation(notation);
     renderLyrics();
+    fitToScreen();
   });
 
   container.querySelector('#transpose-up').addEventListener('click', () => {
     semitones += 1;
     transposeValueEl.textContent = semitones;
     renderLyrics();
+    fitToScreen();
   });
   container.querySelector('#transpose-down').addEventListener('click', () => {
     semitones -= 1;
     transposeValueEl.textContent = semitones;
     renderLyrics();
+    fitToScreen();
   });
 
   container.querySelectorAll('input[name="instrument"]').forEach((radio) => {
@@ -488,6 +593,12 @@ export async function renderSongView(container, { id, returnTo }) {
   // Ocultar/mostrar el panel de controles: con el panel oculto la letra usa
   // todo el ancho de la pantalla.
   const sidebarEl = container.querySelector('#song-sidebar');
+  // En el celular el panel va arriba de la letra y se come casi la mitad de
+  // la pantalla: con "Ajustar a la pantalla" arranca oculto (el ☰ lo muestra)
+  // para que la canción entera tenga lugar.
+  if (ajustar && window.matchMedia('(max-width: 720px)').matches) {
+    sidebarEl.classList.add('collapsed');
+  }
   container.querySelector('#sidebar-toggle').addEventListener('click', () => {
     sidebarEl.classList.toggle('collapsed');
   });
