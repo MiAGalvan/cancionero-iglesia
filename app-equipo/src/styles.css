@@ -687,7 +687,8 @@ a {
 }
 
 /* --- Vista de canción --- */
-/* Fila principal debajo del topbar: panel de controles + letra. flex:1 para
+/* Fila principal debajo del topbar: la letra (los controles flotan encima,
+   ver .song-dock). flex:1 para
    que ocupe toda la altura que sobra bajo el topbar (ver #app más abajo),
    y min-height:0 para que sus hijos puedan scrollear cada uno por su lado
    en vez de que la fila entera crezca con el contenido (el mismo problema
@@ -699,29 +700,6 @@ a {
   min-height: 0;
 }
 
-.song-sidebar {
-  width: 200px;
-  flex-shrink: 0;
-  overflow-y: auto;
-  min-height: 0;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  background: var(--bg-elevated);
-  border-right: 1px solid var(--border);
-}
-
-.song-sidebar.collapsed {
-  display: none;
-}
-
-/* En pantalla completa (HDMI/celular durante la misa) el panel de
-   controles no necesita ser una columna fija de 200px — molesta más de lo
-   que ayuda, sobre todo en el celular. Pasa a ser una barrita horizontal
-   pegada arriba de todo (se acomoda en más de una línea sola si no entra
-   todo en una), y la letra empieza más abajo para que la barra nunca la
-   tape. */
 :fullscreen .song-layout {
   position: relative;
 }
@@ -737,85 +715,10 @@ a {
   padding-bottom: 0;
 }
 
-:fullscreen .song-sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 20;
-  width: auto;
-  max-height: none;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  row-gap: 4px;
-  column-gap: 14px;
-  padding: 6px 12px;
-  font-size: 0.8rem;
-  border-radius: 0 0 14px 14px;
-  border: 1px solid var(--border);
-  border-top: none;
-  background: var(--bg-elevated);
-  opacity: 0.94;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-}
-
-:fullscreen .sidebar-group {
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Los títulos de sección ("TRANSPORTE", "ACORDES"...) no hacen falta acá:
-   son autoexplicativos en una barra chica y solo suman ancho. */
-:fullscreen .sidebar-group h3 {
-  display: none;
-}
-
-:fullscreen .song-updated-by-group {
-  display: none;
-}
-
-:fullscreen .song-sidebar .btn,
-:fullscreen .song-sidebar .btn-icon {
-  padding: 3px 8px;
-  font-size: 0.78rem;
-}
-
-:fullscreen .instrument-controls {
-  flex-direction: row;
-  gap: 10px;
-}
-
-:fullscreen .scroll-controls {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-}
-
-/* El play/pausa es el botón que más se toca durante la misa: en pantalla
-   completa lo agrandamos aparte del resto de la barra (que se achica arriba)
-   para que sea fácil de acertar con el pulgar en un celular. */
-:fullscreen #scroll-toggle {
-  padding: 10px 18px;
-  font-size: 1.3rem;
-}
-
-:fullscreen .lyrics-container {
-  padding-top: 64px;
-}
-
 .sidebar-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.song-updated-by {
-  margin: 6px 0 0;
-  font-size: 0.9rem;
-  word-break: break-all;
 }
 
 .sidebar-group h3 {
@@ -838,12 +741,6 @@ a {
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
-}
-
-.scroll-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 .scroll-speed-row {
@@ -901,41 +798,6 @@ a {
    pueda llevar la última línea hasta arriba. */
 .lyrics-container.fit-pantalla {
   padding-bottom: 16px;
-}
-
-.fit-status {
-  margin: 6px 0 0;
-  font-size: 0.8rem;
-  color: var(--text-dim);
-}
-
-/* Botón flotante de play/pausa del scroll: sigue visible aunque se oculte
-   el panel lateral o se esté en pantalla completa. */
-.floating-scroll-btn {
-  position: fixed;
-  right: 22px;
-  bottom: 22px;
-  z-index: 40;
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  padding: 0;
-  font-size: 2rem;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
-  opacity: 0.9;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.floating-scroll-btn.running {
-  background: var(--accent);
-  color: var(--bg);
-  border-color: var(--accent);
 }
 
 .floating-speed-hint {
@@ -2037,20 +1899,6 @@ a {
     font-size: 1.15rem;
   }
 
-  /* El panel de controles de la canción (transporte, scroll, instrumento)
-     pasa a ir arriba de la letra en vez de al costado — ya se puede ocultar
-     del todo con el botón ☰ si tapa mucho. */
-  .song-layout {
-    flex-direction: column;
-  }
-
-  .song-sidebar {
-    width: 100%;
-    max-height: 38vh;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-
   .lyrics-container {
     font-size: 1.5rem;
     padding: 16px 14px 30vh;
@@ -2088,24 +1936,6 @@ a {
      ni de ninguna lista. */
   #app {
     padding-bottom: 60px;
-  }
-
-  /* El botón flotante del scroll se sube para no quedar tapado por la barra
-     inferior (en pantalla completa la barra no está, ver más abajo). */
-  .floating-scroll-btn {
-    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-  }
-
-  .floating-speed-hint {
-    bottom: calc(152px + env(safe-area-inset-bottom, 0px));
-  }
-
-  :fullscreen .floating-scroll-btn {
-    bottom: 22px;
-  }
-
-  :fullscreen .floating-speed-hint {
-    bottom: 102px;
   }
 
   .bottom-nav {
@@ -2508,4 +2338,353 @@ a {
 
 #hora-tabs {
   margin: 10px 0 14px;
+}
+
+/* --- Visor de canción: barra flotante + hoja "Más opciones" (songView.js) ---
+   Los controles de todos los días (ajustar, tamaño, tono, play) flotan en el
+   borde derecho, a la altura del pulgar; lo que casi no se toca va en la hoja
+   que sube desde abajo. Pensado para celular y tablet. */
+.song-layout {
+  position: relative;
+}
+
+/* La letra deja libre el costado de la barra para que no la tape. */
+.song-layout:not(.dock-hidden) .lyrics-container {
+  padding-right: 74px;
+}
+
+.song-dock {
+  position: fixed;
+  right: 8px;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--bg-elevated);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+:fullscreen .song-dock {
+  bottom: 22px;
+}
+
+.dock-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  border-radius: 24px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dock-btn span {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+}
+
+.dock-btn:active {
+  background: var(--border);
+}
+
+.dock-btn.on {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.dock-btn.on span {
+  color: var(--accent-contrast);
+}
+
+.dock-text {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.dock-badge {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dock-dots {
+  font-size: 1.5rem;
+  line-height: 0.7;
+  color: var(--text);
+}
+
+/* Play/pausa del scroll automático: el botón principal, en el color de la
+   app. Mantiene el arrastre arriba/abajo para cambiar la velocidad. */
+.dock-play {
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 1.5rem;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.dock-play:active {
+  background: var(--accent);
+  filter: brightness(0.9);
+}
+
+.dock-play.running {
+  box-shadow: 0 0 0 3px var(--bg-elevated), 0 0 0 5px var(--accent);
+}
+
+/* Con la barra escondida (un toque en la letra) quedan solo "Play" y "Más". */
+.song-layout.dock-hidden .dock-btn:not(.dock-play):not(#more-btn) {
+  display: none;
+}
+
+.song-layout.dock-hidden .dock-tone {
+  display: none;
+}
+
+.dock-tone {
+  position: relative;
+}
+
+.tone-chip {
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--bg-elevated);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+
+.tone-chip[hidden],
+.song-sheet[hidden],
+.song-sheet-backdrop[hidden],
+.dock-note[hidden] {
+  display: none;
+}
+
+.tone-chip .transpose-value {
+  min-width: 2.2em;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+/* Aviso corto (ej. "Canción larga: se ve con scroll"), junto a la barra. */
+.dock-note {
+  position: fixed;
+  right: 70px;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  z-index: 35;
+  max-width: 60vw;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 0.85rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+:fullscreen .dock-note {
+  bottom: 30px;
+}
+
+.floating-speed-hint {
+  right: 70px;
+  bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+}
+
+:fullscreen .floating-speed-hint {
+  bottom: 100px;
+}
+
+.song-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.song-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 51;
+  display: flex;
+  flex-direction: column;
+  max-height: 78vh;
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.45);
+}
+
+.song-sheet-grab {
+  align-self: center;
+  width: 38px;
+  height: 4px;
+  margin-bottom: 6px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.song-sheet-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.song-sheet-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.song-sheet-body {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.sheet-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 1rem;
+}
+
+.sheet-row > input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.sheet-row .instrument-controls {
+  flex-direction: row;
+  gap: 14px;
+}
+
+.sheet-row-block {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.sheet-updated-by {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
+/* Tablet y pantallas grandes: botones más grandes y la hoja pasa a ser un
+   panel anclado a la derecha en vez de ocupar todo el ancho. */
+@media (min-width: 721px) {
+  .song-dock {
+    right: 14px;
+    bottom: 24px;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .dock-btn {
+    width: 58px;
+    height: 58px;
+    border-radius: 29px;
+  }
+
+  .dock-play {
+    width: 62px;
+    height: 62px;
+    border-radius: 31px;
+  }
+
+  .dock-btn span {
+    font-size: 0.68rem;
+  }
+
+  .song-layout:not(.dock-hidden) .lyrics-container {
+    padding-right: 90px;
+  }
+
+  .dock-note {
+    right: 90px;
+    bottom: 30px;
+  }
+
+  .floating-speed-hint {
+    right: 90px;
+    bottom: 160px;
+  }
+
+  .song-sheet {
+    left: auto;
+    right: 14px;
+    bottom: 14px;
+    width: 380px;
+    border-bottom: 1px solid var(--border);
+    border-radius: 18px;
+  }
+}
+
+/* Celular acostado (poca altura): botones más chicos y sin rótulos para que
+   la barra entre entera en la pantalla. */
+@media (max-height: 520px) {
+  .song-dock {
+    gap: 2px;
+    padding: 3px;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .dock-btn,
+  .dock-play {
+    width: 38px;
+    height: 38px;
+    border-radius: 19px;
+  }
+
+  .dock-btn span {
+    display: none;
+  }
+
+  .song-layout:not(.dock-hidden) .lyrics-container {
+    padding-right: 56px;
+  }
 }

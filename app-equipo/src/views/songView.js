@@ -72,7 +72,6 @@ export async function renderSongView(container, { id, returnTo }) {
             ? `<button class="btn" id="update-published-btn">🔄 Actualizar en la lista publicada</button>`
             : ''
         }
-        <button class="btn btn-icon" id="sidebar-toggle" title="Mostrar/ocultar controles">☰</button>
         <button class="btn btn-icon" id="fullscreen-toggle" title="Pantalla completa">⛶</button>
         ${
           !puedeEditar
@@ -82,95 +81,103 @@ export async function renderSongView(container, { id, returnTo }) {
         }
       </div>
     </div>
-    <div class="song-layout">
-      <aside class="song-sidebar" id="song-sidebar">
-        ${
-          song.updatedBy
-            ? `<div class="sidebar-group song-updated-by-group">
-                <h3>Última edición</h3>
-                <p class="song-updated-by">${escapeHtml(song.updatedBy)}</p>
-              </div>`
-            : ''
-        }
-        <div class="sidebar-group">
-          <h3>Transporte</h3>
-          <div class="transpose-controls">
-            <button class="btn btn-icon" id="transpose-down">−</button>
-            <span class="transpose-value" id="transpose-value">0</span>
-            <button class="btn btn-icon" id="transpose-up">+</button>
-          </div>
-        </div>
-        <div class="sidebar-group">
-          <h3>Tamaño de letra</h3>
-          <div class="fontsize-controls">
-            <button class="btn btn-icon" id="fontsize-down">A−</button>
-            <button class="btn btn-icon" id="fontsize-up">A+</button>
-          </div>
-          <label class="shared-field">
-            <input type="checkbox" id="fit-screen-input" ${getAjustarPantalla() ? 'checked' : ''} />
-            Ajustar a la pantalla
-          </label>
-          <p class="fit-status" id="fit-status" hidden></p>
-        </div>
-        <div class="sidebar-group">
-          <h3>Interlineado</h3>
-          <div class="fontsize-controls">
-            <button class="btn btn-icon" id="lineheight-down">≡−</button>
-            <button class="btn btn-icon" id="lineheight-up">≡+</button>
-          </div>
-        </div>
-        <div class="sidebar-group">
-          <h3>Acordes</h3>
-          <label class="shared-field">
-            <input type="checkbox" id="show-chords-input" ${getShowChords() ? 'checked' : ''} />
-            Acordes
-          </label>
-          <label class="shared-field">
-            <input type="checkbox" id="chord-notation-input" ${getChordNotation() === 'solfege' ? 'checked' : ''} />
-            Cifrado europeo (Do, Re, Mi...)
-          </label>
-        </div>
-        <div class="sidebar-group">
-          <h3>Instrumento</h3>
-          <div class="instrument-controls">
-            <label><input type="radio" name="instrument" value="guitar" checked /> Guitarra</label>
-            <label><input type="radio" name="instrument" value="piano" /> Piano</label>
-          </div>
-        </div>
-        <div class="sidebar-group">
-          <h3>Scroll automático</h3>
-          <div class="scroll-controls">
-            <div class="scroll-buttons">
-              <button class="btn btn-icon btn-scroll-toggle" id="scroll-toggle">▶</button>
-              <button class="btn" id="scroll-reset">Inicio</button>
-            </div>
-            <div class="scroll-speed-row fontsize-controls">
-              <button class="btn btn-icon" id="speed-down">−</button>
-              <span class="speed-value" id="speed-value">15</span>
-              <button class="btn btn-icon" id="speed-up">+</button>
-            </div>
-          </div>
-        </div>
-        ${
-          !puedeEditar
-            ? ''
-            : `<div class="sidebar-group">
-                <h3>Grabación</h3>
-                <div class="recording-controls">
-                  <button class="btn" id="record-toggle">🎙️ Grabar</button>
-                  <p class="recording-status" id="recording-status" hidden></p>
-                  <audio class="recording-player" id="recording-player" controls hidden></audio>
-                </div>
-              </div>`
-        }
-      </aside>
+    <div class="song-layout" id="song-layout">
       <div class="lyrics-container" id="lyrics-container"></div>
       <span class="floating-speed-hint" id="floating-speed-hint" hidden></span>
-      <button
-        class="btn floating-scroll-btn"
-        id="floating-scroll-toggle"
-        title="Tocar: play/pausa. Arrastrar arriba/abajo: velocidad"
-      >▶</button>
+      <p class="dock-note" id="fit-status" hidden></p>
+      <div class="song-dock" id="song-dock">
+        <button type="button" class="dock-btn" id="fit-btn" aria-pressed="false" aria-label="Ajustar a la pantalla" title="Ajustar a la pantalla">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          <span>Ajustar</span>
+        </button>
+        <button type="button" class="dock-btn dock-text" id="fontsize-up" aria-label="Letra más grande" title="Letra más grande">A+</button>
+        <button type="button" class="dock-btn dock-text" id="fontsize-down" aria-label="Letra más chica" title="Letra más chica">A−</button>
+        <div class="dock-tone">
+          <button type="button" class="dock-btn" id="tone-btn" aria-label="Cambiar el tono" title="Cambiar el tono">
+            <b class="dock-badge" id="tone-badge">0</b>
+            <span>Tono</span>
+          </button>
+          <div class="tone-chip" id="tone-chip" hidden>
+            <button type="button" class="btn btn-icon" id="transpose-down" aria-label="Bajar un semitono">−</button>
+            <span class="transpose-value" id="transpose-value">0</span>
+            <button type="button" class="btn btn-icon" id="transpose-up" aria-label="Subir un semitono">+</button>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="dock-btn dock-play"
+          id="floating-scroll-toggle"
+          title="Tocar: play/pausa. Arrastrar arriba/abajo: velocidad"
+        >▶</button>
+        <button type="button" class="dock-btn" id="more-btn" aria-label="Más opciones" title="Más opciones">
+          <span class="dock-dots" aria-hidden="true">⋯</span>
+          <span>Más</span>
+        </button>
+      </div>
+      <div class="song-sheet-backdrop" id="sheet-backdrop" hidden></div>
+      <div class="song-sheet" id="song-sheet" role="dialog" aria-label="Más opciones" hidden>
+        <div class="song-sheet-grab"></div>
+        <div class="song-sheet-header">
+          <h3>Más opciones</h3>
+          <button type="button" class="btn btn-icon" id="sheet-close" aria-label="Cerrar">✕</button>
+        </div>
+        <div class="song-sheet-body">
+          <label class="sheet-row">
+            <span>Mostrar acordes</span>
+            <input type="checkbox" id="show-chords-input" ${getShowChords() ? 'checked' : ''} />
+          </label>
+          <label class="sheet-row">
+            <span>Cifrado europeo (Do, Re, Mi...)</span>
+            <input type="checkbox" id="chord-notation-input" ${getChordNotation() === 'solfege' ? 'checked' : ''} />
+          </label>
+          <div class="sheet-row">
+            <span>Instrumento</span>
+            <div class="instrument-controls">
+              <label><input type="radio" name="instrument" value="guitar" checked /> Guitarra</label>
+              <label><input type="radio" name="instrument" value="piano" /> Piano</label>
+            </div>
+          </div>
+          <div class="sheet-row">
+            <span>Interlineado</span>
+            <div class="fontsize-controls">
+              <button type="button" class="btn btn-icon" id="lineheight-down">≡−</button>
+              <button type="button" class="btn btn-icon" id="lineheight-up">≡+</button>
+            </div>
+          </div>
+          <div class="sheet-row">
+            <span>Scroll automático</span>
+            <div class="scroll-buttons">
+              <button type="button" class="btn btn-icon btn-scroll-toggle" id="scroll-toggle">▶</button>
+              <button type="button" class="btn" id="scroll-reset">Inicio</button>
+            </div>
+          </div>
+          <div class="sheet-row">
+            <span>Velocidad del scroll</span>
+            <div class="scroll-speed-row fontsize-controls">
+              <button type="button" class="btn btn-icon" id="speed-down">−</button>
+              <span class="speed-value" id="speed-value">15</span>
+              <button type="button" class="btn btn-icon" id="speed-up">+</button>
+            </div>
+          </div>
+          ${
+            !puedeEditar
+              ? ''
+              : `<div class="sheet-row sheet-row-block">
+                  <span>Grabación</span>
+                  <div class="recording-controls">
+                    <button type="button" class="btn" id="record-toggle">🎙️ Grabar</button>
+                    <p class="recording-status" id="recording-status" hidden></p>
+                    <audio class="recording-player" id="recording-player" controls hidden></audio>
+                  </div>
+                </div>`
+          }
+          ${
+            song.updatedBy
+              ? `<p class="sheet-updated-by">Última edición: ${escapeHtml(song.updatedBy)}</p>`
+              : ''
+          }
+        </div>
+      </div>
     </div>
   `;
 
@@ -192,8 +199,14 @@ export async function renderSongView(container, { id, returnTo }) {
   const lyricsContainer = container.querySelector('#lyrics-container');
   const transposeValueEl = container.querySelector('#transpose-value');
 
+  const toneBadgeEl = container.querySelector('#tone-badge');
+  const toneBtn = container.querySelector('#tone-btn');
   function renderLyrics() {
     lyricsContainer.innerHTML = renderSong(baseSong, semitones, notation);
+    // El boton de tono muestra cuanto se transpuso (+2, -1...) y se marca
+    // cuando hay un cambio, para que se note de un vistazo.
+    toneBadgeEl.textContent = semitones > 0 ? `+${semitones}` : semitones < 0 ? `−${Math.abs(semitones)}` : '0';
+    toneBtn.classList.toggle('on', semitones !== 0);
   }
   renderLyrics();
 
@@ -224,16 +237,31 @@ export async function renderSongView(container, { id, returnTo }) {
   const FIT_FONT_STEP = 0.05;
   const FIT_LINE_HEIGHT = 1.45;
   let ajustar = getAjustarPantalla();
-  const fitInput = container.querySelector('#fit-screen-input');
+  const fitBtn = container.querySelector('#fit-btn');
+  const layoutEl = container.querySelector('#song-layout');
   const fitStatusEl = container.querySelector('#fit-status');
   const floatingScrollEl = container.querySelector('#floating-scroll-toggle');
 
+  // Aviso corto que se apaga solo (no queda tapando la letra).
+  let fitStatusTimer = null;
   function setFitStatus(text) {
+    clearTimeout(fitStatusTimer);
     fitStatusEl.hidden = !text;
     fitStatusEl.textContent = text || '';
+    if (text) {
+      fitStatusTimer = setTimeout(() => {
+        fitStatusEl.hidden = true;
+      }, 3500);
+    }
+  }
+
+  function updateFitBtn() {
+    fitBtn.classList.toggle('on', ajustar);
+    fitBtn.setAttribute('aria-pressed', String(ajustar));
   }
 
   function fitToScreen() {
+    updateFitBtn();
     if (!ajustar) {
       lyricsContainer.classList.remove('fit-pantalla');
       floatingScrollEl.style.display = '';
@@ -272,12 +300,13 @@ export async function renderSongView(container, { id, returnTo }) {
   function turnOffFitForThisSong() {
     if (!ajustar) return;
     ajustar = false;
-    fitInput.checked = false;
     fitToScreen();
   }
 
-  fitInput.addEventListener('change', () => {
-    ajustar = fitInput.checked;
+  // El boton enciende o apaga el ajuste y lo recuerda para las proximas
+  // canciones (A+/A- lo apagan solo para la cancion que se esta viendo).
+  fitBtn.addEventListener('click', () => {
+    ajustar = !ajustar;
     setAjustarPantalla(ajustar);
     if (!ajustar) {
       fontSize = 1.9;
@@ -590,18 +619,27 @@ export async function renderSongView(container, { id, returnTo }) {
     });
   }
 
-  // Ocultar/mostrar el panel de controles: con el panel oculto la letra usa
-  // todo el ancho de la pantalla.
-  const sidebarEl = container.querySelector('#song-sidebar');
-  // En el celular el panel va arriba de la letra y se come casi la mitad de
-  // la pantalla: con "Ajustar a la pantalla" arranca oculto (el ☰ lo muestra)
-  // para que la canción entera tenga lugar.
-  if (ajustar && window.matchMedia('(max-width: 720px)').matches) {
-    sidebarEl.classList.add('collapsed');
-  }
-  container.querySelector('#sidebar-toggle').addEventListener('click', () => {
-    sidebarEl.classList.toggle('collapsed');
+  // Barra flotante (a un costado, al alcance del pulgar) y hoja "Más
+  // opciones". El tono abre un selector chico al lado de la barra; lo que casi
+  // no se toca (acordes, instrumento, interlineado, grabar...) vive en la hoja.
+  const toneChipEl = container.querySelector('#tone-chip');
+  const sheetEl = container.querySelector('#song-sheet');
+  const sheetBackdropEl = container.querySelector('#sheet-backdrop');
+  const closeToneChip = () => {
+    toneChipEl.hidden = true;
+  };
+  toneBtn.addEventListener('click', () => {
+    toneChipEl.hidden = !toneChipEl.hidden;
   });
+  function setSheet(open) {
+    sheetEl.hidden = !open;
+    sheetBackdropEl.hidden = !open;
+    if (open) closeToneChip();
+  }
+  container.querySelector('#more-btn').addEventListener('click', () => setSheet(sheetEl.hidden));
+  container.querySelector('#sheet-close').addEventListener('click', () => setSheet(false));
+  sheetBackdropEl.addEventListener('click', () => setSheet(false));
+  updateFitBtn();
 
   // Pantalla completa real (oculta la barra del navegador en la tablet). En
   // iOS Safari viejo no existe esta API para elementos genéricos: si no está
@@ -623,11 +661,18 @@ export async function renderSongView(container, { id, returnTo }) {
     });
   }
 
-  // Tocar un acorde renderizado abre su diagrama (guitarra o piano).
+  // Tocar un acorde renderizado abre su diagrama (guitarra o piano). Tocar
+  // cualquier otra parte de la letra esconde la barra de botones (queda solo
+  // el play y "Más") para cantar con la canción limpia; otro toque la vuelve.
   lyricsContainer.addEventListener('click', (event) => {
     const chordEl = event.target.closest('.chord');
-    if (!chordEl || !chordEl.textContent.trim()) return;
-    showChordPopover(chordEl.textContent.trim(), () => instrument);
+    if (chordEl && chordEl.textContent.trim()) {
+      showChordPopover(chordEl.textContent.trim(), () => instrument);
+      return;
+    }
+    closeToneChip();
+    layoutEl.classList.toggle('dock-hidden');
+    fitToScreen();
   });
 
   const updatePublishedBtn = container.querySelector('#update-published-btn');
