@@ -9,7 +9,7 @@ import {
   buildEditorLines,
   chordProToEditorLines,
   editorLinesToChordPro,
-  normalizeTypedChord,
+  parseTypedChords,
   preserveChords,
 } from './chordProBuilder.js';
 import { openFullscreenTextEditor } from './fullscreenTextEditor.js';
@@ -137,10 +137,18 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
     const existing = chordRef || line.chords.find((c) => c.index === index);
 
     openChordPopover(anchorEl, { entry: existing }, {
-      onSubmit(newChord) {
-        if (newChord) {
-          if (existing) existing.chord = newChord;
-          else line.chords.push({ index, chord: newChord });
+      // `chords` es la lista de lo tipeado (uno o varios). Todos quedan en
+      // la misma letra, en el orden escrito, y se ven uno al lado del otro:
+      // después se arrastra cada uno a su lugar.
+      onSubmit(chords) {
+        if (chords.length > 0) {
+          if (existing) {
+            existing.chord = chords[0];
+            const pos = line.chords.indexOf(existing) + 1;
+            line.chords.splice(pos, 0, ...chords.slice(1).map((chord) => ({ index: existing.index, chord })));
+          } else {
+            chords.forEach((chord) => line.chords.push({ index, chord }));
+          }
         } else if (existing) {
           line.chords.splice(line.chords.indexOf(existing), 1);
         }
@@ -299,9 +307,8 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
         const chordIndex = Number(el.dataset.chordIndex);
         const line = state.editorLines[lineIndex];
         openChordPopover(el, { entry: { chord: line.chords[chordIndex] } }, {
-          onSubmit(newChord) {
-            if (newChord) line.chords[chordIndex] = newChord;
-            else line.chords.splice(chordIndex, 1);
+          onSubmit(chords) {
+            line.chords.splice(chordIndex, 1, ...chords);
             rerenderPreservingScroll();
             notifyChange();
           },
@@ -314,8 +321,8 @@ export function renderChordEditor(container, { initialChordpro, onChordProChange
         const lineIndex = Number(el.dataset.addInstrumental);
         const line = state.editorLines[lineIndex];
         openChordPopover(el, {}, {
-          onSubmit(newChord) {
-            if (newChord) line.chords.push(newChord);
+          onSubmit(chords) {
+            line.chords.push(...chords);
             rerenderPreservingScroll();
             notifyChange();
           },
@@ -388,6 +395,7 @@ function openChordPopover(anchorEl, { entry }, { onSubmit, onTab }) {
   popover.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 220))}px`;
   popover.innerHTML = `
     <input type="text" id="chord-popover-input" placeholder="Am, E7, Sol..." value="${escapeAttr(currentChord)}" />
+    <p class="chord-popover-tip">Podés escribir varios juntos (Re, La7, Sim) y después arrastrarlos a su lugar.</p>
     <div class="chord-popover-actions">
       ${currentChord ? '<button type="button" class="btn btn-danger" id="chord-popover-remove">Quitar</button>' : ''}
       <button type="button" class="btn btn-accent" id="chord-popover-save">Guardar</button>
@@ -414,9 +422,9 @@ function openChordPopover(anchorEl, { entry }, { onSubmit, onTab }) {
   input.select();
 
   function submit() {
-    const normalized = normalizeTypedChord(input.value);
+    const chords = parseTypedChords(input.value);
     close();
-    onSubmit(normalized);
+    onSubmit(chords);
   }
 
   popover.querySelector('#chord-popover-save').addEventListener('click', submit);
@@ -433,9 +441,9 @@ function openChordPopover(anchorEl, { entry }, { onSubmit, onTab }) {
       // con Shift+Tab) — así se puede cargar toda la canción de corrido
       // sin soltar el teclado ni tocar el mouse.
       event.preventDefault();
-      const normalized = normalizeTypedChord(input.value);
+      const chords = parseTypedChords(input.value);
       close();
-      onSubmit(normalized);
+      onSubmit(chords);
       onTab(event.shiftKey ? -1 : 1);
     }
   });
@@ -444,7 +452,7 @@ function openChordPopover(anchorEl, { entry }, { onSubmit, onTab }) {
   if (removeBtn) {
     removeBtn.addEventListener('click', () => {
       close();
-      onSubmit('');
+      onSubmit([]);
     });
   }
 }

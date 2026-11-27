@@ -1477,6 +1477,13 @@ a {
   margin-bottom: 10px;
 }
 
+.chord-popover-tip {
+  margin: -4px 0 10px;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+
 .chord-popover-actions {
   display: flex;
   justify-content: flex-end;

@@ -6,6 +6,7 @@ import {
   chordProToEditorLines,
   editorLinesToChordPro,
   normalizeTypedChord,
+  parseTypedChords,
   clampChordIndex,
   preserveChords,
 } from './chordProBuilder.js';
@@ -134,6 +135,19 @@ assertEqual(clampChordIndex(-3, 10), 0, 'clampChordIndex no deja ir antes del pr
 assertEqual(clampChordIndex(4, 10), 4, 'clampChordIndex: una posición válida se mantiene');
 assertEqual(clampChordIndex(10, 10), 10, 'clampChordIndex permite el final de la línea');
 assertEqual(clampChordIndex(99, 10), 10, 'clampChordIndex recorta valores grandes al final');
+
+// --- parseTypedChords: varios acordes de una vez ---
+assertEqual(
+  parseTypedChords('Re, La7, Sim, Sol, La7, Re'),
+  ['Re', 'La7', 'Sim', 'Sol', 'La7', 'Re'],
+  'parseTypedChords separa por comas'
+);
+assertEqual(parseTypedChords('Re La7  Sim'), ['Re', 'La7', 'Sim'], 'parseTypedChords separa por espacios');
+assertEqual(parseTypedChords('re;la7 | sim'), ['Re', 'La7', 'Sim'], 'parseTypedChords acepta ; y | y normaliza mayúsculas');
+assertEqual(parseTypedChords('Am'), ['Am'], 'parseTypedChords con uno solo');
+assertEqual(parseTypedChords('Re/Fa#, Sol'), ['Re/Fa#', 'Sol'], 'parseTypedChords no parte el bajo (la barra no separa)');
+assertEqual(parseTypedChords('La 7, Re'), ['La7', 'Re'], 'parseTypedChords pega un número suelto al acorde anterior');
+assertEqual(parseTypedChords('  ,  '), [], 'parseTypedChords vacío = ningún acorde');
 
 // --- normalizeTypedChord ---
 assertEqual(normalizeTypedChord('  Am  '), 'Am', 'normalizeTypedChord recorta espacios');

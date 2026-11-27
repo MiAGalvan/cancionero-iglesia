@@ -203,6 +203,27 @@ export function preserveChords(newLines, oldLines) {
   });
 }
 
+// Lo que se tipeó en el cuadrito de acordes -> lista de acordes ya
+// normalizados. Se puede escribir uno solo ("Am") o varios de una vez
+// ("Re, La7, Sim, Sol, La7, Re"): se separan por coma, punto y coma, barra
+// vertical o espacios. La "/" NO separa, porque es parte del bajo del acorde
+// (Re/Fa#). Si alguien escribe "La 7" con un espacio de más, el "7" suelto
+// se pega al acorde anterior en vez de quedar como un acorde inexistente.
+export function parseTypedChords(raw) {
+  const tokens = String(raw)
+    .split(/[\s,;|]+/)
+    .filter(Boolean);
+  const chords = [];
+  for (const token of tokens) {
+    if (/^\d/.test(token) && chords.length > 0) {
+      chords[chords.length - 1] += token;
+    } else {
+      chords.push(token);
+    }
+  }
+  return chords.map(normalizeTypedChord).filter(Boolean);
+}
+
 // Normaliza lo que tipeó el usuario en el popover de un acorde (espacios,
 // mayúsculas de notas latinas, y la nota en notación anglosajona por si la
 // escribió en minúscula, ej "am" -> "Am") antes de guardarlo. Devuelve ''
@@ -214,7 +235,7 @@ export function normalizeTypedChord(rawChord) {
   if (!trimmed) return '';
   const withUppercaseRoot = trimmed
     .split('/')
-    .map((part) => (/^[a-g]/.test(part) ? part[0].toUpperCase() + part.slice(1) : part))
+    .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : part))
     .join('/');
   return normalizeChordCase(withUppercaseRoot);
 }
