@@ -59,4 +59,13 @@ export function drawGuitarVoicing(container, voicing) {
     bgColor: 'transparent',
   });
   box.draw(voicing);
+
+  // vexchords dibuja con tamaño fijo y sin viewBox: si después se lo achica
+  // con CSS (como en la columna de diagramas al costado de la letra), se
+  // recorta en vez de escalar. Con el viewBox escala completo; en el
+  // popover grande no cambia nada porque conserva su ancho y alto fijos.
+  const svg = target.querySelector('svg');
+  if (svg && !svg.getAttribute('viewBox')) {
+    svg.setAttribute('viewBox', '0 0 160 190');
+  }
 }

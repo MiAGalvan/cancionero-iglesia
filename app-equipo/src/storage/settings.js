@@ -12,6 +12,8 @@ const DEVICE_GROUP_KEY = 'cancionero-iglesia:device-group';
 const SHOW_CHORDS_KEY = 'cancionero-iglesia:show-chords';
 const CHORD_NOTATION_KEY = 'cancionero-iglesia:chord-notation';
 const AJUSTAR_PANTALLA_KEY = 'cancionero-iglesia:ajustar-pantalla';
+const MOSTRAR_DIAGRAMAS_KEY = 'cancionero-iglesia:mostrar-diagramas';
+const INSTRUMENT_KEY = 'cancionero-iglesia:instrument';
 const CUSTOM_TAGS_KEY = 'cancionero-iglesia:custom-tags';
 const MIEMBROS_KEY = 'cancionero-iglesia:miembros';
 const HEADER_TITLE_KEY = 'cancionero-iglesia:header-title';
@@ -628,6 +630,28 @@ export function getAjustarPantalla() {
 
 export function setAjustarPantalla(activo) {
   localStorage.setItem(AJUSTAR_PANTALLA_KEY, activo ? 'true' : 'false');
+}
+
+// Preferencia personal de este dispositivo: mostrar al costado de la letra los
+// diagramas (guitarra o piano) de los acordes de la canción, en orden de
+// aparición. Por defecto apagado: la letra ocupa todo el ancho, como siempre.
+export function getMostrarDiagramas() {
+  return localStorage.getItem(MOSTRAR_DIAGRAMAS_KEY) === 'true';
+}
+
+export function setMostrarDiagramas(activo) {
+  localStorage.setItem(MOSTRAR_DIAGRAMAS_KEY, activo ? 'true' : 'false');
+}
+
+// Preferencia personal de este dispositivo: instrumento para los diagramas de
+// acordes ("guitar" | "piano"). Se recuerda para no tener que cambiarlo en
+// cada canción.
+export function getInstrument() {
+  return localStorage.getItem(INSTRUMENT_KEY) === 'piano' ? 'piano' : 'guitar';
+}
+
+export function setInstrument(instrument) {
+  localStorage.setItem(INSTRUMENT_KEY, instrument === 'piano' ? 'piano' : 'guitar');
 }
 
 // Preferencia personal de este dispositivo: en qué cifrado mostrar los

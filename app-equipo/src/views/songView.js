@@ -20,6 +20,10 @@ import {
   getModoLectura,
   getAjustarPantalla,
   setAjustarPantalla,
+  getMostrarDiagramas,
+  setMostrarDiagramas,
+  getInstrument,
+  setInstrument,
 } from '../storage/settings.js';
 import { getSession } from '../storage/auth.js';
 import { createAudioRecorder } from '../recorder/audioRecorder.js';
@@ -82,6 +86,7 @@ export async function renderSongView(container, { id, returnTo }) {
       </div>
     </div>
     <div class="song-layout" id="song-layout">
+      <aside class="chord-strip" id="chord-strip" aria-label="Diagramas de los acordes" hidden></aside>
       <div class="lyrics-container" id="lyrics-container"></div>
       <span class="floating-speed-hint" id="floating-speed-hint" hidden></span>
       <p class="dock-note" id="fit-status" hidden></p>
@@ -130,11 +135,15 @@ export async function renderSongView(container, { id, returnTo }) {
             <span>Cifrado europeo (Do, Re, Mi...)</span>
             <input type="checkbox" id="chord-notation-input" ${getChordNotation() === 'solfege' ? 'checked' : ''} />
           </label>
+          <label class="sheet-row">
+            <span>Diagramas de acordes al costado</span>
+            <input type="checkbox" id="show-diagrams-input" ${getMostrarDiagramas() ? 'checked' : ''} />
+          </label>
           <div class="sheet-row">
             <span>Instrumento</span>
             <div class="instrument-controls">
-              <label><input type="radio" name="instrument" value="guitar" checked /> Guitarra</label>
-              <label><input type="radio" name="instrument" value="piano" /> Piano</label>
+              <label><input type="radio" name="instrument" value="guitar" ${getInstrument() === 'guitar' ? 'checked' : ''} /> Guitarra</label>
+              <label><input type="radio" name="instrument" value="piano" ${getInstrument() === 'piano' ? 'checked' : ''} /> Piano</label>
             </div>
           </div>
           <div class="sheet-row">
@@ -183,7 +192,8 @@ export async function renderSongView(container, { id, returnTo }) {
 
   const baseSong = parseChordPro(song.chordpro);
   let semitones = 0;
-  let instrument = 'guitar';
+  let instrument = getInstrument();
+  let mostrarDiagramas = getMostrarDiagramas();
   let fontSize = 1.9; // rem — mismo valor que el default de .lyrics-container en styles.css
   const FONT_STEP = 0.2;
   const FONT_MIN = 1.2;
@@ -201,8 +211,50 @@ export async function renderSongView(container, { id, returnTo }) {
 
   const toneBadgeEl = container.querySelector('#tone-badge');
   const toneBtn = container.querySelector('#tone-btn');
+  const stripEl = container.querySelector('#chord-strip');
+  const layoutEl = container.querySelector('#song-layout');
+
+  // Panel de diagramas al costado de la letra: los acordes DISTINTOS de la
+  // canción, en el orden en que aparecen, dibujados para el instrumento
+  // elegido. Se arma leyendo los acordes ya renderizados, así acompaña solo
+  // el tono transpuesto y el cifrado (Do/C) que se esté viendo. Tocar uno
+  // abre el diagrama grande (con todas las posiciones en guitarra).
+  function renderChordStrip() {
+    stripEl.innerHTML = '';
+    const names = [];
+    lyricsContainer.querySelectorAll('.chord').forEach((el) => {
+      const name = el.textContent.trim();
+      if (name && !names.includes(name)) names.push(name);
+    });
+    const visible = mostrarDiagramas && names.length > 0;
+    stripEl.hidden = !visible;
+    layoutEl.classList.toggle('con-diagramas', visible);
+    stripEl.dataset.instrument = instrument;
+    if (!visible) return;
+    for (const name of names) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'chord-strip-item';
+      item.innerHTML = `<span class="chord-strip-name">${escapeHtml(name)}</span><div class="chord-strip-diagram"></div>`;
+      // Primero se agrega a la página y recién después se dibuja: la librería
+      // de guitarra busca su contenedor en el documento y falla si todavía no
+      // está ahí.
+      stripEl.appendChild(item);
+      const slot = item.querySelector('.chord-strip-diagram');
+      if (instrument === 'piano') {
+        renderPianoDiagram(slot, name);
+      } else {
+        const voicings = getGuitarVoicings(name);
+        if (voicings.length > 0) drawGuitarVoicing(slot, voicings[0]);
+        else slot.textContent = 'Sin diagrama';
+      }
+      item.addEventListener('click', () => showChordPopover(name, () => instrument));
+    }
+  }
+
   function renderLyrics() {
     lyricsContainer.innerHTML = renderSong(baseSong, semitones, notation);
+    renderChordStrip();
     // El boton de tono muestra cuanto se transpuso (+2, -1...) y se marca
     // cuando hay un cambio, para que se note de un vistazo.
     toneBadgeEl.textContent = semitones > 0 ? `+${semitones}` : semitones < 0 ? `−${Math.abs(semitones)}` : '0';
@@ -238,7 +290,6 @@ export async function renderSongView(container, { id, returnTo }) {
   const FIT_LINE_HEIGHT = 1.45;
   let ajustar = getAjustarPantalla();
   const fitBtn = container.querySelector('#fit-btn');
-  const layoutEl = container.querySelector('#song-layout');
   const fitStatusEl = container.querySelector('#fit-status');
   const floatingScrollEl = container.querySelector('#floating-scroll-toggle');
 
@@ -399,7 +450,16 @@ export async function renderSongView(container, { id, returnTo }) {
   container.querySelectorAll('input[name="instrument"]').forEach((radio) => {
     radio.addEventListener('change', (event) => {
       instrument = event.target.value;
+      setInstrument(instrument);
+      renderChordStrip();
     });
+  });
+
+  container.querySelector('#show-diagrams-input').addEventListener('change', (event) => {
+    mostrarDiagramas = event.target.checked;
+    setMostrarDiagramas(mostrarDiagramas);
+    renderChordStrip();
+    fitToScreen();
   });
 
   // Autoscroll. 15px/s de arranque (antes eran 40, muy rápido para seguirlo

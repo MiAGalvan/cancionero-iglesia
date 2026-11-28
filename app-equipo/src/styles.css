@@ -2695,3 +2695,113 @@ a {
     padding-right: 56px;
   }
 }
+
+/* --- Diagramas de acordes al costado de la letra (songView.js) ---
+   Columna a la izquierda con los acordes de la canción en orden de aparición.
+   En celular vertical, una columna le comería demasiado ancho a la letra: ahí
+   pasa a ser una tira horizontal arriba que se desliza hacia el costado. */
+.chord-strip {
+  flex: 0 0 112px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 8px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--bg-elevated);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.chord-strip[hidden] {
+  display: none;
+}
+
+.chord-strip-item {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chord-strip-item:active {
+  border-color: var(--accent);
+}
+
+.chord-strip-name {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.chord-strip-diagram {
+  width: 100%;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.chord-strip-diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Guitarra: el diagrama es más alto que ancho, así que se achica un poco. */
+.chord-strip[data-instrument='guitar'] .chord-strip-diagram {
+  width: 78%;
+}
+
+@media (min-width: 721px) {
+  .chord-strip {
+    flex-basis: 132px;
+    gap: 10px;
+    padding: 14px 10px;
+  }
+}
+
+/* Celular vertical: tira horizontal arriba de la letra. */
+@media (max-width: 720px) and (orientation: portrait) {
+  .song-layout.con-diagramas {
+    flex-direction: column;
+  }
+
+  .chord-strip {
+    flex: 0 0 auto;
+    flex-direction: row;
+    gap: 6px;
+    padding: 6px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .chord-strip-item {
+    width: 96px;
+    padding: 4px;
+    gap: 3px;
+  }
+
+  .chord-strip[data-instrument='guitar'] .chord-strip-item {
+    width: 66px;
+  }
+
+  .chord-strip[data-instrument='guitar'] .chord-strip-diagram {
+    width: 100%;
+  }
+
+  .chord-strip-name {
+    font-size: 0.9rem;
+  }
+}
